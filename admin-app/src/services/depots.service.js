@@ -1,11 +1,18 @@
-import { collection, doc, onSnapshot, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "./firebase";
+import { supabase } from "./supabase";
 
-export function listenDepots(cb, onError) {
-  const q = query(collection(db, "depots"), orderBy("name", "asc"));
-  return onSnapshot(q, (snap) => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))), onError);
+export async function listDepots() {
+  const { data, error } = await supabase.from("depots").select("*").order("name", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function upsertDepot(id, data) {
-  await setDoc(doc(db, "depots", id), { ...data, updatedAt: serverTimestamp(), createdAt: serverTimestamp() }, { merge: true });
+  const payload = {
+    id,
+    name: data?.name ?? "",
+    photoURL: (data?.photoURL ?? "").trim() || null,
+  };
+
+  const { error } = await supabase.from("depots").upsert(payload, { onConflict: "id" });
+  if (error) throw error;
 }

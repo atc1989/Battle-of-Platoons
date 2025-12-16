@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { listenAgents, upsertAgent } from "../services/agents.service";
-import { listenDepots, upsertDepot } from "../services/depots.service";
-import { listenCompanies, upsertCompany } from "../services/companies.service";
-import { listenPlatoons, upsertPlatoon } from "../services/platoons.service";
+import { listAgents, upsertAgent } from "../services/agents.service";
+import { listDepots, upsertDepot } from "../services/depots.service";
+import { listCompanies, upsertCompany } from "../services/companies.service";
+import { listPlatoons, upsertPlatoon } from "../services/platoons.service";
 
 function slugId(input = "") {
   return input.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -45,13 +45,48 @@ export default function Participants() {
     name: "",
   });
 
-  // --- listen to collections
+  async function fetchAgents() {
+    try {
+      const rows = await listAgents();
+      setAgents(rows);
+    } catch (e) {
+      console.error("Failed to load agents", e);
+    }
+  }
+
+  async function fetchDepots() {
+    try {
+      const rows = await listDepots();
+      setDepots(rows);
+    } catch (e) {
+      console.error("Failed to load depots", e);
+    }
+  }
+
+  async function fetchCompanies() {
+    try {
+      const rows = await listCompanies();
+      setCompanies(rows);
+    } catch (e) {
+      console.error("Failed to load companies", e);
+    }
+  }
+
+  async function fetchPlatoons() {
+    try {
+      const rows = await listPlatoons();
+      setPlatoons(rows);
+    } catch (e) {
+      console.error("Failed to load platoons", e);
+    }
+  }
+
+  // --- load collections
   useEffect(() => {
-    const u1 = listenAgents(setAgents, console.error);
-    const u2 = listenDepots(setDepots, console.error);
-    const u3 = listenCompanies(setCompanies, console.error);
-    const u4 = listenPlatoons(setPlatoons, console.error);
-    return () => { u1(); u2(); u3(); u4(); };
+    fetchAgents();
+    fetchDepots();
+    fetchCompanies();
+    fetchPlatoons();
   }, []);
 
   const depotById = useMemo(() => Object.fromEntries(depots.map(d => [d.id, d])), [depots]);
@@ -85,13 +120,15 @@ export default function Participants() {
     const id = leaderForm.id || slugId(name);
 
     try {
-      await upsertAgent(id, {
+      await upsertAgent({
+        id,
         name,
         depotId: leaderForm.depotId,
         companyId: leaderForm.companyId,
         platoonId: leaderForm.platoonId,
         photoURL: leaderForm.photoURL.trim(),
       });
+      await fetchAgents();
       ok(leaderForm.id ? "Leader updated." : "Leader added.");
       clearLeader();
     } catch (e2) {
@@ -136,8 +173,14 @@ export default function Participants() {
     const payload = { name, photoURL: (simpleForm.photoURL || "").trim() };
 
     try {
-      if (tab === "depots") await upsertDepot(id, payload);
-      if (tab === "companies") await upsertCompany(id, payload);
+      if (tab === "depots") {
+        await upsertDepot(id, payload);
+        await fetchDepots();
+      }
+      if (tab === "companies") {
+        await upsertCompany(id, payload);
+        await fetchCompanies();
+      }
       ok(simpleForm.id ? "Updated." : "Added.");
       clearSimple();
     } catch (e2) {
@@ -173,6 +216,7 @@ export default function Participants() {
     const id = platoonForm.id || slugId(name);
     try {
       await upsertPlatoon(id, { name });
+      await fetchPlatoons();
       ok(platoonForm.id ? "Platoon updated." : "Platoon added.");
       clearPlatoon();
     } catch (e2) {
