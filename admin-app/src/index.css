@@ -408,3 +408,103 @@ input:focus, select:focus{
   .t-row{ grid-template-columns: 1fr; gap: 6px; }
   .t-right{ text-align:left; }
 }
+
+/* ----- Upload page ----- */
+.upload-actions{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.upload-drop{
+  flex:1;
+  border: 2px dashed #d8dcff;
+  border-radius: 14px;
+  padding: 14px;
+  display:flex;
+  gap: 12px;
+  align-items:center;
+  cursor:pointer;
+}
+
+.upload-drop:hover{ border-color: var(--blue2); }
+
+.upload-icon{ font-size: 26px; }
+.upload-title{ font-weight:800; }
+
+.button{
+  border:none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight:800;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+}
+
+.button.primary{ background: var(--blue); color: #fff; }
+.button.secondary{ background: #f3f4ff; color: var(--blue); }
+.button:disabled{ opacity:.6; cursor:not-allowed; }
+
+.summary-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px,1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.summary-pill{
+  background:#f7f8ff;
+  border:1px solid #e5e7ff;
+  border-radius:12px;
+  padding:10px 12px;
+}
+
+.summary-label{ font-size:12px; color: var(--muted); }
+.summary-value{ font-size:20px; font-weight:800; }
+.summary-value.valid{ color: #1b9a4c; }
+.summary-value.invalid{ color: #d73a49; }
+
+.table-scroll{ overflow-x:auto; }
+.data-table{ width:100%; border-collapse:collapse; }
+.data-table th, .data-table td{ padding:8px 10px; border-bottom:1px solid #f0f2ff; text-align:left; }
+.row-invalid{ background:#fff5f5; }
+
+.status-pill{
+  display:inline-flex;
+  padding:6px 10px;
+  border-radius: 999px;
+  font-size:12px;
+  font-weight:800;
+}
+.status-pill.valid{ background:#e7f7ed; color:#1b9a4c; }
+.status-pill.invalid{ background:#ffe8e8; color:#d73a49; }
+
+.save-bar{
+  margin-top:12px;
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+
+.result-box{
+  margin-top:14px;
+  padding:12px;
+  background:#f7f8ff;
+  border:1px solid #e5e7ff;
+  border-radius:12px;
+}
+
+.error-box{
+  margin-top:12px;
+  padding:12px;
+  border-radius:12px;
+  background:#ffe8e8;
+  color:#8c1d1d;
+  border:1px solid #ffc9c9;
+}
+
+.error-list ul{ margin:6px 0 0; padding-left: 18px; }
