@@ -1,11 +1,18 @@
-import { collection, doc, onSnapshot, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "./firebase";
+import { supabase } from "./supabase";
 
-export function listenPlatoons(cb, onError) {
-  const q = query(collection(db, "platoons"), orderBy("name", "asc"));
-  return onSnapshot(q, (snap) => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))), onError);
+export async function listPlatoons() {
+  const { data, error } = await supabase.from("platoons").select("*").order("name", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function upsertPlatoon(id, data) {
-  await setDoc(doc(db, "platoons", id), { ...data, updatedAt: serverTimestamp(), createdAt: serverTimestamp() }, { merge: true });
+  const payload = {
+    id,
+    name: data?.name ?? "",
+    photoURL: (data?.photoURL ?? "").trim() || null,
+  };
+
+  const { error } = await supabase.from("platoons").upsert(payload, { onConflict: "id" });
+  if (error) throw error;
 }
