@@ -57,13 +57,13 @@ export default function Upload() {
   }
 
   function downloadTemplate() {
-  const a = document.createElement("a");
-  a.href = "/Leaderboard_Template.xlsx";
-  a.download = "Leaderboard_Template.xlsx";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
+    const a = document.createElement("a");
+    a.href = "/Leaderboard_Template.xlsx";
+    a.download = "Leaderboard_Template.xlsx";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
 
   function resetUpload() {
     setFileName("");
@@ -194,9 +194,6 @@ export default function Upload() {
                   <tr key={`${row.displayIndex}-${row.sourceRowIndex}`} className={row.status === "invalid" ? "row-invalid" : ""}>
                     <td>
                       <div>{row.displayIndex}</div>
-                      {row.sourceRowIndex ? (
-                        <div className="muted" style={{ fontSize: 12 }}>(Excel row {row.sourceRowIndex})</div>
-                      ) : null}
                     </td>
                     <td>{row.date_real || "—"}</td>
                     <td>
@@ -215,9 +212,7 @@ export default function Upload() {
                       </span>
                     </td>
                     <td>
-                      {row.errors.length
-                        ? `${row.errors.join("; ")}${row.sourceRowIndex ? ` (Excel row ${row.sourceRowIndex})` : ""}`
-                        : ""}
+                      {row.errors.length ? row.errors.join("; ") : ""}
                     </td>
                   </tr>
                 ))}

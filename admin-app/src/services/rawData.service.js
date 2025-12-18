@@ -1,5 +1,8 @@
 import * as XLSX from "xlsx";
 import { listAgents } from "./agents.service";
+import { listCompanies } from "./companies.service";
+import { listDepots } from "./depots.service";
+import { listPlatoons } from "./platoons.service";
 import { supabase } from "./supabase";
 
 const HEADER_ALIASES = {
@@ -149,6 +152,89 @@ function resolveAgent(agentIdInput, leaderNameInput, lookups, errors) {
   return "";
 }
 
+function normalizeAgentRecord(agent = {}) {
+  return {
+    id: agent.id,
+    name: agent.name ?? "",
+    depotId: agent.depotId ?? agent.depot_id ?? agent.depot ?? "",
+    companyId: agent.companyId ?? agent.company_id ?? agent.company ?? "",
+    platoonId: agent.platoonId ?? agent.platoon_id ?? agent.platoon ?? "",
+  };
+}
+
+async function fetchAgentsByIds(ids = []) {
+  if (!ids.length) return new Map();
+  const { data, error } = await supabase
+    .from("agents")
+    .select("id,name,depotId,depot_id,depot,companyId,company_id,company,platoonId,platoon_id,platoon")
+    .in("id", ids);
+  if (error) throw error;
+
+  const map = new Map();
+  (data ?? []).forEach(agent => {
+    const normalized = normalizeAgentRecord(agent);
+    map.set(normalized.id, normalized);
+  });
+  return map;
+}
+
+async function fetchLookupMaps() {
+  const [depots, companies, platoons] = await Promise.all([
+    listDepots(),
+    listCompanies(),
+    listPlatoons(),
+  ]);
+
+  const depotNames = Object.fromEntries(depots.map(d => [d.id, d.name]));
+  const companyNames = Object.fromEntries(companies.map(c => [c.id, c.name]));
+  const platoonNames = Object.fromEntries(platoons.map(p => [p.id, p.name]));
+
+  return { depotNames, companyNames, platoonNames };
+}
+
+async function enrichRawDataRows(rows = []) {
+  if (!rows.length) return [];
+
+  const agentMap = new Map();
+  rows.forEach(row => {
+    if (row.agents && row.agent_id) {
+      const normalized = normalizeAgentRecord(row.agents);
+      agentMap.set(row.agent_id, normalized);
+    }
+  });
+
+  const missingAgentIds = Array.from(
+    new Set(rows.map(r => r.agent_id).filter(id => id && !agentMap.has(id)))
+  );
+
+  if (missingAgentIds.length) {
+    const fetchedMap = await fetchAgentsByIds(missingAgentIds);
+    fetchedMap.forEach((value, key) => agentMap.set(key, value));
+  }
+
+  const { depotNames, companyNames, platoonNames } = await fetchLookupMaps();
+
+  return rows.map(row => {
+    const agent = agentMap.get(row.agent_id) ?? {};
+    const depotName = depotNames[agent.depotId] ?? "";
+    const companyName = companyNames[agent.companyId] ?? "";
+    const platoonName = platoonNames[agent.platoonId] ?? "";
+
+    return {
+      id: row.id,
+      date_real: row.date_real,
+      agent_id: row.agent_id,
+      leads: row.leads ?? 0,
+      payins: row.payins ?? 0,
+      sales: row.sales ?? 0,
+      leaderName: agent.name ?? "",
+      depotName,
+      companyName,
+      platoonName,
+    };
+  });
+}
+
 export async function parseRawDataWorkbook(file) {
   if (!file) throw new Error("File is required");
 
@@ -254,4 +340,52 @@ export async function saveRawDataRows(validRows, onProgress = () => {}) {
   }
 
   return { upsertedCount, errors };
+}
+
+function applyRawDataFilters(query, { dateFrom, dateTo, agentId, limit = 200 }) {
+  let q = query;
+  if (dateFrom) q = q.gte("date_real", dateFrom);
+  if (dateTo) q = q.lte("date_real", dateTo);
+  if (agentId) q = q.eq("agent_id", agentId);
+  const safeLimit = Number(limit) || 200;
+  q = q.order("date_real", { ascending: false }).limit(safeLimit);
+  return q;
+}
+
+export async function listRawData({ dateFrom, dateTo, agentId, limit = 200 } = {}) {
+  const baseSelect = "id,date_real,agent_id,leads,payins,sales,agents:agent_id (id,name,depotId,companyId,platoonId)";
+
+  try {
+    const { data, error } = await applyRawDataFilters(
+      supabase.from("raw_data").select(baseSelect),
+      { dateFrom, dateTo, agentId, limit }
+    );
+    if (error) throw error;
+    return enrichRawDataRows(data ?? []);
+  } catch (joinError) {
+    const { data, error } = await applyRawDataFilters(
+      supabase.from("raw_data").select("id,date_real,agent_id,leads,payins,sales"),
+      { dateFrom, dateTo, agentId, limit }
+    );
+    if (error) throw error;
+    return enrichRawDataRows(data ?? []);
+  }
+}
+
+export async function updateRawData(id, { leads, payins, sales }) {
+  const { data, error } = await supabase
+    .from("raw_data")
+    .update({ leads, payins, sales })
+    .eq("id", id)
+    .select("id,date_real,agent_id,leads,payins,sales")
+    .single();
+  if (error) throw error;
+
+  const [enriched] = await enrichRawDataRows([data]);
+  return enriched;
+}
+
+export async function deleteRawData(id) {
+  const { error } = await supabase.from("raw_data").delete().eq("id", id);
+  if (error) throw error;
 }
