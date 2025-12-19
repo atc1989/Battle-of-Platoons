@@ -16,6 +16,12 @@ function formatCurrency(value) {
   return num.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 });
 }
 
+function toTimestamp(dateStr) {
+  if (!dateStr) return null;
+  const parsed = new Date(`${dateStr}T00:00:00`).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 const TAB_CONFIG = {
   leaders: {
     key: "leaders",
@@ -72,6 +78,8 @@ const initialFilters = {
   platoons: "",
 };
 
+const LEADERS_TAB_KEY = TAB_CONFIG.leaders.key;
+
 export default function Updates() {
   const [rows, setRows] = useState([]);
   const [agents, setAgents] = useState([]);
@@ -81,8 +89,8 @@ export default function Updates() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
 
-  const [filters, setFilters] = useState(initialFilters);
-  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [filtersInput, setFiltersInput] = useState(initialFilters);
+  const [filtersApplied, setFiltersApplied] = useState(initialFilters);
   const [activeTab, setActiveTab] = useState(TAB_CONFIG.leaders.key);
 
   const [editingId, setEditingId] = useState("");
@@ -120,20 +128,52 @@ export default function Updates() {
 
   const filteredRows = useMemo(() => {
     const config = TAB_CONFIG[activeTab];
-    const activeValue = appliedFilters[activeTab];
+    const activeValue = filtersApplied[activeTab];
 
-    return rows.filter(row => {
-      if (!activeValue) return true;
-      return config.getFilterValue(row, agentMap) === activeValue;
-    });
-  }, [activeTab, agentMap, appliedFilters, rows]);
+    const fromTs = toTimestamp(filtersApplied.dateFrom);
+    const toTs = toTimestamp(filtersApplied.dateTo);
 
-  async function applyFilters(customFilters = filters) {
+    return rows
+      .filter(row => {
+        const rowTs = toTimestamp(row.date_real);
+        if ((fromTs !== null || toTs !== null) && rowTs === null) return false;
+        if (fromTs !== null && rowTs < fromTs) return false;
+        if (toTs !== null && rowTs > toTs) return false;
+        if (!activeValue) return true;
+        return config.getFilterValue(row, agentMap) === activeValue;
+      })
+      .sort((a, b) => {
+        const aDate = toTimestamp(a.date_real) ?? 0;
+        const bDate = toTimestamp(b.date_real) ?? 0;
+        if (aDate === bDate) return (b.id || "").toString().localeCompare((a.id || "").toString());
+        return bDate - aDate;
+      });
+  }, [activeTab, agentMap, filtersApplied, rows]);
+
+  useEffect(() => {
+    if (import.meta?.env?.DEV) {
+      // Debug aid for verifying filtering behavior in development only
+      const dates = rows
+        .map(row => toTimestamp(row.date_real))
+        .filter(value => value !== null)
+        .sort((a, b) => a - b);
+      const minDate = dates.length ? new Date(dates[0]).toISOString().slice(0, 10) : null;
+      const maxDate = dates.length ? new Date(dates[dates.length - 1]).toISOString().slice(0, 10) : null;
+      console.log("APPLIED FILTERS", filtersApplied);
+      console.log("ROWS BEFORE", rows.length, "ROWS AFTER", filteredRows.length);
+      console.log("DATE RANGE IN ROWS", { minDate, maxDate });
+    }
+  }, [filtersApplied, filteredRows.length, rows]);
+
+  async function applyFilters(customFilters = filtersInput) {
+    const normalizedFilters = { ...initialFilters, ...customFilters };
+
+    setFiltersApplied(normalizedFilters);
     setLoading(true);
     setError("");
     setStatus("");
     try {
-      const data = await listRawData({ dateFrom: customFilters.dateFrom, dateTo: customFilters.dateTo });
+      const data = await listRawData({ dateFrom: normalizedFilters.dateFrom, dateTo: normalizedFilters.dateTo });
       setRows(data);
       setAppliedFilters(customFilters);
     } catch (e) {
@@ -145,25 +185,14 @@ export default function Updates() {
   }
 
   async function clearFilters() {
-    setFilters(initialFilters);
+    setFiltersInput(initialFilters);
     setEditingId("");
     setEditValues({ leads: "", payins: "", sales: "" });
-    setLoading(true);
-    setError("");
-    setStatus("");
-    try {
-      const data = await listRawData(initialFilters);
-      setRows(data);
-      setAppliedFilters(initialFilters);
-    } catch (e) {
-      console.error(e);
-      setError(e.message || "Failed to load updates");
-    } finally {
-      setLoading(false);
-    }
+    await applyFilters(initialFilters);
   }
 
   function startEdit(row) {
+    if (activeTab !== LEADERS_TAB_KEY) return;
     setEditingId(row.id);
     setEditValues({
       leads: row.leads ?? "",
@@ -178,6 +207,12 @@ export default function Updates() {
     setEditingId("");
     setEditValues({ leads: "", payins: "", sales: "" });
   }
+
+  useEffect(() => {
+    if (activeTab !== LEADERS_TAB_KEY && editingId) {
+      cancelEdit();
+    }
+  }, [activeTab, editingId]);
 
   function onEditValueChange(field, value) {
     setEditValues(prev => ({ ...prev, [field]: value }));
@@ -209,7 +244,7 @@ export default function Updates() {
   }
 
   async function handleDelete(rowId) {
-    const confirmed = window.confirm("Delete this row? This cannot be undone.");
+    const confirmed = window.confirm("Delete this entry? This cannot be undone.");
     if (!confirmed) return;
 
     setDeletingId(rowId);
@@ -221,7 +256,12 @@ export default function Updates() {
       setStatus("Row deleted.");
     } catch (e) {
       console.error(e);
-      setError(e.message || "Failed to delete row");
+      const message = e?.message || "Failed to delete row";
+      if (message.toLowerCase().includes("rls") || message.toLowerCase().includes("permission")) {
+        setError("Delete blocked by RLS policy. Ensure admin is authenticated and raw_data delete policy allows authenticated.");
+      } else {
+        setError(message);
+      }
     } finally {
       setDeletingId("");
     }
@@ -252,8 +292,8 @@ export default function Updates() {
           <input
             id="dateFrom"
             type="date"
-            value={filters.dateFrom}
-            onChange={e => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+            value={filtersInput.dateFrom}
+            onChange={e => setFiltersInput(prev => ({ ...prev, dateFrom: e.target.value }))}
             className="input"
           />
         </div>
@@ -262,8 +302,8 @@ export default function Updates() {
           <input
             id="dateTo"
             type="date"
-            value={filters.dateTo}
-            onChange={e => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+            value={filtersInput.dateTo}
+            onChange={e => setFiltersInput(prev => ({ ...prev, dateTo: e.target.value }))}
             className="input"
           />
         </div>
@@ -271,8 +311,8 @@ export default function Updates() {
           <label className="input-label" htmlFor="groupingFilter">{TAB_CONFIG[activeTab].filterLabel}</label>
           <select
             id="groupingFilter"
-            value={filters[activeTab]}
-            onChange={e => setFilters(prev => ({ ...prev, [activeTab]: e.target.value }))}
+            value={filtersInput[activeTab]}
+            onChange={e => setFiltersInput(prev => ({ ...prev, [activeTab]: e.target.value }))}
             className="input"
           >
             <option value="">All {TAB_CONFIG[activeTab].label.toLowerCase()}</option>
@@ -315,7 +355,7 @@ export default function Updates() {
           </thead>
           <tbody>
             {filteredRows.map(row => {
-              const isEditing = row.id === editingId;
+              const isEditing = activeTab === LEADERS_TAB_KEY && row.id === editingId;
               return (
                 <tr key={row.id}>
                   <td>{row.date_real}</td>
@@ -373,14 +413,30 @@ export default function Updates() {
                       </div>
                     ) : (
                       <div style={{ display: "flex", gap: 8 }}>
-                        <button className="button secondary" type="button" onClick={() => startEdit(row)} disabled={savingId || deletingId}>
-                          Edit
-                        </button>
+                        {activeTab === LEADERS_TAB_KEY ? (
+                          <button
+                            className="button secondary"
+                            type="button"
+                            onClick={() => startEdit(row)}
+                            disabled={savingId === row.id || deletingId === row.id}
+                          >
+                            Edit
+                          </button>
+                        ) : (
+                          <button
+                            className="button secondary"
+                            type="button"
+                            disabled
+                            title="Edit available only in Leaders tab"
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button
                           className="button secondary"
                           type="button"
                           onClick={() => handleDelete(row.id)}
-                          disabled={deletingId === row.id || savingId || editingId}
+                          disabled={deletingId === row.id || savingId === row.id}
                           style={{ background: "#ffe8e8", color: "#b00020" }}
                         >
                           {deletingId === row.id ? "Deleting…" : "Delete"}
