@@ -233,7 +233,7 @@ export default function Updates() {
     setStatus("");
     try {
       const updated = await updateRawData(rowId, { leads: leadsNum, payins: payinsNum, sales: salesNum });
-      setRows(prev => prev.map(r => (r.id === rowId ? updated : r)));
+      setRows(prev => prev.map(r => (r.id === rowId ? { ...r, ...updated } : r)));
       setStatus("Row updated successfully.");
       cancelEdit();
     } catch (e) {
