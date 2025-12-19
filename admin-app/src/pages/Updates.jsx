@@ -175,6 +175,7 @@ export default function Updates() {
     try {
       const data = await listRawData({ dateFrom: normalizedFilters.dateFrom, dateTo: normalizedFilters.dateTo });
       setRows(data);
+      setAppliedFilters(customFilters);
     } catch (e) {
       console.error(e);
       setError(e.message || "Failed to load updates");
