@@ -227,6 +227,10 @@ async function enrichRawDataRows(rows = []) {
       leads: row.leads ?? 0,
       payins: row.payins ?? 0,
       sales: row.sales ?? 0,
+      voided: Boolean(row.voided),
+      void_reason: row.void_reason ?? null,
+      voided_at: row.voided_at ?? null,
+      voided_by: row.voided_by ?? null,
       leaderName: agent.name ?? "",
       depotName,
       companyName,
@@ -380,21 +384,34 @@ function applyRawDataFilters(query, { dateFrom, dateTo, agentId, limit = 200 }) 
   return q;
 }
 
-export async function listRawData({ dateFrom, dateTo, agentId, limit = 200 } = {}) {
-  const baseSelect = "id,date_real,agent_id,leads,payins,sales,agents:agents(id,name,photoURL,depotId,companyId,platoonId)";
+export async function listRawData({ dateFrom, dateTo, agentId, limit = 200, includeVoided = false } = {}) {
+  const baseSelect =
+    "id,date_real,agent_id,leads,payins,sales,voided,void_reason,voided_at,voided_by,agents:agents(id,name,photoURL,depotId,companyId,platoonId)";
 
   try {
-    const { data, error } = await applyRawDataFilters(
-      supabase.from("raw_data").select(baseSelect),
-      { dateFrom, dateTo, agentId, limit }
-    );
+    let query = supabase.from("raw_data").select(baseSelect);
+    if (!includeVoided) query = query.eq("voided", false);
+
+    const { data, error } = await applyRawDataFilters(query, {
+      dateFrom,
+      dateTo,
+      agentId,
+      limit,
+    });
     if (error) throw error;
     return enrichRawDataRows(data ?? []);
   } catch (joinError) {
-    const { data, error } = await applyRawDataFilters(
-      supabase.from("raw_data").select("id,date_real,agent_id,leads,payins,sales"),
-      { dateFrom, dateTo, agentId, limit }
+    let query = supabase.from("raw_data").select(
+      "id,date_real,agent_id,leads,payins,sales,voided,void_reason,voided_at,voided_by"
     );
+    if (!includeVoided) query = query.eq("voided", false);
+
+    const { data, error } = await applyRawDataFilters(query, {
+      dateFrom,
+      dateTo,
+      agentId,
+      limit,
+    });
     if (error) throw error;
     return enrichRawDataRows(data ?? []);
   }
@@ -405,14 +422,146 @@ export async function updateRawData(id, { leads, payins, sales }) {
     .from("raw_data")
     .update({ leads, payins, sales })
     .eq("id", id)
-    .select("id,date_real,agent_id,leads,payins,sales")
+    .select("id,date_real,agent_id,leads,payins,sales,voided,void_reason,voided_at,voided_by")
     .single();
   if (error) throw error;
 
-  return data;
+  return enrichSingleRow(data);
 }
 
 export async function deleteRawData(id) {
   const { error } = await supabase.from("raw_data").delete().eq("id", id);
   if (error) throw error;
+}
+
+export async function updateRawDataWithAudit(rowId, changes, reason, sessionUser) {
+  if (!reason || !reason.trim()) throw new Error("Reason is required");
+
+  const actorEmail = sessionUser?.email ?? "";
+  const actorId = sessionUser?.id ?? "";
+
+  const { data: before, error: beforeError } = await supabase
+    .from("raw_data")
+    .select("*")
+    .eq("id", rowId)
+    .single();
+  if (beforeError) throw beforeError;
+
+  const updatePayload = {
+    ...changes,
+    updatedAt: { iso: new Date().toISOString(), reason: reason.trim(), actor: actorEmail },
+  };
+
+  const { data: updatedRow, error: updateError } = await supabase
+    .from("raw_data")
+    .update(updatePayload)
+    .eq("id", rowId)
+    .select("*")
+    .single();
+  if (updateError) throw updateError;
+
+  const { error: auditError } = await supabase.from("raw_data_audit").insert({
+    raw_data_id: rowId,
+    action: "edit",
+    reason: reason.trim(),
+    actor_id: actorId,
+    actor_email: actorEmail,
+    before,
+    after: updatedRow,
+  });
+  if (auditError) throw auditError;
+
+  return enrichSingleRow(updatedRow);
+}
+
+export async function voidRawDataWithAudit(rowId, reason, sessionUser) {
+  if (!reason || !reason.trim()) throw new Error("Reason is required");
+
+  const actorEmail = sessionUser?.email ?? "";
+  const actorId = sessionUser?.id ?? "";
+
+  const { data: before, error: beforeError } = await supabase
+    .from("raw_data")
+    .select("*")
+    .eq("id", rowId)
+    .single();
+  if (beforeError) throw beforeError;
+
+  const voidPayload = {
+    voided: true,
+    void_reason: reason.trim(),
+    voided_at: new Date().toISOString(),
+    voided_by: actorEmail,
+    updatedAt: { iso: new Date().toISOString(), reason: reason.trim(), actor: actorEmail },
+  };
+
+  const { data: updatedRow, error: updateError } = await supabase
+    .from("raw_data")
+    .update(voidPayload)
+    .eq("id", rowId)
+    .select("*")
+    .single();
+  if (updateError) throw updateError;
+
+  const { error: auditError } = await supabase.from("raw_data_audit").insert({
+    raw_data_id: rowId,
+    action: "void",
+    reason: reason.trim(),
+    actor_id: actorId,
+    actor_email: actorEmail,
+    before,
+    after: updatedRow,
+  });
+  if (auditError) throw auditError;
+
+  return enrichSingleRow(updatedRow);
+}
+
+export async function unvoidRawDataWithAudit(rowId, reason, sessionUser) {
+  if (!reason || !reason.trim()) throw new Error("Reason is required");
+
+  const actorEmail = sessionUser?.email ?? "";
+  const actorId = sessionUser?.id ?? "";
+
+  const { data: before, error: beforeError } = await supabase
+    .from("raw_data")
+    .select("*")
+    .eq("id", rowId)
+    .single();
+  if (beforeError) throw beforeError;
+
+  const unvoidPayload = {
+    voided: false,
+    void_reason: null,
+    voided_at: null,
+    voided_by: null,
+    updatedAt: { iso: new Date().toISOString(), reason: reason.trim(), actor: actorEmail },
+  };
+
+  const { data: updatedRow, error: updateError } = await supabase
+    .from("raw_data")
+    .update(unvoidPayload)
+    .eq("id", rowId)
+    .select("*")
+    .single();
+  if (updateError) throw updateError;
+
+  const { error: auditError } = await supabase.from("raw_data_audit").insert({
+    raw_data_id: rowId,
+    action: "unvoid",
+    reason: reason.trim(),
+    actor_id: actorId,
+    actor_email: actorEmail,
+    before,
+    after: updatedRow,
+  });
+  if (auditError) throw auditError;
+
+  return enrichSingleRow(updatedRow);
+}
+
+async function enrichSingleRow(row) {
+  if (!row) return row;
+  const enriched = await enrichRawDataRows([row]);
+  return enriched?.[0] ?? row;
 }

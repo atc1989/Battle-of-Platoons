@@ -1,21 +1,27 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { listAgents } from "../services/agents.service";
-import { deleteRawData, listRawData, updateRawData } from "../services/rawData.service";
+import {
+  listRawData,
+  unvoidRawDataWithAudit,
+  updateRawDataWithAudit,
+  voidRawDataWithAudit,
+} from "../services/rawData.service";
+import { supabase } from "../services/supabase";
 
 // ----------------------
 // Formatting helpers
 // ----------------------
 function formatNumber(value) {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") return "N/A";
   const num = Number(value);
-  if (Number.isNaN(num)) return "—";
+  if (Number.isNaN(num)) return "N/A";
   return num.toLocaleString();
 }
 
 function formatCurrency(value) {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") return "N/A";
   const num = Number(value);
-  if (Number.isNaN(num)) return "—";
+  if (Number.isNaN(num)) return "N/A";
   return num.toLocaleString("en-PH", {
     style: "currency",
     currency: "PHP",
@@ -82,7 +88,7 @@ export default function Updates() {
 
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState("");
-  const [deletingId, setDeletingId] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
@@ -90,10 +96,18 @@ export default function Updates() {
   // Two-state filtering: input vs applied
   const [filtersInput, setFiltersInput] = useState(initialFilters);
   const [filtersApplied, setFiltersApplied] = useState(initialFilters);
+  const [showVoided, setShowVoided] = useState(false);
 
   // Editing (Leaders only)
   const [editingId, setEditingId] = useState("");
   const [editValues, setEditValues] = useState({ leads: "", payins: "", sales: "" });
+  const [editReason, setEditReason] = useState("");
+
+  // Auth / session
+  const [sessionUser, setSessionUser] = useState(null);
+
+  // Void/unvoid confirmation modal
+  const [confirmAction, setConfirmAction] = useState({ type: "", row: null, reason: "" });
 
   const agentMap = useMemo(() => {
     const map = {};
@@ -107,6 +121,19 @@ export default function Updates() {
       try {
         const data = await listAgents();
         setAgents(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, []);
+
+  // Fetch session user once
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        setSessionUser(data?.session?.user ?? null);
       } catch (e) {
         console.error(e);
       }
@@ -128,11 +155,12 @@ export default function Updates() {
   // ----------------------
   // Apply/Clear filters
   // ----------------------
-  async function applyFilters(customFilters = filtersInput) {
-    // Normalize and apply
+  async function applyFilters(customFilters = filtersInput, includeVoidedOverride) {
     const normalized = { ...initialFilters, ...(customFilters || {}) };
     normalized.dateFrom = normalizeToYmd(normalized.dateFrom);
     normalized.dateTo = normalizeToYmd(normalized.dateTo);
+
+    const includeVoided = includeVoidedOverride ?? showVoided;
 
     setFiltersApplied(normalized);
     setLoading(true);
@@ -142,7 +170,7 @@ export default function Updates() {
     try {
       // IMPORTANT: fetch without relying on server-side string date filtering
       // We will always filter client-side correctly.
-      const data = await listRawData({ limit: 500 });
+      const data = await listRawData({ limit: 500, includeVoided });
       setRows(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
@@ -157,6 +185,12 @@ export default function Updates() {
     setFiltersApplied(initialFilters);
     cancelEdit();
     await applyFilters(initialFilters);
+  }
+
+  function toggleShowVoided() {
+    const next = !showVoided;
+    setShowVoided(next);
+    void applyFilters(filtersInput, next);
   }
 
   // ----------------------
@@ -201,7 +235,7 @@ export default function Updates() {
     const toTs = toTsYmd(filtersApplied.dateTo);
     const selected = filtersApplied[activeTab];
 
-    const filtered = rows.filter((r) => {
+    const filtered = rows.filter(r => {
       const rowTs = toTsYmd(r.date_real); // row date_real should be YYYY-MM-DD
       if ((fromTs !== null || toTs !== null) && rowTs === null) return false;
       if (fromTs !== null && rowTs < fromTs) return false;
@@ -233,13 +267,14 @@ export default function Updates() {
   // Editing (Leaders only)
   // ----------------------
   function startEdit(row) {
-    if (activeTab !== "leaders") return;
+    if (activeTab !== "leaders" || row.voided) return;
     setEditingId(row.id);
     setEditValues({
       leads: row.leads ?? "",
       payins: row.payins ?? "",
       sales: row.sales ?? "",
     });
+    setEditReason("");
     setError("");
     setStatus("");
   }
@@ -247,19 +282,29 @@ export default function Updates() {
   function cancelEdit() {
     setEditingId("");
     setEditValues({ leads: "", payins: "", sales: "" });
+    setEditReason("");
   }
 
   function onEditChange(field, value) {
-    setEditValues((prev) => ({ ...prev, [field]: value }));
+    setEditValues(prev => ({ ...prev, [field]: value }));
   }
 
   async function saveEdit(rowId) {
     const leadsNum = Number(editValues.leads);
     const payinsNum = Number(editValues.payins);
     const salesNum = Number(editValues.sales);
+    const reason = editReason.trim();
 
-    if ([leadsNum, payinsNum, salesNum].some((n) => Number.isNaN(n))) {
+    if ([leadsNum, payinsNum, salesNum].some(n => Number.isNaN(n))) {
       setError("Please enter valid numbers for leads, payins, and sales.");
+      return;
+    }
+    if (reason.length < 5) {
+      setError("Reason must be at least 5 characters.");
+      return;
+    }
+    if (!sessionUser) {
+      setError("User session not found. Please sign in again.");
       return;
     }
 
@@ -268,14 +313,19 @@ export default function Updates() {
     setStatus("");
 
     try {
-      const updated = await updateRawData(rowId, {
-        leads: leadsNum,
-        payins: payinsNum,
-        sales: salesNum,
-      });
+      const updated = await updateRawDataWithAudit(
+        rowId,
+        {
+          leads: leadsNum,
+          payins: payinsNum,
+          sales: salesNum,
+        },
+        reason,
+        sessionUser
+      );
 
-      setRows((prev) => prev.map((r) => (r.id === rowId ? updated : r)));
-      setStatus("Row updated.");
+      setRows(prev => prev.map(r => (r.id === rowId ? updated : r)));
+      setStatus("Row updated and logged.");
       cancelEdit();
     } catch (e) {
       console.error(e);
@@ -286,33 +336,55 @@ export default function Updates() {
   }
 
   // ----------------------
-  // Delete
+  // Void / Unvoid
   // ----------------------
-  async function handleDelete(rowId) {
-    const confirmed = window.confirm("Delete this entry? This cannot be undone.");
-    if (!confirmed) return;
+  function openConfirm(type, row) {
+    setConfirmAction({ type, row, reason: "" });
+    setError("");
+    setStatus("");
+  }
 
-    setDeletingId(rowId);
+  function closeConfirm() {
+    setConfirmAction({ type: "", row: null, reason: "" });
+  }
+
+  const confirmReasonValid = confirmAction.reason.trim().length >= 5;
+
+  async function submitConfirmAction() {
+    if (!confirmAction.type || !confirmAction.row) return;
+    if (!confirmReasonValid) return;
+    if (!sessionUser) {
+      setError("User session not found. Please sign in again.");
+      return;
+    }
+
+    const reason = confirmAction.reason.trim();
+    const rowId = confirmAction.row.id;
+
+    setActionLoading(true);
     setError("");
     setStatus("");
 
     try {
-      await deleteRawData(rowId);
-      setRows((prev) => prev.filter((r) => r.id !== rowId));
-      setStatus("Row deleted.");
+      if (confirmAction.type === "void") {
+        const updated = await voidRawDataWithAudit(rowId, reason, sessionUser);
+        if (editingId === rowId) cancelEdit();
+        setRows(prev => {
+          if (!showVoided) return prev.filter(r => r.id !== rowId);
+          return prev.map(r => (r.id === rowId ? updated : r));
+        });
+        setStatus("Row voided and logged.");
+      } else if (confirmAction.type === "unvoid") {
+        const updated = await unvoidRawDataWithAudit(rowId, reason, sessionUser);
+        setRows(prev => prev.map(r => (r.id === rowId ? updated : r)));
+        setStatus("Row unvoided and logged.");
+      }
+      closeConfirm();
     } catch (e) {
       console.error(e);
-      const msg = e?.message || "Failed to delete row";
-      const low = msg.toLowerCase();
-      if (low.includes("policy") || low.includes("rls") || low.includes("permission")) {
-        setError(
-          "Delete blocked by RLS policy. Ensure admin is authenticated and raw_data delete policy allows authenticated."
-        );
-      } else {
-        setError(msg);
-      }
+      setError(e?.message || "Action failed");
     } finally {
-      setDeletingId("");
+      setActionLoading(false);
     }
   }
 
@@ -325,7 +397,7 @@ export default function Updates() {
     if (activeTab === "leaders") {
       return (
         <div>
-          <div>{row.leaderName || a?.name || "—"}</div>
+          <div>{row.leaderName || a?.name || "N/A"}</div>
           <div className="muted" style={{ fontSize: 12 }}>
             {row.agent_id}
           </div>
@@ -333,11 +405,11 @@ export default function Updates() {
       );
     }
 
-    if (activeTab === "depots") return row.depotName || a?.depot?.name || a?.depotId || "—";
-    if (activeTab === "companies") return row.companyName || a?.company?.name || a?.companyId || "—";
-    if (activeTab === "platoons") return row.platoonName || a?.platoon?.name || a?.platoonId || "—";
+    if (activeTab === "depots") return row.depotName || a?.depot?.name || a?.depotId || "N/A";
+    if (activeTab === "companies") return row.companyName || a?.company?.name || a?.companyId || "N/A";
+    if (activeTab === "platoons") return row.platoonName || a?.platoon?.name || a?.platoonId || "N/A";
 
-    return "—";
+    return "N/A";
   }
 
   const identityHeader =
@@ -358,14 +430,50 @@ export default function Updates() {
       ? "Company"
       : "Platoon";
 
+  function renderStatus(row) {
+    if (row.voided) {
+      return (
+        <span
+          style={{
+            display: "inline-block",
+            padding: "2px 8px",
+            background: "#ffe8e8",
+            color: "#b00020",
+            borderRadius: 12,
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          Voided
+        </span>
+      );
+    }
+
+    return (
+      <span
+        style={{
+          display: "inline-block",
+          padding: "2px 8px",
+          background: "#e6f5e6",
+          color: "#1b6b1b",
+          borderRadius: 12,
+          fontSize: 12,
+          fontWeight: 600,
+        }}
+      >
+        Active
+      </span>
+    );
+  }
+
   return (
     <div className="card">
       <div className="card-title">Updates History</div>
-      <div className="muted">Review, edit, or delete uploaded daily performance data.</div>
+      <div className="muted">Review, edit, or void uploaded daily performance data.</div>
 
       {/* Tabs */}
       <div className="tabs" style={{ marginTop: 12 }}>
-        {TABS.map((t) => (
+        {TABS.map(t => (
           <button
             key={t.key}
             type="button"
@@ -394,7 +502,7 @@ export default function Updates() {
             type="date"
             className="input"
             value={filtersInput.dateFrom}
-            onChange={(e) => setFiltersInput((p) => ({ ...p, dateFrom: e.target.value }))}
+            onChange={e => setFiltersInput(p => ({ ...p, dateFrom: e.target.value }))}
           />
         </div>
 
@@ -404,7 +512,7 @@ export default function Updates() {
             type="date"
             className="input"
             value={filtersInput.dateTo}
-            onChange={(e) => setFiltersInput((p) => ({ ...p, dateTo: e.target.value }))}
+            onChange={e => setFiltersInput(p => ({ ...p, dateTo: e.target.value }))}
           />
         </div>
 
@@ -413,10 +521,10 @@ export default function Updates() {
           <select
             className="input"
             value={filtersInput[activeTab]}
-            onChange={(e) => setFiltersInput((p) => ({ ...p, [activeTab]: e.target.value }))}
+            onChange={e => setFiltersInput(p => ({ ...p, [activeTab]: e.target.value }))}
           >
-            <option value="">All {TABS.find((x) => x.key === activeTab)?.label.toLowerCase()}</option>
-            {filterOptions.map((o) => (
+            <option value="">All {TABS.find(x => x.key === activeTab)?.label.toLowerCase()}</option>
+            {filterOptions.map(o => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -424,7 +532,7 @@ export default function Updates() {
           </select>
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {/* IMPORTANT: do NOT pass applyFilters directly (it would receive click event) */}
           <button
             type="button"
@@ -438,6 +546,11 @@ export default function Updates() {
           <button type="button" className="button secondary" onClick={clearFilters} disabled={loading}>
             Clear
           </button>
+
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+            <input type="checkbox" checked={showVoided} onChange={toggleShowVoided} disabled={loading} />
+            Show voided
+          </label>
         </div>
       </div>
 
@@ -455,7 +568,7 @@ export default function Updates() {
 
       {loading ? (
         <div className="muted" style={{ marginTop: 12 }}>
-          Loading…
+          Loading...
         </div>
       ) : null}
 
@@ -470,12 +583,13 @@ export default function Updates() {
               <th>Payins</th>
               <th>Sales</th>
               <th>Computed ID</th>
+              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {visibleRows.map((row) => {
+            {visibleRows.map(row => {
               const isEditing = activeTab === "leaders" && row.id === editingId;
 
               return (
@@ -490,7 +604,7 @@ export default function Updates() {
                         className="input"
                         style={{ maxWidth: 120 }}
                         value={editValues.leads}
-                        onChange={(e) => onEditChange("leads", e.target.value)}
+                        onChange={e => onEditChange("leads", e.target.value)}
                       />
                     ) : (
                       formatNumber(row.leads)
@@ -504,7 +618,7 @@ export default function Updates() {
                         className="input"
                         style={{ maxWidth: 120 }}
                         value={editValues.payins}
-                        onChange={(e) => onEditChange("payins", e.target.value)}
+                        onChange={e => onEditChange("payins", e.target.value)}
                       />
                     ) : (
                       formatNumber(row.payins)
@@ -518,7 +632,7 @@ export default function Updates() {
                         className="input"
                         style={{ maxWidth: 140 }}
                         value={editValues.sales}
-                        onChange={(e) => onEditChange("sales", e.target.value)}
+                        onChange={e => onEditChange("sales", e.target.value)}
                       />
                     ) : (
                       formatCurrency(row.sales)
@@ -531,34 +645,49 @@ export default function Updates() {
                     </div>
                   </td>
 
+                  <td>{renderStatus(row)}</td>
+
                   <td>
                     {isEditing ? (
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          type="button"
-                          className="button primary"
-                          onClick={() => saveEdit(row.id)}
-                          disabled={savingId === row.id}
-                        >
-                          {savingId === row.id ? "Saving…" : "Save"}
-                        </button>
-                        <button
-                          type="button"
-                          className="button secondary"
-                          onClick={cancelEdit}
-                          disabled={savingId === row.id}
-                        >
-                          Cancel
-                        </button>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 320 }}>
+                        <textarea
+                          className="input"
+                          rows={2}
+                          placeholder="Reason for edit (required)"
+                          value={editReason}
+                          onChange={e => setEditReason(e.target.value)}
+                        />
+                        <div className="muted" style={{ fontSize: 12 }}>
+                          Minimum 5 characters.
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            type="button"
+                            className="button primary"
+                            onClick={() => saveEdit(row.id)}
+                            disabled={savingId === row.id || editReason.trim().length < 5}
+                          >
+                            {savingId === row.id ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            className="button secondary"
+                            onClick={cancelEdit}
+                            disabled={savingId === row.id}
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {activeTab === "leaders" ? (
                           <button
                             type="button"
                             className="button secondary"
                             onClick={() => startEdit(row)}
-                            disabled={savingId === row.id || deletingId === row.id}
+                            disabled={savingId === row.id || row.voided}
+                            title={row.voided ? "Cannot edit a voided row" : undefined}
                           >
                             Edit
                           </button>
@@ -568,15 +697,29 @@ export default function Updates() {
                           </button>
                         )}
 
-                        <button
-                          type="button"
-                          className="button secondary"
-                          onClick={() => handleDelete(row.id)}
-                          disabled={deletingId === row.id || savingId === row.id}
-                          style={{ background: "#ffe8e8", color: "#b00020" }}
-                        >
-                          {deletingId === row.id ? "Deleting…" : "Delete"}
-                        </button>
+                        {!row.voided ? (
+                          <button
+                            type="button"
+                            className="button secondary"
+                            onClick={() => openConfirm("void", row)}
+                            disabled={actionLoading}
+                            style={{ background: "#ffe8e8", color: "#b00020" }}
+                          >
+                            Void
+                          </button>
+                        ) : null}
+
+                        {row.voided && showVoided ? (
+                          <button
+                            type="button"
+                            className="button secondary"
+                            onClick={() => openConfirm("unvoid", row)}
+                            disabled={actionLoading}
+                            style={{ background: "#e6f5e6", color: "#1b6b1b" }}
+                          >
+                            Unvoid
+                          </button>
+                        ) : null}
                       </div>
                     )}
                   </td>
@@ -586,7 +729,7 @@ export default function Updates() {
 
             {!visibleRows.length && !loading ? (
               <tr>
-                <td colSpan={7} className="muted" style={{ textAlign: "center", padding: 16 }}>
+                <td colSpan={8} className="muted" style={{ textAlign: "center", padding: 16 }}>
                   No data to display.
                 </td>
               </tr>
@@ -594,6 +737,82 @@ export default function Updates() {
           </tbody>
         </table>
       </div>
+
+      {/* Confirm modal */}
+      {confirmAction.type && confirmAction.row ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 30,
+            padding: 12,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              padding: 20,
+              borderRadius: 8,
+              width: "min(520px, 100%)",
+              boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>
+                {confirmAction.type === "void" ? "Void entry" : "Unvoid entry"}
+              </div>
+              <button type="button" className="button secondary" onClick={closeConfirm} disabled={actionLoading}>
+                Close
+              </button>
+            </div>
+
+            <div className="muted" style={{ marginTop: 6 }}>
+              {confirmAction.type === "void"
+                ? "Voiding will hide this row from leaderboards and history unless shown explicitly."
+                : "Unvoid to restore this row to active lists."}
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <textarea
+                className="input"
+                rows={3}
+                placeholder={
+                  confirmAction.type === "void"
+                    ? "Reason for void (required)"
+                    : "Reason for unvoid (required)"
+                }
+                value={confirmAction.reason}
+                onChange={e => setConfirmAction(prev => ({ ...prev, reason: e.target.value }))}
+              />
+              <div className="muted" style={{ fontSize: 12 }}>
+                Minimum 5 characters.
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="button primary"
+                onClick={submitConfirmAction}
+                disabled={!confirmReasonValid || actionLoading}
+              >
+                {actionLoading
+                  ? "Working..."
+                  : confirmAction.type === "void"
+                  ? "Void"
+                  : "Unvoid"}
+              </button>
+              <button type="button" className="button secondary" onClick={closeConfirm} disabled={actionLoading}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
