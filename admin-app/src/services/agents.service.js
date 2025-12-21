@@ -5,7 +5,7 @@ import { supabase } from "./supabase";
 export async function listAgents() {
   const { data, error } = await supabase
     .from("agents")
-    .select("id,name,photoURL,depotId,companyId,platoonId")
+    .select("id,name,photoURL,depotId,companyId,platoonId,role")
     .order("name", { ascending: true });
 
   if (error) throw error;
@@ -82,6 +82,7 @@ function normalizeAgent(a) {
     depotId: a.depotId ?? a.depot_id ?? a.depot ?? "",
     companyId: a.companyId ?? a.company_id ?? a.company ?? "",
     platoonId: a.platoonId ?? a.platoon_id ?? a.platoon ?? "",
+    role: a.role ?? "platoon",
 
     // keep any metadata if present
     createdAt: a.createdAt ?? null,
@@ -100,6 +101,7 @@ function denormalizeAgent(agent) {
     depotId: agent.depotId ?? agent.depot_id ?? null,
     companyId: agent.companyId ?? agent.company_id ?? null,
     platoonId: agent.platoonId ?? agent.platoon_id ?? null,
+    role: agent.role ?? "platoon",
 
     // timestamps optional; you can also manage this in DB triggers later
     updatedAt: agent.updatedAt ?? null,

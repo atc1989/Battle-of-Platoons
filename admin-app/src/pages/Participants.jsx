@@ -91,6 +91,7 @@ export default function Participants() {
     depotId: "",
     companyId: "",
     platoonId: "",
+    role: "platoon",
     photoURL: "",
   });
   const [leaderOriginalId, setLeaderOriginalId] = useState("");
@@ -204,7 +205,15 @@ export default function Participants() {
   }
 
   function clearLeader() {
-    setLeaderForm({ id: "", name: "", depotId: "", companyId: "", platoonId: "", photoURL: "" });
+    setLeaderForm({
+      id: "",
+      name: "",
+      depotId: "",
+      companyId: "",
+      platoonId: "",
+      role: "platoon",
+      photoURL: "",
+    });
     setLeaderOriginalId("");
     setLeaderPhotoFile(null);
     setLeaderFileKey(k => k + 1);
@@ -272,6 +281,7 @@ export default function Participants() {
         depotId: leaderForm.depotId,
         companyId: leaderForm.companyId,
         platoonId: leaderForm.platoonId,
+        role: leaderForm.role || "platoon",
         photoURL,
       });
       await fetchAgents();
@@ -293,6 +303,7 @@ export default function Participants() {
       depotId: a.depotId || "",
       companyId: a.companyId || "",
       platoonId: a.platoonId || "",
+      role: a.role || "platoon",
       photoURL: a.photoURL || "",
     });
     setLeaderOriginalId(a.id);
@@ -577,9 +588,16 @@ export default function Participants() {
                 <label>Agent ID (optional)</label>
                 <input
                   value={leaderForm.id}
+                  className={leaderIdConflict ? "input-error" : ""}
                   placeholder="Auto from name. Add suffix for uniqueness (e.g., juan-dela-cruz-2)."
                   onChange={(e) => setLeaderForm(s => ({ ...s, id: slugId(e.target.value) }))}
                 />
+                <div className="field-hint">
+                  Auto from name. Add suffix for uniqueness (e.g., juan-dela-cruz-2).
+                </div>
+                {leaderIdConflict && (
+                  <div className="field-error">Agent ID already exists. Change the name or add a unique suffix.</div>
+                )}
               </div>
 
               <div className="field">
@@ -603,6 +621,14 @@ export default function Participants() {
                 <select value={leaderForm.platoonId} onChange={(e) => setLeaderForm(s => ({ ...s, platoonId: e.target.value }))}>
                   <option value="">Select platoon…</option>
                   {platoons.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+
+              <div className="field">
+                <label>Role</label>
+                <select value={leaderForm.role || "platoon"} onChange={(e) => setLeaderForm(s => ({ ...s, role: e.target.value }))}>
+                  <option value="platoon">Platoon Leader</option>
+                  <option value="squad">Squad Leader</option>
                 </select>
               </div>
 
@@ -686,18 +712,12 @@ export default function Participants() {
               </div>
             </div>
 
-            <div className="hint">
-              Agent ID: <b>{leaderIdPreview || "(auto)"}</b>. Leave blank to auto-generate. Add a unique suffix if needed (e.g., juan-dela-cruz-2).
-            </div>
-            {leaderIdConflict && (
-              <div className="p-status error">Agent ID already exists. Change the name or add a unique suffix.</div>
-            )}
             {!leaderIdConflict && leaderNameConflict && (
               <div className="p-status warn">Another leader with the same name exists. Use agent_id in uploads to avoid ambiguity.</div>
             )}
 
             <div className="actions">
-              <button className="btn-primary" type="submit" disabled={leaderUploading}>{isEditingLeader ? "Save Changes" : "Save"}</button>
+              <button className="btn-primary" type="submit" disabled={leaderUploading || leaderIdConflict}>{isEditingLeader ? "Save Changes" : "Save"}</button>
               <button className="btn" type="button" onClick={clearLeader}>Clear</button>
             </div>
           </form>
