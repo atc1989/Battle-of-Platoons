@@ -10,6 +10,12 @@ const VIEW_TABS = [
   { key: "companies", label: "Companies" },
 ];
 
+const LEADER_ROLE_TABS = [
+  { key: "all", label: "All" },
+  { key: "platoon", label: "Platoon" },
+  { key: "squad", label: "Squad" },
+];
+
 function formatCurrencyPHP(n) {
   const value = Number(n) || 0;
   return value.toLocaleString("en-PH", {
@@ -112,6 +118,7 @@ function App() {
   const activeWeekTab = weekTabs.find((w) => w.key === activeWeek);
   const weekRangeLabel = formatWeekRange(activeWeekTab?.displayRange);
   const [activeView, setActiveView] = useState("leaders");
+  const [leaderRoleFilter, setLeaderRoleFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState(null);
@@ -128,6 +135,7 @@ function App() {
           startDate: toYMD(range.start),
           endDate: toYMD(range.end),
           groupBy: activeView,
+          roleFilter: leaderRoleFilter === "all" ? null : leaderRoleFilter,
         });
 
         if (!isCancelled) setData(result);
@@ -142,7 +150,7 @@ function App() {
     return () => {
       isCancelled = true;
     };
-  }, [activeWeek, activeView]);
+  }, [activeWeek, activeView, leaderRoleFilter]);
 
   const today = new Date().toLocaleDateString("en-US", {
     month: "long",
@@ -218,6 +226,22 @@ function App() {
               </button>
             ))}
           </div>
+          {activeView === "leaders" && (
+            <div className="view-toggle leader-role-toggle">
+              {LEADER_ROLE_TABS.map((role) => (
+                <button
+                  key={role.key}
+                  className={
+                    "view-pill" +
+                    (role.key === leaderRoleFilter ? " view-pill--active" : "")
+                  }
+                  onClick={() => setLeaderRoleFilter(role.key)}
+                >
+                  {role.label}
+                </button>
+              ))}
+            </div>
+          )}
           <h2 className="section-title">{title}</h2>
         </section>
 

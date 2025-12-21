@@ -21,6 +21,7 @@ export async function getLeaderboard({
   startDate, // "YYYY-MM-DD"
   endDate, // "YYYY-MM-DD"
   groupBy = "leaders", // "leaders" | "depots" | "companies"
+  roleFilter = null, // null | "platoon" | "squad"
   scoring = defaultScore,
 }) {
   // 1) Fetch raw_data + agents (basic fields only)
@@ -42,7 +43,8 @@ export async function getLeaderboard({
         photoURL,
         depotId,
         companyId,
-        platoonId
+        platoonId,
+        role
       )
     `
     )
@@ -57,10 +59,17 @@ export async function getLeaderboard({
   const start = new Date(`${startDate}T00:00:00`);
   const end = new Date(`${endDate}T23:59:59`);
 
-  const filtered = (rawRows ?? []).filter((r) => {
+  let filtered = (rawRows ?? []).filter((r) => {
     const d = getRowDate(r);
     return d && d >= start && d <= end;
   });
+
+  if (groupBy === "leaders" && roleFilter) {
+    filtered = filtered.filter((r) => {
+      const role = r?.agents?.role ?? "platoon";
+      return role === roleFilter;
+    });
+  }
 
   // 3) Fetch lookups in parallel (for names/logos + platoon display)
   const [{ data: depots }, { data: companies }, { data: platoons }] =

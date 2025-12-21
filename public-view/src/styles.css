@@ -178,6 +178,10 @@ body {
   margin-bottom: 10px;
 }
 
+.leader-role-toggle {
+  margin-top: 8px;
+}
+
 .view-pill {
   border: none;
   border-radius: 999px;
