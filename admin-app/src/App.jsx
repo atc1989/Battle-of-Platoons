@@ -11,6 +11,7 @@ import Participants from "./pages/Participants";
 import Updates from "./pages/Updates";
 import Formulas from "./pages/Formulas";
 import Upload from "./pages/Upload";
+import Compare from "./pages/Compare";
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="updates" element={<Updates />} />
             <Route path="formulas" element={<Formulas />} />
             <Route path="upload" element={<Upload />} />
+            <Route path="compare" element={<Compare />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
