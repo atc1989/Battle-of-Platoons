@@ -5,7 +5,7 @@ import { supabase } from "./supabase";
 export async function listAgents() {
   const { data, error } = await supabase
     .from("agents")
-    .select("id,name,photoURL,depotId,companyId,platoonId,role")
+    .select("id,name,photo_url,depot_id,company_id,platoon_id,role")
     .order("name", { ascending: true });
 
   if (error) throw error;
@@ -91,16 +91,14 @@ function normalizeAgent(a) {
 }
 
 function denormalizeAgent(agent) {
-  // Store into the fields your imported schema already uses (camelCase),
-  // so you don’t fight the migration columns.
   return {
     id: agent.id,
     name: agent.name,
-    photoURL: agent.photoURL ?? agent.photo_url ?? null,
+    photo_url: agent.photoURL ?? agent.photo_url ?? null,
 
-    depotId: agent.depotId ?? agent.depot_id ?? null,
-    companyId: agent.companyId ?? agent.company_id ?? null,
-    platoonId: agent.platoonId ?? agent.platoon_id ?? null,
+    depot_id: agent.depotId ?? agent.depot_id ?? null,
+    company_id: agent.companyId ?? agent.company_id ?? null,
+    platoon_id: agent.platoonId ?? agent.platoon_id ?? null,
     role: agent.role ?? "platoon",
 
     // timestamps optional; you can also manage this in DB triggers later

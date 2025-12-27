@@ -161,9 +161,9 @@ function normalizeAgentRecord(agent = {}) {
   return {
     id: agent.id,
     name: agent.name ?? "",
-    depotId: agent.depotId ?? agent.depot_id ?? "",
-    companyId: agent.companyId ?? agent.company_id ?? "",
-    platoonId: agent.platoonId ?? agent.platoon_id ?? "",
+    depotId: agent.depotId ?? agent.depot_id ?? agent.depot ?? "",
+    companyId: agent.companyId ?? agent.company_id ?? agent.company ?? "",
+    platoonId: agent.platoonId ?? agent.platoon_id ?? agent.platoon ?? "",
   };
 }
 
@@ -171,7 +171,7 @@ async function fetchAgentsByIds(ids = []) {
   if (!ids.length) return new Map();
   const { data, error } = await supabase
     .from("agents")
-    .select("id,name,photoURL,depotId,companyId,platoonId")
+    .select("id,name,photo_url,depot_id,company_id,platoon_id")
     .in("id", ids);
   if (error) throw error;
 
@@ -232,6 +232,7 @@ async function enrichRawDataRows(rows = []) {
       leads: row.leads ?? 0,
       payins: row.payins ?? 0,
       sales: row.sales ?? 0,
+      source: row.source ?? "",
       voided: Boolean(row.voided),
       void_reason: row.void_reason ?? null,
       voided_at: row.voided_at ?? null,
@@ -244,8 +245,9 @@ async function enrichRawDataRows(rows = []) {
   });
 }
 
-export async function parseRawDataWorkbook(file) {
+export async function parseRawDataWorkbook(file, { source = "company" } = {}) {
   if (!file) throw new Error("File is required");
+  const normalizedSource = source === "depot" ? "depot" : "company";
 
   const [lookups, lookupMaps] = await Promise.all([buildAgentLookups(), fetchLookupMaps()]);
   const arrayBuffer = await file.arrayBuffer();
@@ -294,7 +296,8 @@ export async function parseRawDataWorkbook(file) {
     );
 
     const date_real = dateReal ?? "";
-    const computedId = date_real && resolved_agent_id ? `${date_real}_${resolved_agent_id}` : "";
+    const computedId =
+      date_real && resolved_agent_id ? `${date_real}_${resolved_agent_id}_${normalizedSource}` : "";
 
     return {
       sourceRowIndex: idx,
@@ -310,6 +313,7 @@ export async function parseRawDataWorkbook(file) {
       status: errors.length ? "invalid" : "valid",
       errors,
       suggestions,
+      source: normalizedSource,
     };
   });
 
@@ -326,7 +330,7 @@ export async function parseRawDataWorkbook(file) {
 
   const rowsWithDuplicates = rows.map(row => {
     const duplicate = row.computedId ? existingIds.has(row.computedId) : false;
-    return { ...row, duplicate };
+    return { ...row, duplicate, will_overwrite: duplicate };
   });
 
   return {
@@ -335,29 +339,39 @@ export async function parseRawDataWorkbook(file) {
   };
 }
 
-export async function saveRawDataRows(validRows, mode = "warn", onProgress = () => {}) {
+export async function saveRawDataRows(validRows, { mode = "warn", source = "company" } = {}, onProgress = () => {}) {
   const batchSize = 200;
   let upsertedCount = 0;
   let insertedCount = 0;
   const errors = [];
   const now = new Date().toISOString();
   const isInsertOnly = mode === "insert_only";
+  const normalizedSource = source === "depot" ? "depot" : "company";
 
   for (let i = 0; i < validRows.length; i += batchSize) {
-    const batch = validRows.slice(i, i + batchSize).map(row => {
-      const id = row.computedId || `${row.date_real}_${row.resolved_agent_id}`;
-      return {
-        id,
-        agent_id: row.resolved_agent_id,
-        leads: row.leads,
-        payins: row.payins,
-        sales: row.sales,
-        date_real: row.date_real,
-        date: { source: "xlsx", original: row.date_original ?? row.date_real },
-        createdAt: { iso: now },
-        updatedAt: { iso: now },
-      };
-    });
+    const batch = validRows
+      .slice(i, i + batchSize)
+      .map(row => {
+        const rowSource = row.source === "depot" || row.source === "company" ? row.source : normalizedSource;
+        const id =
+          row.computedId ||
+          (row.date_real && row.resolved_agent_id
+            ? `${row.date_real}_${row.resolved_agent_id}_${rowSource}`
+            : "");
+        return {
+          id,
+          agent_id: row.resolved_agent_id,
+          leads: row.leads,
+          payins: row.payins,
+          sales: row.sales,
+          date_real: row.date_real,
+          source: rowSource,
+          date: { source: "xlsx", original: row.date_original ?? row.date_real },
+          createdAt: { iso: now },
+          updatedAt: { iso: now },
+        };
+      })
+      .filter(item => item.id);
 
     if (isInsertOnly) {
       const { error } = await supabase.from("raw_data").insert(batch, { returning: "minimal" });
@@ -393,7 +407,7 @@ function applyRawDataFilters(query, { dateFrom, dateTo, agentId, limit = 200 }) 
 
 export async function listRawData({ dateFrom, dateTo, agentId, limit = 200, includeVoided = false } = {}) {
   const baseSelect =
-    "id,date_real,agent_id,leads,payins,sales,voided,void_reason,voided_at,voided_by,agents:agents(id,name,photoURL,depotId,companyId,platoonId)";
+    "id,date_real,agent_id,leads,payins,sales,source,voided,void_reason,voided_at,voided_by,agents:agents(id,name,photo_url,depot_id,company_id,platoon_id)";
 
   try {
     let query = supabase.from("raw_data").select(baseSelect);
@@ -407,9 +421,9 @@ export async function listRawData({ dateFrom, dateTo, agentId, limit = 200, incl
     });
     if (error) throw error;
     return enrichRawDataRows(data ?? []);
-  } catch (joinError) {
+  } catch {
     let query = supabase.from("raw_data").select(
-      "id,date_real,agent_id,leads,payins,sales,voided,void_reason,voided_at,voided_by"
+      "id,date_real,agent_id,leads,payins,sales,source,voided,void_reason,voided_at,voided_by"
     );
     if (!includeVoided) query = query.eq("voided", false);
 

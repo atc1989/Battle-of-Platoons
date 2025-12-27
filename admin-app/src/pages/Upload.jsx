@@ -1,5 +1,6 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { parseRawDataWorkbook, saveRawDataRows } from "../services/rawData.service";
+import { getMyProfile } from "../services/profile.service";
 
 export default function Upload() {
   const [fileName, setFileName] = useState("");
@@ -11,6 +12,17 @@ export default function Upload() {
   const [saveResult, setSaveResult] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [importMode, setImportMode] = useState("warn");
+  const [profile, setProfile] = useState(null);
+  const [profileError, setProfileError] = useState("");
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [source, setSource] = useState("company");
+  const [parsedFile, setParsedFile] = useState(null);
+  const forcedSource = profile?.role === "depot_admin" ? "depot" : profile?.role === "company_admin" ? "company" : null;
+  const canSelectSource = profile?.role === "super_admin";
+  const sourceLabel = source === "depot" ? "Depot" : "Company";
+  const sourceHint = forcedSource
+    ? `Source is locked to ${sourceLabel} for your role.`
+    : "Select which source you are uploading.";
 
   const inputRef = useRef(null);
 
@@ -68,24 +80,39 @@ export default function Upload() {
     };
   }, [rows, importMode]);
 
-  async function handleFile(file) {
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".xlsx")) {
-      setError("Only .xlsx files are accepted.");
-      setRows([]);
-      setMeta(null);
-      setFileName("");
-      setSaveResult(null);
-      setProgress({ done: 0, total: 0 });
-      return;
-    }
+  useEffect(() => {
+    let mounted = true;
+    setProfileLoading(true);
+    getMyProfile()
+      .then(data => {
+        if (!mounted) return;
+        setProfile(data);
+        const derivedSource = data?.role === "depot_admin" ? "depot" : data?.role === "company_admin" ? "company" : null;
+        setSource(prev => derivedSource || prev || "company");
+      })
+      .catch(err => {
+        if (!mounted) return;
+        setProfileError(err.message || "Failed to load profile");
+      })
+      .finally(() => {
+        if (mounted) setProfileLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  async function processFileWithSource(file, selectedSource) {
     setLoading(true);
     setError("");
     setSaveResult(null);
     setProgress({ done: 0, total: 0 });
 
     try {
-      const { rows: parsedRows, meta: workbookMeta } = await parseRawDataWorkbook(file);
+      const { rows: parsedRows, meta: workbookMeta } = await parseRawDataWorkbook(file, {
+        source: selectedSource,
+      });
       setRows(parsedRows);
       setMeta(workbookMeta);
       setFileName(file.name);
@@ -99,10 +126,33 @@ export default function Upload() {
     }
   }
 
+  async function handleFile(file) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      setError("Only .xlsx files are accepted.");
+      setRows([]);
+      setMeta(null);
+      setFileName("");
+      setSaveResult(null);
+      setProgress({ done: 0, total: 0 });
+      return;
+    }
+    setParsedFile(file);
+    await processFileWithSource(file, source);
+  }
+
   function onInputChange(e) {
     const file = e.target.files?.[0];
     handleFile(file);
   }
+
+  useEffect(() => {
+    if (!profile) return;
+    if (forcedSource && source !== forcedSource) {
+      setSource(forcedSource);
+      if (parsedFile) processFileWithSource(parsedFile, forcedSource);
+    }
+  }, [profile, parsedFile, source, forcedSource]);
 
   function downloadTemplate() {
     const a = document.createElement("a");
@@ -123,6 +173,9 @@ export default function Upload() {
     setProgress({ done: 0, total: 0 });
     setIsDragging(false);
     setImportMode("warn");
+    setParsedFile(null);
+    if (profile?.role === "depot_admin") setSource("depot");
+    else if (profile?.role === "company_admin") setSource("company");
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -138,13 +191,18 @@ export default function Upload() {
     handleFile(file);
   }
 
+  function handleSourceChange(nextSource) {
+    setSource(nextSource);
+    if (parsedFile) processFileWithSource(parsedFile, nextSource);
+  }
+
   async function handleSave() {
     setProgress({ done: 0, total: processed.rowsForSave.length });
     setSaveResult(null);
     try {
       const result = await saveRawDataRows(
         processed.rowsForSave,
-        importMode,
+        { mode: importMode, source },
         (done, total) => setProgress({ done, total })
       );
       setSaveResult({ ...result, skipped: rows.length - processed.rowsForSave.length });
@@ -198,6 +256,34 @@ export default function Upload() {
           </button>
         ) : null}
       </div>
+
+      <div className="summary-grid" style={{ marginTop: 12 }}>
+        <div className="summary-pill">
+          <div className="summary-label">Source</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <select
+              value={source}
+              onChange={e => handleSourceChange(e.target.value)}
+              disabled={profileLoading || (!canSelectSource && Boolean(forcedSource))}
+            >
+              <option value="company">Company</option>
+              <option value="depot">Depot</option>
+            </select>
+            <span className={`status-pill ${source === "depot" ? "duplicate" : "valid"}`}>
+              Source: {sourceLabel}
+            </span>
+          </div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            {profileLoading ? "Loading profile…" : sourceHint}
+          </div>
+        </div>
+      </div>
+
+      {profileError ? (
+        <div className="error-box" role="alert">
+          {profileError}
+        </div>
+      ) : null}
 
       {fileName ? (
         <div className="hint" style={{ marginTop: 12 }}>
@@ -268,6 +354,7 @@ export default function Upload() {
                   <th>leader_name</th>
                   <th>Resolved ID</th>
                   <th>Computed ID</th>
+                  <th>Overwrite?</th>
                   <th>Leads</th>
                   <th>Payins</th>
                   <th>Sales</th>
@@ -300,6 +387,7 @@ export default function Upload() {
                     <td>
                       <div className="muted" style={{ fontSize: 12 }}>{row.computedId}</div>
                     </td>
+                    <td>{row.computedId ? (row.will_overwrite ? "Yes" : "No") : "—"}</td>
                     <td>{row.leads}</td>
                     <td>{row.payins}</td>
                     <td>{row.sales}</td>

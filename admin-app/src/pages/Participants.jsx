@@ -31,18 +31,12 @@ function validateFile(file) {
 }
 
 function useFilePreview(file) {
-  const [preview, setPreview] = useState("");
+  const preview = useMemo(() => (file ? URL.createObjectURL(file) : ""), [file]);
 
   useEffect(() => {
-    if (!file) {
-      setPreview("");
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    setPreview(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [file]);
+    if (!file || !preview) return undefined;
+    return () => URL.revokeObjectURL(preview);
+  }, [file, preview]);
 
   return preview;
 }
