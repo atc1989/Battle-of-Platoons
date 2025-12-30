@@ -363,7 +363,7 @@ export default function Upload() {
                 </tr>
               </thead>
               <tbody>
-                {processed.displayRows.map(row => {
+                {processed.displayRows.map((row, idx) => {
                   const warningText = row.displayWarnings?.length
                     ? row.displayWarnings.map(warn => `Warning: ${warn}`)
                     : [];
@@ -374,8 +374,8 @@ export default function Upload() {
                       key={`${row.excelRowNumber}-${row.sourceRowIndex}`}
                       className={row.displayStatus === "Invalid" ? "row-invalid" : ""}
                     >
-                    <td>
-                      <div>{row.excelRowNumber}</div>
+                    <td title={`Excel row ${row.excelRowNumber}`}>
+                      <div>{idx + 1}</div>
                     </td>
                     <td>{row.date_real || "—"}</td>
                     <td>

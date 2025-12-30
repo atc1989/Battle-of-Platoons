@@ -455,6 +455,13 @@ export async function deleteRawData(id) {
   if (error) throw error;
 }
 
+async function requireSessionUser() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  if (!data?.user) throw new Error("User session not found");
+  return data.user;
+}
+
 export async function updateRawDataWithAudit(rowId, changes, reason, sessionUser) {
   if (!reason || !reason.trim()) throw new Error("Reason is required");
 
@@ -493,6 +500,28 @@ export async function updateRawDataWithAudit(rowId, changes, reason, sessionUser
   if (auditError) throw auditError;
 
   return enrichSingleRow(updatedRow);
+}
+
+async function logAuditEntriesForPair(beforeRows, afterRows, action, reason, actor) {
+  const beforeById = new Map((beforeRows ?? []).map(row => [row.id, row]));
+  const afterById = new Map((afterRows ?? []).map(row => [row.id, row]));
+
+  const entries = [];
+  afterById.forEach((afterRow, id) => {
+    entries.push({
+      raw_data_id: id,
+      action,
+      reason,
+      actor_id: actor.id,
+      actor_email: actor.email ?? "",
+      before: beforeById.get(id) ?? null,
+      after: afterRow,
+    });
+  });
+
+  if (!entries.length) return;
+  const { error: auditError } = await supabase.from("raw_data_audit").insert(entries);
+  if (auditError) throw auditError;
 }
 
 export async function voidRawDataWithAudit(rowId, reason, sessionUser) {
@@ -585,4 +614,76 @@ async function enrichSingleRow(row) {
   if (!row) return row;
   const enriched = await enrichRawDataRows([row]);
   return enriched?.[0] ?? row;
+}
+
+export async function approvePair({ date_real, agent_id, reason }) {
+  const trimmedReason = reason?.trim();
+  if (!trimmedReason) throw new Error("Reason is required");
+  if (!date_real || !agent_id) throw new Error("Missing date or agent");
+
+  const user = await requireSessionUser();
+  const { data: beforeRows, error: beforeError } = await supabase
+    .from("raw_data")
+    .select("*")
+    .eq("date_real", date_real)
+    .eq("agent_id", agent_id)
+    .in("source", ["company", "depot"]);
+  if (beforeError) throw beforeError;
+  if (!beforeRows?.length) throw new Error("No rows found for this leader and date");
+
+  const updatePayload = {
+    approved: true,
+    approved_by: user.id,
+    approved_at: new Date().toISOString(),
+    approve_reason: trimmedReason,
+  };
+
+  const { data: updatedRows, error: updateError } = await supabase
+    .from("raw_data")
+    .update(updatePayload)
+    .eq("date_real", date_real)
+    .eq("agent_id", agent_id)
+    .in("source", ["company", "depot"])
+    .select("*");
+  if (updateError) throw updateError;
+  if (!updatedRows?.length) throw new Error("Approval update did not modify any rows");
+
+  await logAuditEntriesForPair(beforeRows, updatedRows, "approve", trimmedReason, user);
+  return enrichRawDataRows(updatedRows);
+}
+
+export async function unapprovePair({ date_real, agent_id, reason }) {
+  const trimmedReason = reason?.trim();
+  if (!trimmedReason) throw new Error("Reason is required");
+  if (!date_real || !agent_id) throw new Error("Missing date or agent");
+
+  const user = await requireSessionUser();
+  const { data: beforeRows, error: beforeError } = await supabase
+    .from("raw_data")
+    .select("*")
+    .eq("date_real", date_real)
+    .eq("agent_id", agent_id)
+    .in("source", ["company", "depot"]);
+  if (beforeError) throw beforeError;
+  if (!beforeRows?.length) throw new Error("No rows found for this leader and date");
+
+  const updatePayload = {
+    approved: false,
+    approved_by: null,
+    approved_at: null,
+    approve_reason: trimmedReason,
+  };
+
+  const { data: updatedRows, error: updateError } = await supabase
+    .from("raw_data")
+    .update(updatePayload)
+    .eq("date_real", date_real)
+    .eq("agent_id", agent_id)
+    .in("source", ["company", "depot"])
+    .select("*");
+  if (updateError) throw updateError;
+  if (!updatedRows?.length) throw new Error("Unapprove update did not modify any rows");
+
+  await logAuditEntriesForPair(beforeRows, updatedRows, "unapprove", trimmedReason, user);
+  return enrichRawDataRows(updatedRows);
 }

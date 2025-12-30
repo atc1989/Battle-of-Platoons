@@ -26,7 +26,7 @@ function computeDelta(company, depot) {
 export async function listCompareRows({ dateFrom, dateTo, agentId, status } = {}) {
   let query = supabase
     .from("raw_data")
-    .select("id,agent_id,date_real,leads,payins,sales,source,voided")
+    .select("id,agent_id,date_real,leads,payins,sales,source,voided,approved")
     .eq("voided", false)
     .in("source", ["company", "depot"]);
 
@@ -56,6 +56,7 @@ export async function listCompareRows({ dateFrom, dateTo, agentId, status } = {}
       leads: Number(row.leads ?? 0) || 0,
       payins: Number(row.payins ?? 0) || 0,
       sales: Number(row.sales ?? 0) || 0,
+      approved: Boolean(row.approved),
     };
     if (row.source === "company") entry.company = payload;
     if (row.source === "depot") entry.depot = payload;
@@ -67,6 +68,7 @@ export async function listCompareRows({ dateFrom, dateTo, agentId, status } = {}
   let rows = Array.from(entries.values()).map(entry => {
     const agent = agentsById.get(entry.agent_id);
     const statusValue = computeStatus(entry);
+    const approved = Boolean(entry.company?.approved || entry.depot?.approved);
     return {
       ...entry,
       leader_name: agent?.name ?? "(Restricted)",
@@ -74,6 +76,8 @@ export async function listCompareRows({ dateFrom, dateTo, agentId, status } = {}
       delta: computeDelta(entry.company, entry.depot),
       restricted: !agent,
       restricted_agent_id: agent ? null : entry.agent_id,
+      approved,
+      publishable: approved || statusValue === "matched",
     };
   });
 

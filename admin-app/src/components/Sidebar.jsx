@@ -36,6 +36,10 @@ export default function Sidebar() {
           Compare Data
         </NavLink>
 
+        <NavLink to="/publishing" className={({ isActive }) => "sb-link" + (isActive ? " active" : "")}>
+          Publishing
+        </NavLink>
+
         {/* Later: Download Template & Reset Sample can be inside Upload page */}
       </nav>
     </aside>

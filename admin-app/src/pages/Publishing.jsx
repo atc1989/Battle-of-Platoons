@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { listAgents } from "../services/agents.service";
 import { listCompareRows } from "../services/compare.service";
+import { approvePair, unapprovePair } from "../services/rawData.service";
+import { getMyProfile } from "../services/profile.service";
 
 function formatDateInput(date) {
   const year = date.getFullYear();
@@ -33,28 +35,17 @@ const STATUS_CLASS = {
   missing_depot: "invalid",
 };
 
-function formatDelta(delta) {
-  if (!delta) return "—";
-  const renderValue = value => {
-    if (value > 0) return `+${value}`;
-    if (value < 0) return `${value}`;
-    return "0";
-  };
-
-  return `L:${renderValue(delta.leadsDiff)} P:${renderValue(delta.payinsDiff)} S:${renderValue(delta.salesDiff)}`;
-}
-
-export default function Compare() {
-  const defaultDates = useMemo(() => getDefaultDateRange(), []);
+export default function Publishing() {
+  const defaults = useMemo(() => getDefaultDateRange(), []);
   const [filters, setFilters] = useState({
-    dateFrom: defaultDates.dateFrom,
-    dateTo: defaultDates.dateTo,
+    dateFrom: defaults.dateFrom,
+    dateTo: defaults.dateTo,
     agentId: "",
     status: "",
   });
   const [appliedFilters, setAppliedFilters] = useState({
-    dateFrom: defaultDates.dateFrom,
-    dateTo: defaultDates.dateTo,
+    dateFrom: defaults.dateFrom,
+    dateTo: defaults.dateTo,
     agentId: "",
     status: "",
   });
@@ -64,12 +55,21 @@ export default function Compare() {
   const [agentsLoading, setAgentsLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  const [actionDialog, setActionDialog] = useState({ mode: "", row: null, reason: "" });
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState("");
+
+  const isSuperAdmin = profile?.role === "super_admin";
+
   useEffect(() => {
     let mounted = true;
     listAgents()
       .then(data => {
         if (!mounted) return;
-        setAgents(data);
+        setAgents(data ?? []);
       })
       .catch(err => {
         if (!mounted) return;
@@ -86,6 +86,28 @@ export default function Compare() {
 
   useEffect(() => {
     let mounted = true;
+    getMyProfile()
+      .then(data => {
+        if (!mounted) return;
+        setProfile(data);
+      })
+      .catch(err => {
+        if (!mounted) return;
+        setError(err.message || "Failed to load profile");
+      })
+      .finally(() => {
+        if (mounted) setProfileLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setError("");
     listCompareRows(appliedFilters)
       .then(({ rows: dataRows }) => {
         if (!mounted) return;
@@ -107,11 +129,10 @@ export default function Compare() {
 
   const counters = useMemo(() => {
     const total = rows.length;
-    const matched = rows.filter(row => row.status === "matched").length;
-    const mismatch = rows.filter(row => row.status === "mismatch").length;
-    const missing = rows.filter(row => row.status === "missing_company" || row.status === "missing_depot").length;
     const publishable = rows.filter(row => row.publishable).length;
-    return { total, matched, mismatch, missing, publishable };
+    const approved = rows.filter(row => row.approved).length;
+    const matched = rows.filter(row => row.status === "matched").length;
+    return { total, publishable, approved, matched };
   }, [rows]);
 
   function handleApplyFilters() {
@@ -121,20 +142,69 @@ export default function Compare() {
   }
 
   function handleClearFilters() {
-    setError("");
-    setLoading(true);
-    setFilters({ dateFrom: defaultDates.dateFrom, dateTo: defaultDates.dateTo, agentId: "", status: "" });
-    setAppliedFilters({ dateFrom: defaultDates.dateFrom, dateTo: defaultDates.dateTo, agentId: "", status: "" });
+    setFilters({ dateFrom: defaults.dateFrom, dateTo: defaults.dateTo, agentId: "", status: "" });
+    setAppliedFilters({ dateFrom: defaults.dateFrom, dateTo: defaults.dateTo, agentId: "", status: "" });
+  }
+
+  function openAction(mode, row) {
+    setActionDialog({ mode, row, reason: "" });
+    setActionError("");
+  }
+
+  function closeAction() {
+    setActionDialog({ mode: "", row: null, reason: "" });
+    setActionLoading(false);
+    setActionError("");
+  }
+
+  const actionReasonValid = actionDialog.reason.trim().length >= 5;
+
+  async function submitAction() {
+    if (!actionDialog.row || !actionDialog.mode) return;
+    if (!actionReasonValid) return;
+
+    setActionLoading(true);
+    setActionError("");
+
+    const payload = {
+      date_real: actionDialog.row.date_real,
+      agent_id: actionDialog.row.agent_id,
+      reason: actionDialog.reason.trim(),
+    };
+
+    try {
+      if (actionDialog.mode === "approve") {
+        await approvePair(payload);
+      } else {
+        await unapprovePair(payload);
+      }
+      closeAction();
+      setAppliedFilters(prev => ({ ...prev }));
+    } catch (e) {
+      console.error(e);
+      setActionError(e?.message || "Failed to update approval");
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   return (
     <div className="card">
-      <div className="card-title">Compare Data</div>
+      <div className="card-title">Publishing</div>
       <div className="muted" style={{ marginBottom: 12 }}>
-        Company vs Depot entries per leader/day. Resolve mismatches by re-uploading the correct source.
+        Only matched pairs or rows approved by a Super Admin will be shown on the public leaderboard.
       </div>
 
-      <div className="filters-row" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 }}>
+      {!profileLoading && !isSuperAdmin ? (
+        <div className="error-box" role="alert">
+          Only Super Admins can approve or unapprove rows. You can still view the current publish state.
+        </div>
+      ) : null}
+
+      <div
+        className="filters-row"
+        style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 }}
+      >
         <div>
           <label htmlFor="date-from" className="form-label">Date From</label>
           <input
@@ -199,20 +269,16 @@ export default function Compare() {
           <div className="summary-value">{counters.total}</div>
         </div>
         <div className="summary-pill">
-          <div className="summary-label">Matched</div>
-          <div className="summary-value valid">{counters.matched}</div>
-        </div>
-        <div className="summary-pill">
           <div className="summary-label">Publishable</div>
-          <div className="summary-value">{counters.publishable}</div>
+          <div className="summary-value valid">{counters.publishable}</div>
         </div>
         <div className="summary-pill">
-          <div className="summary-label">Mismatch</div>
-          <div className="summary-value duplicate">{counters.mismatch}</div>
+          <div className="summary-label">Approved</div>
+          <div className="summary-value">{counters.approved}</div>
         </div>
         <div className="summary-pill">
-          <div className="summary-label">Missing</div>
-          <div className="summary-value invalid">{counters.missing}</div>
+          <div className="summary-label">Matched</div>
+          <div className="summary-value">{counters.matched}</div>
         </div>
       </div>
 
@@ -222,7 +288,7 @@ export default function Compare() {
         </div>
       ) : null}
 
-      {loading ? <div className="muted" style={{ marginTop: 12 }}>Loading comparisons…</div> : null}
+      {loading ? <div className="muted" style={{ marginTop: 12 }}>Loading publishing data…</div> : null}
 
       <div className="table-scroll" style={{ marginTop: 12 }}>
         <table className="data-table">
@@ -239,7 +305,7 @@ export default function Compare() {
               <th>Status</th>
               <th>Publishable</th>
               <th>Approved</th>
-              <th>Delta</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -272,15 +338,32 @@ export default function Compare() {
                   {row.approved ? (
                     <span className="status-pill duplicate">Approved</span>
                   ) : (
-                    <span className="status-pill muted">No</span>
+                    <span className="status-pill muted">Not Approved</span>
                   )}
                 </td>
-                <td>{formatDelta(row.delta)}</td>
+                <td>
+                  {isSuperAdmin ? (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {!row.approved ? (
+                        <button type="button" className="button primary" onClick={() => openAction("approve", row)}>
+                          Approve
+                        </button>
+                      ) : null}
+                      {row.approved ? (
+                        <button type="button" className="button secondary" onClick={() => openAction("unapprove", row)}>
+                          Unapprove
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <span className="muted" style={{ fontSize: 12 }}>View only</span>
+                  )}
+                </td>
               </tr>
             ))}
             {!rows.length && !loading ? (
               <tr>
-                <td colSpan={10} className="muted" style={{ textAlign: "center" }}>
+                <td colSpan={12} className="muted" style={{ textAlign: "center" }}>
                   No rows found for the selected filters.
                 </td>
               </tr>
@@ -288,6 +371,60 @@ export default function Compare() {
           </tbody>
         </table>
       </div>
+
+      {actionDialog.mode && actionDialog.row ? (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>
+                {actionDialog.mode === "approve" ? "Approve pair" : "Unapprove pair"}
+              </div>
+              <button type="button" className="button secondary" onClick={closeAction} disabled={actionLoading}>
+                Close
+              </button>
+            </div>
+
+            <div className="muted" style={{ marginTop: 6 }}>
+              {actionDialog.mode === "approve"
+                ? "Mark both company and depot rows for this leader/day as approved."
+                : "Remove approval so the pair will only publish if matched."}
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <textarea
+                className="input"
+                rows={3}
+                placeholder="Reason (required)"
+                value={actionDialog.reason}
+                onChange={e => setActionDialog(prev => ({ ...prev, reason: e.target.value }))}
+              />
+              <div className="muted" style={{ fontSize: 12 }}>
+                Minimum 5 characters.
+              </div>
+            </div>
+
+            {actionError ? (
+              <div className="error-box" role="alert" style={{ marginTop: 10 }}>
+                {actionError}
+              </div>
+            ) : null}
+
+            <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="button primary"
+                onClick={submitAction}
+                disabled={!actionReasonValid || actionLoading}
+              >
+                {actionLoading ? "Working…" : actionDialog.mode === "approve" ? "Approve" : "Unapprove"}
+              </button>
+              <button type="button" className="button secondary" onClick={closeAction} disabled={actionLoading}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

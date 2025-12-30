@@ -50,7 +50,8 @@ export async function getLeaderboard({
     )
     .gte("date_real", startDate)
     .lte("date_real", endDate)
-    .eq("voided", false);
+    .eq("voided", false)
+    .eq("source", "company");
 
   if (error) throw error;
 
