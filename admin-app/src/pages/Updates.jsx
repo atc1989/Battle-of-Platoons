@@ -82,7 +82,29 @@ const initialFilters = {
   platoons: "",
 };
 
-const PERMISSION_TOOLTIP = "You can only modify your own source data";
+function canEditRow(row, currentRole) {
+  if (!row || !currentRole) return false;
+  if (currentRole === "super_admin") return true;
+  if (currentRole === "company_admin") return row.source === "company";
+  if (currentRole === "depot_admin") return row.source === "depot";
+  return false;
+}
+
+function canVoidRow(row, currentRole) {
+  return canEditRow(row, currentRole);
+}
+
+function allowedSourceLabel(role) {
+  if (role === "company_admin") return "company";
+  if (role === "depot_admin") return "depot";
+  return "both";
+}
+
+const PERMISSION_TOOLTIP = role => {
+  const label = allowedSourceLabel(role);
+  if (label === "both") return "You can edit and void both sources.";
+  return `You can only edit ${label} rows.`;
+};
 
 export default function Updates() {
   const [activeTab, setActiveTab] = useState("leaders");
@@ -111,6 +133,7 @@ export default function Updates() {
   const [sessionUser, setSessionUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const currentRole = profile?.role || "";
 
   // Void/unvoid confirmation modal
   const [confirmAction, setConfirmAction] = useState({ type: "", row: null, reason: "" });
@@ -287,7 +310,7 @@ export default function Updates() {
       return bd - ad;
     });
 
-    return filtered;
+  return filtered;
   }, [activeTab, agentMap, filtersApplied, rows]);
 
   // ----------------------
@@ -295,8 +318,9 @@ export default function Updates() {
   // ----------------------
   function startEdit(row) {
     if (activeTab !== "leaders" || row.voided) return;
-    if (!canEditRow(row, profile, agentMap[row.agent_id])) {
-      setError(PERMISSION_TOOLTIP);
+    const currentRole = profile?.role;
+    if (!canEditRow(row, currentRole)) {
+      setError(PERMISSION_TOOLTIP(currentRole));
       return;
     }
     setEditingId(row.id);
@@ -340,8 +364,8 @@ export default function Updates() {
     }
 
     const targetRow = rows.find(r => r.id === rowId);
-    if (!targetRow || !canEditRow(targetRow, profile, agentMap[targetRow.agent_id])) {
-      setError(PERMISSION_TOOLTIP);
+    if (!targetRow || !canEditRow(targetRow, currentRole)) {
+      setError(PERMISSION_TOOLTIP(currentRole));
       return;
     }
 
@@ -376,8 +400,8 @@ export default function Updates() {
   // Void / Unvoid
   // ----------------------
   function openConfirm(type, row) {
-    if (!canEditRow(row, profile, agentMap[row.agent_id])) {
-      setError(PERMISSION_TOOLTIP);
+    if (!canVoidRow(row, currentRole)) {
+      setError(PERMISSION_TOOLTIP(currentRole));
       return;
     }
     setConfirmAction({ type, row, reason: "" });
@@ -402,8 +426,8 @@ export default function Updates() {
     const reason = confirmAction.reason.trim();
     const rowId = confirmAction.row.id;
     const targetRow = rows.find(r => r.id === rowId) || confirmAction.row;
-    if (!canEditRow(targetRow, profile, agentMap[targetRow?.agent_id])) {
-      setError(PERMISSION_TOOLTIP);
+    if (!canVoidRow(targetRow, currentRole)) {
+      setError(PERMISSION_TOOLTIP(currentRole));
       return;
     }
 
@@ -466,6 +490,28 @@ export default function Updates() {
       : activeTab === "companies"
       ? "Commander"
       : "Team";
+
+  function renderSourcePill(row) {
+    const isCompany = row.source === "company";
+    const background = isCompany ? "#e6f1ff" : "#fff4e6";
+    const color = isCompany ? "#0b4a91" : "#a05a00";
+    const label = isCompany ? "Company" : "Depot";
+    return (
+      <span
+        style={{
+          display: "inline-block",
+          padding: "2px 8px",
+          borderRadius: 10,
+          fontSize: 12,
+          fontWeight: 600,
+          background,
+          color,
+        }}
+      >
+        {label}
+      </span>
+    );
+  }
 
   const filterLabel =
     activeTab === "leaders"
@@ -623,8 +669,10 @@ export default function Updates() {
         <table className="data-table">
           <thead>
             <tr>
+              <th>#</th>
               <th>Date</th>
               <th>{identityHeader}</th>
+              <th>Source</th>
               <th>Leads</th>
               <th>Payins</th>
               <th>Sales</th>
@@ -635,20 +683,26 @@ export default function Updates() {
           </thead>
 
           <tbody>
-            {visibleRows.map(row => {
+            {visibleRows.map((row, index) => {
               const isEditing = activeTab === "leaders" && row.id === editingId;
-              const agent = agentMap[row.agent_id];
-              const canModify = canEditRow(row, profile, agent);
+              const canModify = canEditRow(row, currentRole);
+              const canModifyVoid = canVoidRow(row, currentRole);
               const permissionBlocked = profileLoading || !canModify;
-              const permissionTitle = permissionBlocked ? PERMISSION_TOOLTIP : undefined;
+              const permissionBlockedVoid = profileLoading || !canModifyVoid;
+              const permissionTitle = permissionBlocked ? PERMISSION_TOOLTIP(currentRole) : undefined;
+              const permissionTitleVoid = permissionBlockedVoid ? PERMISSION_TOOLTIP(currentRole) : undefined;
               const isEditDisabled = savingId === row.id || row.voided || permissionBlocked;
-              const isVoidDisabled = actionLoading || permissionBlocked;
-              const isUnvoidDisabled = actionLoading || permissionBlocked;
+              const isVoidDisabled = actionLoading || permissionBlockedVoid;
+              const isUnvoidDisabled = actionLoading || permissionBlockedVoid;
 
               return (
                 <tr key={row.id}>
+                  <td>
+                    <div className="muted" style={{ fontSize: 12 }}>{index + 1}</div>
+                  </td>
                   <td>{row.date_real}</td>
                   <td>{renderIdentityCell(row)}</td>
+                  <td>{renderSourcePill(row)}</td>
 
                   <td>
                     {isEditing ? (
@@ -768,7 +822,7 @@ export default function Updates() {
                               color: "#b00020",
                               ...(isVoidDisabled ? { opacity: 0.6, cursor: "not-allowed" } : {}),
                             }}
-                            title={permissionTitle}
+                            title={permissionTitleVoid}
                           >
                             Void
                           </button>
@@ -785,7 +839,7 @@ export default function Updates() {
                               color: "#1b6b1b",
                               ...(isUnvoidDisabled ? { opacity: 0.6, cursor: "not-allowed" } : {}),
                             }}
-                            title={permissionTitle}
+                            title={permissionTitleVoid}
                           >
                             Unvoid
                           </button>
@@ -799,7 +853,7 @@ export default function Updates() {
 
             {!visibleRows.length && !loading ? (
               <tr>
-                <td colSpan={8} className="muted" style={{ textAlign: "center", padding: 16 }}>
+                <td colSpan={10} className="muted" style={{ textAlign: "center", padding: 16 }}>
                   No data to display.
                 </td>
               </tr>
