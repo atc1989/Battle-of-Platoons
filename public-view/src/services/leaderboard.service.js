@@ -1,5 +1,5 @@
 // public-view/src/services/leaderboard.service.js
-import { supabase } from "./supabase";
+import { supabase, supabaseConfigured } from "./supabase";
 
 /**
  * Battle of Platoons - Leaderboard Service (Supabase)
@@ -12,9 +12,10 @@ import { supabase } from "./supabase";
  * }
  *
  * Notes:
+ * - Public visibility is governed by Supabase RLS; do not add publishable logic in the frontend.
  * - We intentionally DO NOT rely on PostgREST nested joins for depots/companies/platoons
  *   because those return null unless FK relationships are properly defined in Postgres.
- * - Instead: fetch lookups separately and attach by depotId/companyId/platoonId.
+ * - Instead: fetch lookups separately and attach by depot_id/company_id/platoon_id.
  */
 
 export async function getLeaderboard({
@@ -24,73 +25,75 @@ export async function getLeaderboard({
   roleFilter = null, // null | "platoon" | "squad"
   scoring = defaultScore,
 }) {
-  // 1) Fetch raw_data + agents (basic fields only)
-  const [
-    { data: companyRows, error: companyError },
-    { data: depotRows, error: depotError },
-  ] = await Promise.all([
-    supabase
-      .from("raw_data")
-      .select(
-        `
-        approved,
-        source,
-        voided,
-        id,
-        leads,
-        payins,
-        sales,
-        date_real,
-        date,
-        agent_id,
-        agentId,
-        agents:agents (
-          id,
-          name,
-          photoURL,
-          depotId,
-          companyId,
-          platoonId,
-          role
-        )
+  if (!supabaseConfigured || !supabase) {
+    throw new Error("Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+  }
+
+  // 1) Fetch raw_data + agents (basic fields only) - rely on RLS for publishability
+  const { data: companyRows, error: companyError } = await supabase
+    .from("raw_data")
+    .select(
       `
+      approved,
+      source,
+      voided,
+      id,
+      leads,
+      payins,
+      sales,
+      date_real,
+      date,
+      agent_id,
+      agents:agents (
+        id,
+        name,
+        photoURL,
+        depot_id,
+        company_id,
+        platoon_id,
+        role
       )
-      .gte("date_real", startDate)
-      .lte("date_real", endDate)
-      .eq("voided", false)
-      .eq("source", "company"),
-    supabase
-      .from("raw_data")
-      .select("agent_id,date_real,leads,payins,sales,source,voided")
-      .gte("date_real", startDate)
-      .lte("date_real", endDate)
-      .eq("voided", false)
-      .eq("source", "depot"),
-  ]);
+    `
+    )
+    .gte("date_real", startDate)
+    .lte("date_real", endDate)
+    .eq("voided", false)
+    .eq("source", "company");
 
   if (companyError) throw companyError;
-  if (depotError) throw depotError;
 
   // 2) If date_real exists & is correct, above filter is enough.
   //    Keep a safety filter in JS in case date_real has time/edge cases.
   const start = new Date(`${startDate}T00:00:00`);
   const end = new Date(`${endDate}T23:59:59`);
 
-  const depotPairs = new Map();
-  (depotRows ?? []).forEach((row) => {
-    if (!row?.agent_id || !row?.date_real) return;
-    depotPairs.set(`${row.date_real}_${row.agent_id}`, row);
+  const isDev = Boolean(import.meta.env?.DEV);
+  let warnedMissingAgentId = false;
+  let warnedMissingAgentData = false;
+
+  const companyRowsFetched = companyRows?.length ?? 0;
+  const depotRowsFetched = 0;
+
+  const filteredRows = (companyRows ?? []).filter((r) => {
+    if (isDev) {
+      if (!r?.agent_id && !warnedMissingAgentId) {
+        console.warn("[Leaderboard] Missing agent_id in raw_data row", r?.id ?? r);
+        warnedMissingAgentId = true;
+      } else if (r?.agent_id && !r?.agents && !warnedMissingAgentData) {
+        console.warn("[Leaderboard] Missing agents join data for agent_id", r.agent_id);
+        warnedMissingAgentData = true;
+      }
+    }
+    return true;
   });
 
-  const publishableRows = (companyRows ?? []).filter((r) => {
-    const pair = depotPairs.get(`${r.date_real}_${r.agent_id}`);
-    return isPublishable(r, pair);
-  });
-
-  let filtered = publishableRows.filter((r) => {
-    const d = getRowDate(r);
-    return d && d >= start && d <= end;
-  });
+  let filtered = filteredRows;
+  if (startDate && endDate) {
+    filtered = filteredRows.filter((r) => {
+      const d = getRowDate(r);
+      return d && d >= start && d <= end;
+    });
+  }
 
   if (groupBy === "leaders" && roleFilter) {
     filtered = filtered.filter((r) => {
@@ -129,7 +132,36 @@ export async function getLeaderboard({
     totalSales: rows.reduce((s, r) => s + toNumber(r.sales), 0),
   };
 
-  return { metrics, rows };
+  return {
+    metrics,
+    rows,
+    debug: {
+      companyRowsFetched,
+      depotRowsFetched,
+      publishableRowsCount: filteredRows.length,
+      filteredByRangeCount: filtered.length,
+      startDate,
+      endDate,
+      groupBy,
+      roleFilter,
+    },
+  };
+}
+
+export async function probeRawDataVisibility() {
+  if (!supabaseConfigured || !supabase) {
+    return { ok: false, reason: "not_configured", count: null, error: null };
+  }
+
+  const { count, error } = await supabase
+    .from("raw_data")
+    .select("id", { count: "exact", head: true });
+
+  if (error) {
+    return { ok: false, count: null, error };
+  }
+
+  return { ok: true, count: count ?? 0, error: null };
 }
 
 /* ------------------------------ Aggregation ------------------------------ */
@@ -150,12 +182,12 @@ function aggregateLeaderboard({
     const payins = toNumber(r.payins);
     const sales = toNumber(r.sales);
 
-    const agentId = String(r.agent_id ?? r.agentId ?? a.id ?? "");
+    const agentId = String(r.agent_id ?? a.id ?? "");
 
     // Resolve lookup entities
-    const depot = a.depotId ? depotsMap.get(String(a.depotId)) : null;
-    const company = a.companyId ? companiesMap.get(String(a.companyId)) : null;
-    const platoon = a.platoonId ? platoonsMap.get(String(a.platoonId)) : null;
+    const depot = a.depot_id ? depotsMap.get(String(a.depot_id)) : null;
+    const company = a.company_id ? companiesMap.get(String(a.company_id)) : null;
+    const platoon = a.platoon_id ? platoonsMap.get(String(a.platoon_id)) : null;
 
     // Determine grouping key + display name + avatar
     let key = "";
@@ -169,11 +201,11 @@ function aggregateLeaderboard({
       avatarUrl = a.photoURL ?? "";
       platoonName = platoon?.name ?? ""; // show platoon label in UI for leaders
     } else if (mode === "depots") {
-      key = String(a.depotId ?? "");
+      key = String(a.depot_id ?? "");
       name = (depot?.name ?? key) || "(No Depot)";
       avatarUrl = depot?.photoURL ?? "";
     } else if (mode === "companies") {
-      key = String(a.companyId ?? "");
+      key = String(a.company_id ?? "");
       name = (company?.name ?? key) || "(No Commander)";
       avatarUrl = company?.photoURL ?? "";
     } else {
@@ -184,7 +216,7 @@ function aggregateLeaderboard({
       platoonName = platoon?.name ?? "";
     }
 
-    // Skip rows that can't be grouped (e.g., missing depotId when mode=depots)
+    // Skip rows that can't be grouped (e.g., missing depot_id when mode=depots)
     if (!key) continue;
 
     if (!map.has(key)) {
@@ -235,27 +267,6 @@ function defaultScore(row) {
 function toNumber(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
-}
-
-function normalizeSourceValue(source) {
-  return (source || "").toString().toLowerCase();
-}
-
-function isPublishable(companyRow, depotRow) {
-  if (!companyRow) return false;
-  const companySource = normalizeSourceValue(companyRow.source);
-  if (companySource !== "company") return false;
-  if (companyRow.voided) return false;
-  if (companyRow.approved === true) return true;
-
-  if (!depotRow) return false;
-  const depotSource = normalizeSourceValue(depotRow.source);
-  if (depotSource !== "depot") return false;
-
-  const leadsMatch = Number(companyRow.leads ?? 0) === Number(depotRow.leads ?? 0);
-  const payinsMatch = Number(companyRow.payins ?? 0) === Number(depotRow.payins ?? 0);
-  const salesMatch = Number(companyRow.sales ?? 0) === Number(depotRow.sales ?? 0);
-  return leadsMatch && payinsMatch && salesMatch;
 }
 
 /**
