@@ -385,7 +385,7 @@ function App() {
           <>
             {rows.length === 0 ? (
               <div className="empty-state">
-                No data yet for this week.
+                No publishable data for this period.
               </div>
             ) : (
               <>

@@ -12,6 +12,7 @@ import { supabase, supabaseConfigured } from "./supabase";
  * }
  *
  * Notes:
+ * - Public visibility is governed by Supabase RLS; do not add publishable logic in the frontend.
  * - We intentionally DO NOT rely on PostgREST nested joins for depots/companies/platoons
  *   because those return null unless FK relationships are properly defined in Postgres.
  * - Instead: fetch lookups separately and attach by depot_id/company_id/platoon_id.
@@ -28,71 +29,52 @@ export async function getLeaderboard({
     throw new Error("Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
   }
 
-  // 1) Fetch raw_data + agents (basic fields only)
-  const [
-    { data: companyRows, error: companyError },
-    { data: depotRows, error: depotError },
-  ] = await Promise.all([
-    supabase
-      .from("raw_data")
-      .select(
-        `
-        approved,
-        source,
-        voided,
-        id,
-        leads,
-        payins,
-        sales,
-        date_real,
-        date,
-        agent_id,
-        agents:agents (
-          id,
-          name,
-          photoURL,
-          depot_id,
-          company_id,
-          platoon_id,
-          role
-        )
+  // 1) Fetch raw_data + agents (basic fields only) - rely on RLS for publishability
+  const { data: companyRows, error: companyError } = await supabase
+    .from("raw_data")
+    .select(
       `
+      approved,
+      source,
+      voided,
+      id,
+      leads,
+      payins,
+      sales,
+      date_real,
+      date,
+      agent_id,
+      agents:agents (
+        id,
+        name,
+        photoURL,
+        depot_id,
+        company_id,
+        platoon_id,
+        role
       )
-      .gte("date_real", startDate)
-      .lte("date_real", endDate)
-      .eq("voided", false)
-      .eq("source", "company"),
-    supabase
-      .from("raw_data")
-      .select("agent_id,date_real,leads,payins,sales,source,voided")
-      .gte("date_real", startDate)
-      .lte("date_real", endDate)
-      .eq("voided", false)
-      .eq("source", "depot"),
-  ]);
+    `
+    )
+    .gte("date_real", startDate)
+    .lte("date_real", endDate)
+    .eq("voided", false)
+    .eq("source", "company");
 
   if (companyError) throw companyError;
-  if (depotError) throw depotError;
 
   // 2) If date_real exists & is correct, above filter is enough.
   //    Keep a safety filter in JS in case date_real has time/edge cases.
   const start = new Date(`${startDate}T00:00:00`);
   const end = new Date(`${endDate}T23:59:59`);
 
-  const depotPairs = new Map();
-  (depotRows ?? []).forEach((row) => {
-    if (!row?.agent_id || !row?.date_real) return;
-    depotPairs.set(`${row.date_real}_${row.agent_id}`, row);
-  });
-
   const isDev = Boolean(import.meta.env?.DEV);
   let warnedMissingAgentId = false;
   let warnedMissingAgentData = false;
 
   const companyRowsFetched = companyRows?.length ?? 0;
-  const depotRowsFetched = depotRows?.length ?? 0;
+  const depotRowsFetched = 0;
 
-  const publishableRows = (companyRows ?? []).filter((r) => {
+  const filteredRows = (companyRows ?? []).filter((r) => {
     if (isDev) {
       if (!r?.agent_id && !warnedMissingAgentId) {
         console.warn("[Leaderboard] Missing agent_id in raw_data row", r?.id ?? r);
@@ -102,14 +84,16 @@ export async function getLeaderboard({
         warnedMissingAgentData = true;
       }
     }
-    const pair = depotPairs.get(`${r.date_real}_${r.agent_id}`);
-    return isPublishable(r, pair);
+    return true;
   });
 
-  let filtered = publishableRows.filter((r) => {
-    const d = getRowDate(r);
-    return d && d >= start && d <= end;
-  });
+  let filtered = filteredRows;
+  if (startDate && endDate) {
+    filtered = filteredRows.filter((r) => {
+      const d = getRowDate(r);
+      return d && d >= start && d <= end;
+    });
+  }
 
   if (groupBy === "leaders" && roleFilter) {
     filtered = filtered.filter((r) => {
@@ -154,7 +138,7 @@ export async function getLeaderboard({
     debug: {
       companyRowsFetched,
       depotRowsFetched,
-      publishableRowsCount: publishableRows.length,
+      publishableRowsCount: filteredRows.length,
       filteredByRangeCount: filtered.length,
       startDate,
       endDate,
@@ -283,27 +267,6 @@ function defaultScore(row) {
 function toNumber(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
-}
-
-function normalizeSourceValue(source) {
-  return (source || "").toString().toLowerCase();
-}
-
-function isPublishable(companyRow, depotRow) {
-  if (!companyRow) return false;
-  const companySource = normalizeSourceValue(companyRow.source);
-  if (companySource !== "company") return false;
-  if (companyRow.voided) return false;
-  if (companyRow.approved === true) return true;
-
-  if (!depotRow) return false;
-  const depotSource = normalizeSourceValue(depotRow.source);
-  if (depotSource !== "depot") return false;
-
-  const leadsMatch = Number(companyRow.leads ?? 0) === Number(depotRow.leads ?? 0);
-  const payinsMatch = Number(companyRow.payins ?? 0) === Number(depotRow.payins ?? 0);
-  const salesMatch = Number(companyRow.sales ?? 0) === Number(depotRow.sales ?? 0);
-  return leadsMatch && payinsMatch && salesMatch;
 }
 
 /**
