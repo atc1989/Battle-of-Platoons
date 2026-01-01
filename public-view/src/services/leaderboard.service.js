@@ -30,7 +30,7 @@ export async function getLeaderboard({
     { data: depotRows, error: depotError },
   ] = await Promise.all([
     supabase
-      .from("raw_data")
+      .from("publishable_raw_data")
       .select(
         `
         approved,
