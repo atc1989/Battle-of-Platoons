@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   listAllFormulasForSuperAdmin,
   listPublishedFormulas,
   listAudit,
+  updateDraft,
+  publishDraft,
 } from "../services/scoringFormula.service";
 import { getMyProfile } from "../services/profile.service";
-import { supabase } from "../services/supabase";
 import { computeMetricScore, computeTotalScore } from "../services/scoringEngine";
 
 export default function ScoringFormulas() {
@@ -18,15 +19,15 @@ export default function ScoringFormulas() {
   const [formulasError, setFormulasError] = useState("");
 
   const [selectedId, setSelectedId] = useState(null);
-  const [createLoading, setCreateLoading] = useState(false);
+  const [selectedFormula, setSelectedFormula] = useState(null);
 
   const isSuperAdmin = profile?.role === "super_admin";
 
-  const [formData, setFormData] = useState({
-    name: "",
-    metricsText: "",
-    reason: "",
-  });
+  const [draftLabel, setDraftLabel] = useState("");
+  const [draftStartWeekKey, setDraftStartWeekKey] = useState("");
+  const [draftEndWeekKey, setDraftEndWeekKey] = useState("");
+  const [draftMetrics, setDraftMetrics] = useState([]);
+  const [reasonText, setReasonText] = useState("");
   const [saveError, setSaveError] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);
   const [publishLoading, setPublishLoading] = useState(false);
@@ -97,26 +98,65 @@ export default function ScoringFormulas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileLoading, isSuperAdmin]);
 
-  const selectedFormula = useMemo(
-    () => formulas.find(f => f.id === selectedId) || null,
-    [formulas, selectedId]
-  );
+  useEffect(() => {
+    const found = formulas.find(f => f.id === selectedId) || null;
+    setSelectedFormula(found);
+  }, [formulas, selectedId]);
+
+  const isPublished = selectedFormula?.status === "published";
+  const isEditable = isSuperAdmin && selectedFormula && !isPublished;
+  const isDepotBattle =
+    String(selectedFormula?.battle_type || "").toLowerCase() === "depot" ||
+    String(selectedFormula?.battle_type || "").toLowerCase() === "depots";
+
+  function getAllowedMetricKeys(battleType) {
+    if (battleType === "depots") {
+      return ["leads", "sales"];
+    }
+    return ["leads", "payins", "sales"];
+  }
+
+  function normalizeMetrics(formula) {
+    const sourceMetrics =
+      formula?.config?.metrics ??
+      formula?.metrics?.metrics ??
+      formula?.metrics ??
+      formula?.config ??
+      [];
+    const metricsArray = Array.isArray(sourceMetrics) ? sourceMetrics : [];
+    const allowedKeys = getAllowedMetricKeys(formula?.battle_type);
+    return allowedKeys.map(key => {
+      const existing = metricsArray.find(m => m.key === key || m.metric === key || m.name === key);
+      return {
+        key,
+        divisor: Number(existing?.divisor ?? existing?.division ?? 0),
+        maxPoints: Number(existing?.maxPoints ?? existing?.max_points ?? existing?.points ?? 0),
+      };
+    });
+  }
 
   useEffect(() => {
     if (!selectedFormula) return;
-    const metricsJson = selectedFormula.metrics ?? selectedFormula.config ?? {};
-    setFormData({
-      name: selectedFormula.name || selectedFormula.title || "",
-      metricsText: JSON.stringify(metricsJson, null, 2),
-      reason: "",
-    });
+
+    setDraftLabel(selectedFormula.name || selectedFormula.title || "");
+    setDraftStartWeekKey(
+      selectedFormula.effective_start_week_key ||
+        selectedFormula.start_week_key ||
+        selectedFormula.start_week ||
+        ""
+    );
+    setDraftEndWeekKey(
+      selectedFormula.effective_end_week_key ||
+        selectedFormula.end_week_key ||
+        selectedFormula.end_week ||
+        ""
+    );
+    setDraftMetrics(normalizeMetrics(selectedFormula));
+    setReasonText("");
     setSaveError("");
     setPublishError("");
     setPreviewInputs({ leads: "0", payins: "0", sales: "0" });
   }, [selectedFormula]);
-
-  const isPublished = selectedFormula?.status === "published";
-  const isEditable = isSuperAdmin && selectedFormula && !isPublished;
 
   useEffect(() => {
     if (!selectedId) return;
@@ -146,33 +186,39 @@ export default function ScoringFormulas() {
     };
   }, [selectedId]);
 
-  function handleFieldChange(key, value) {
-    setFormData(prev => ({ ...prev, [key]: value }));
+  function handleMetricChange(targetKey, field, value) {
+    setDraftMetrics(prev =>
+      prev.map(metric =>
+        metric.key === targetKey
+          ? { ...metric, [field]: value === "" ? "" : Number(value) }
+          : metric
+      )
+    );
   }
 
   async function handleSaveDraft() {
     if (!isEditable) return;
     setSaveError("");
 
-    const trimmedReason = formData.reason?.trim() || "";
+    const trimmedReason = reasonText?.trim() || "";
     if (!trimmedReason) {
       setSaveError("Reason is required.");
       return;
     }
 
-    let parsedMetrics;
-    try {
-      parsedMetrics = JSON.parse(formData.metricsText || "{}");
-    } catch (err) {
-      setSaveError(err.message || "Invalid metrics JSON");
-      return;
-    }
+    const payloadMetrics = {
+      metrics: draftMetrics.map(m => ({
+        key: m.key,
+        divisor: Number(m.divisor) || 0,
+        maxPoints: Number(m.maxPoints) || 0,
+      })),
+    };
 
     setSaveLoading(true);
-    const { data, error } = await supabase.rpc("update_draft_scoring_formula", {
+    const { data, error } = await updateDraft({
       formula_id: selectedId,
-      name: formData.name,
-      metrics: parsedMetrics,
+      name: draftLabel,
+      metrics: payloadMetrics,
       reason: trimmedReason,
     });
     setSaveLoading(false);
@@ -197,17 +243,14 @@ export default function ScoringFormulas() {
 
     setPublishError("");
 
-    const trimmedReason = formData.reason?.trim() || "";
+    const trimmedReason = reasonText?.trim() || "";
     if (!trimmedReason) {
       setPublishError("Reason is required to publish.");
       return;
     }
 
     setPublishLoading(true);
-    const { data, error } = await supabase.rpc("publish_scoring_formula", {
-      formula_id: selectedId,
-      reason: trimmedReason,
-    });
+    const { data, error } = await publishDraft(selectedId, trimmedReason);
     setPublishLoading(false);
 
     if (error) {
@@ -230,62 +273,28 @@ export default function ScoringFormulas() {
     }
   }
 
-  function parseMetricsForPreview() {
-    const sourceText = isEditable ? formData.metricsText : JSON.stringify(selectedFormula?.metrics ?? selectedFormula?.config ?? {});
-    try {
-      const parsed = typeof sourceText === "string" ? JSON.parse(sourceText || "{}") : sourceText || {};
-      if (Array.isArray(parsed)) return parsed;
-      if (Array.isArray(parsed.metrics)) return parsed.metrics;
-      return [];
-    } catch (_) {
-      return [];
-    }
-  }
-
   function getTotals() {
     const leads = Number(previewInputs.leads) || 0;
-    const payins = Number(previewInputs.payins) || 0;
+    const payins = isDepotBattle ? 0 : Number(previewInputs.payins) || 0;
     const sales = Number(previewInputs.sales) || 0;
     return { leads, payins, sales };
   }
 
-  const previewMetrics = parseMetricsForPreview();
+  const allowedPreviewKeys = getAllowedMetricKeys(selectedFormula?.battle_type);
+  const basePreviewMetrics = isEditable ? draftMetrics : normalizeMetrics(selectedFormula);
+  const previewMetrics = Array.isArray(basePreviewMetrics)
+    ? basePreviewMetrics.filter(metric => allowedPreviewKeys.includes(metric.key))
+    : [];
   const previewTotals = getTotals();
   const previewTotalScore = computeTotalScore(selectedFormula?.battle_type, previewTotals, {
-    metrics: previewMetrics,
+    metrics: Array.isArray(previewMetrics)
+      ? previewMetrics.map(metric => ({
+          ...metric,
+          divisor: Number(metric.divisor) || 0,
+          maxPoints: Number(metric.maxPoints) || 0,
+        }))
+      : [],
   });
-
-  async function handleCreateDepotFormula() {
-    if (!isSuperAdmin) return;
-
-    setCreateLoading(true);
-    const { data, error } = await supabase.rpc("create_draft_scoring_formula", {
-      battle_type: "depots",
-      effective_start_week_key: "2026-W01",
-      effective_end_week_key: null,
-      label: "Depots v1",
-      config: {
-        metrics: [
-          { key: "leads", divisor: 500, maxPoints: 400 },
-          { key: "sales", divisor: 3_000_000, maxPoints: 600 },
-        ],
-      },
-      reason: "Initial depot scoring formula",
-    });
-    setCreateLoading(false);
-
-    if (error) {
-      alert(error.message || "Failed to create draft formula");
-      console.error(error);
-      return;
-    }
-
-    alert("Draft formula created");
-    if (data?.id) {
-      setFormulas(current => [data, ...(current || [])]);
-      setSelectedId(data.id);
-    }
-  }
 
   function renderDetails() {
     if (formulasLoading) {
@@ -303,6 +312,13 @@ export default function ScoringFormulas() {
       { label: "Status", value: selectedFormula.status || "unknown" },
       { label: "Version", value: selectedFormula.version ?? selectedFormula.revision ?? "—" },
     ];
+
+    const displayMetrics = isEditable ? draftMetrics : normalizeMetrics(selectedFormula);
+    const totalPoints = displayMetrics.reduce(
+      (sum, metric) => sum + (Number(metric.maxPoints) || 0),
+      0
+    );
+    const totalPointsValid = totalPoints === 1000;
 
     return (
       <div className="stack">
@@ -330,20 +346,103 @@ export default function ScoringFormulas() {
               <input
                 id="formula-name"
                 type="text"
-                value={formData.name}
-                onChange={e => handleFieldChange("name", e.target.value)}
+                value={draftLabel}
+                onChange={e => setDraftLabel(e.target.value)}
               />
             </div>
-            <div className="stack xs">
-              <label className="label" htmlFor="metrics-json">
-                Metrics (JSON)
-              </label>
-              <textarea
-                id="metrics-json"
-                rows={10}
-                value={formData.metricsText}
-                onChange={e => handleFieldChange("metricsText", e.target.value)}
-              />
+            <div className="grid two" style={{ gap: "12px" }}>
+              <div className="stack xs">
+                <div className="label">Effective Start Week</div>
+                <input
+                  type="text"
+                  value={draftStartWeekKey}
+                  onChange={e => setDraftStartWeekKey(e.target.value)}
+                  disabled
+                />
+              </div>
+              <div className="stack xs">
+                <div className="label">Effective End Week</div>
+                <input
+                  type="text"
+                  value={draftEndWeekKey}
+                  onChange={e => setDraftEndWeekKey(e.target.value)}
+                  disabled
+                />
+              </div>
+            </div>
+            <div className="stack sm">
+              <div className="label">Metrics</div>
+              <div className="stack sm">
+                {displayMetrics.map(metric => {
+                  const percent =
+                    totalPoints > 0
+                      ? (((Number(metric.maxPoints) || 0) / totalPoints) * 100).toFixed(2)
+                      : "0.00";
+                  const name =
+                    metric.key === "leads"
+                      ? "Leads"
+                      : metric.key === "payins"
+                        ? "Pay-ins"
+                        : "Sales";
+                  return (
+                    <div key={metric.key} className="card" style={{ padding: "12px" }}>
+                      <div className="row between" style={{ marginBottom: "8px" }}>
+                        <div className="label">{name}</div>
+                        <div className="muted">{percent}% of total</div>
+                      </div>
+                      <div className="grid two" style={{ gap: "12px" }}>
+                        <div className="stack xs">
+                          <label className="label" htmlFor={`divisor-${metric.key}`}>
+                            Divisor
+                          </label>
+                          <input
+                            id={`divisor-${metric.key}`}
+                            type="number"
+                            value={metric.divisor}
+                            onChange={e =>
+                              handleMetricChange(metric.key, "divisor", e.target.value)
+                            }
+                          />
+                        </div>
+                        <div className="stack xs">
+                          <label className="label" htmlFor={`max-${metric.key}`}>
+                            Max Points
+                          </label>
+                          <input
+                            id={`max-${metric.key}`}
+                            type="number"
+                            value={metric.maxPoints}
+                            onChange={e =>
+                              handleMetricChange(metric.key, "maxPoints", e.target.value)
+                            }
+                          />
+                          <input
+                            type="range"
+                            min={0}
+                            max={1000}
+                            step={50}
+                            value={Number(metric.maxPoints) || 0}
+                            onChange={e =>
+                              handleMetricChange(metric.key, "maxPoints", Number(e.target.value))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className={`card ${totalPointsValid ? "muted" : "error"}`} style={{ padding: "12px" }}>
+              <div className="row between">
+                <div className="label">Total Points</div>
+                <div className="value">
+                  {totalPoints} / 1000
+                </div>
+              </div>
+              {!totalPointsValid && (
+                <div className="muted">Total points must equal 1000 to save or publish.</div>
+              )}
             </div>
             <div className="stack xs">
               <label className="label" htmlFor="reason">
@@ -352,8 +451,8 @@ export default function ScoringFormulas() {
               <textarea
                 id="reason"
                 rows={3}
-                value={formData.reason}
-                onChange={e => handleFieldChange("reason", e.target.value)}
+                value={reasonText}
+                onChange={e => setReasonText(e.target.value)}
               />
             </div>
             {saveError && <div className="error">{saveError}</div>}
@@ -362,45 +461,76 @@ export default function ScoringFormulas() {
               <button
                 className="btn primary"
                 onClick={handleSaveDraft}
-                disabled={saveLoading}
+                disabled={saveLoading || !totalPointsValid}
               >
                 {saveLoading ? "Saving…" : "Save Draft"}
               </button>
               <button
                 className="btn"
                 onClick={handlePublish}
-                disabled={publishLoading || isPublished}
+                disabled={publishLoading || isPublished || !totalPointsValid}
               >
                 {publishLoading ? "Publishing…" : "Publish"}
               </button>
             </div>
           </div>
         ) : (
-          <div className="stack xs">
+          <div className="stack sm">
             <div className="label">Metrics</div>
-            <pre className="code-block">
-              {JSON.stringify(selectedFormula.metrics ?? selectedFormula.config ?? {}, null, 2)}
-            </pre>
+            <div className="stack sm">
+              {displayMetrics.map(metric => {
+                const percent =
+                  totalPoints > 0
+                    ? (((Number(metric.maxPoints) || 0) / totalPoints) * 100).toFixed(2)
+                    : "0.00";
+                const name =
+                  metric.key === "leads"
+                    ? "Leads"
+                    : metric.key === "payins"
+                      ? "Pay-ins"
+                      : "Sales";
+                return (
+                  <div key={metric.key} className="card muted" style={{ padding: "12px" }}>
+                    <div className="row between" style={{ marginBottom: "8px" }}>
+                      <div className="label">{name}</div>
+                      <div className="muted">{percent}% of total</div>
+                    </div>
+                    <div className="grid two" style={{ gap: "12px" }}>
+                      <div className="stack xs">
+                        <div className="label">Divisor</div>
+                        <div className="value">{metric.divisor}</div>
+                      </div>
+                      <div className="stack xs">
+                        <div className="label">Max Points</div>
+                        <div className="value">{metric.maxPoints}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
         <div className="stack sm">
           <div className="label">Preview Calculator</div>
           <div className="grid three" style={{ gap: "8px" }}>
-            {["leads", "payins", "sales"].map(key => (
-              <div className="stack xs" key={key}>
-                <label className="label" htmlFor={`preview-${key}`}>
-                  {key.charAt(0).toUpperCase() + key.slice(1)}
-                </label>
-                <input
-                  id={`preview-${key}`}
-                  type="number"
-                  value={previewInputs[key]}
-                  onChange={e =>
-                    setPreviewInputs(prev => ({ ...prev, [key]: e.target.value }))
-                  }
-                />
-              </div>
-            ))}
+            {["leads", "payins", "sales"]
+              .filter(key => !(isDepotBattle && key === "payins"))
+              .map(key => (
+                <div className="stack xs" key={key}>
+                  <label className="label" htmlFor={`preview-${key}`}>
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                  </label>
+                  <input
+                    id={`preview-${key}`}
+                    type="number"
+                    value={previewInputs[key]}
+                    onChange={e =>
+                      setPreviewInputs(prev => ({ ...prev, [key]: e.target.value }))
+                    }
+                  />
+                </div>
+              ))}
           </div>
           {previewMetrics.length === 0 ? (
             <div className="muted">No metrics configured for preview.</div>
@@ -414,12 +544,19 @@ export default function ScoringFormulas() {
                   const maxPoints = metric?.maxPoints ?? metric?.max_points ?? metric?.points ?? 0;
                   const actual = previewTotals[key] ?? 0;
                   const score = computeMetricScore(actual, divisor, maxPoints);
+                  const formulaText =
+                    divisor > 0
+                      ? `${actual} ÷ ${divisor} × ${maxPoints} (cap ${maxPoints})`
+                      : "Divisor must be > 0";
                   return (
-                    <div key={key} className="row between">
-                      <div>{key}</div>
-                      <div className="muted">
-                        {score.toFixed(2)} / {maxPoints}
+                    <div key={key} className="card" style={{ padding: "8px" }}>
+                      <div className="row between">
+                        <div>{key}</div>
+                        <div className="muted">
+                          {score.toFixed(2)} / {maxPoints}
+                        </div>
                       </div>
+                      <div className="muted">{formulaText}</div>
                     </div>
                   );
                 })}
@@ -467,17 +604,6 @@ export default function ScoringFormulas() {
     <div className="grid two" style={{ gap: "16px" }}>
       <div className="card">
         <div className="card-title">Formulas</div>
-        {isSuperAdmin && (
-          <div className="stack xs" style={{ marginBottom: 8 }}>
-            <button
-              className="btn primary"
-              disabled={createLoading}
-              onClick={handleCreateDepotFormula}
-            >
-              {createLoading ? "Creating…" : "Create Depot Formula"}
-            </button>
-          </div>
-        )}
         {profileError && <div className="error">{profileError}</div>}
         {formulasError && !formulasLoading && <div className="error">{formulasError}</div>}
         {formulasLoading && <div className="muted">Loading formulas…</div>}
