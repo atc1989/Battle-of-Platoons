@@ -18,6 +18,7 @@ export default function ScoringFormulas() {
   const [formulasError, setFormulasError] = useState("");
 
   const [selectedId, setSelectedId] = useState(null);
+  const [createLoading, setCreateLoading] = useState(false);
 
   const isSuperAdmin = profile?.role === "super_admin";
 
@@ -254,6 +255,38 @@ export default function ScoringFormulas() {
     metrics: previewMetrics,
   });
 
+  async function handleCreateDepotFormula() {
+    if (!isSuperAdmin) return;
+
+    setCreateLoading(true);
+    const { data, error } = await supabase.rpc("create_draft_scoring_formula", {
+      battle_type: "depots",
+      effective_start_week_key: "2026-W01",
+      effective_end_week_key: null,
+      label: "Depots v1",
+      config: {
+        metrics: [
+          { key: "leads", divisor: 500, maxPoints: 400 },
+          { key: "sales", divisor: 3_000_000, maxPoints: 600 },
+        ],
+      },
+      reason: "Initial depot scoring formula",
+    });
+    setCreateLoading(false);
+
+    if (error) {
+      alert(error.message || "Failed to create draft formula");
+      console.error(error);
+      return;
+    }
+
+    alert("Draft formula created");
+    if (data?.id) {
+      setFormulas(current => [data, ...(current || [])]);
+      setSelectedId(data.id);
+    }
+  }
+
   function renderDetails() {
     if (formulasLoading) {
       return <div className="muted">Loading formula details…</div>;
@@ -434,6 +467,17 @@ export default function ScoringFormulas() {
     <div className="grid two" style={{ gap: "16px" }}>
       <div className="card">
         <div className="card-title">Formulas</div>
+        {isSuperAdmin && (
+          <div className="stack xs" style={{ marginBottom: 8 }}>
+            <button
+              className="btn primary"
+              disabled={createLoading}
+              onClick={handleCreateDepotFormula}
+            >
+              {createLoading ? "Creating…" : "Create Depot Formula"}
+            </button>
+          </div>
+        )}
         {profileError && <div className="error">{profileError}</div>}
         {formulasError && !formulasLoading && <div className="error">{formulasError}</div>}
         {formulasLoading && <div className="muted">Loading formulas…</div>}
