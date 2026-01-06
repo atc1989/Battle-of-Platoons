@@ -251,6 +251,16 @@ body {
   min-height: 220px;
 }
 
+.podium-card:nth-child(2) {
+  min-height: 250px;
+  padding-top: 24px;
+}
+
+.podium-card:nth-child(1),
+.podium-card:nth-child(3) {
+  min-height: 200px;
+}
+
 .podium-card--winner {
   box-shadow: 0 0 0 4px rgba(255, 213, 74, 0.7), var(--shadow-card);
 }

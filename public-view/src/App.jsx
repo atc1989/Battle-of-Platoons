@@ -422,10 +422,12 @@ function App() {
 }
 
 function MetricCard({ label, value, className, ...props }) {
+  // Spread motion props first so className on the animated element cannot be overwritten.
+  const { className: _ignoredClassName, ...safeMotionProps } = props;
   const cardClass = mergeClassNames("metric-card", className);
   return (
     <motion.div
-      {...props}
+      {...safeMotionProps}
       className={cardClass}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
@@ -471,6 +473,7 @@ function Podium({ top3, view }) {
         return (
           <motion.div
             key={item.key || item.id}
+            // Keep className on the animated wrapper so podium styles stay attached.
             className={accentClasses}
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
