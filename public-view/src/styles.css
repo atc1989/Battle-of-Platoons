@@ -232,8 +232,8 @@ body {
 }
 
 .metric-value {
-  font-size: clamp(28px, 3.2vw, 40px);
-  font-weight: 900;
+  font-size: clamp(28px, 3.2vw, 30px);
+  font-weight: 700;
   line-height: 1;
   letter-spacing: 0.2px;
 }
