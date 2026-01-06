@@ -18,6 +18,10 @@ const LEADER_ROLE_TABS = [
   { key: "team", label: "Team" },
 ];
 
+function mergeClassNames(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
+
 function formatCurrencyPHP(n) {
   const value = Number(n) || 0;
   return value.toLocaleString("en-PH", {
@@ -406,8 +410,8 @@ function App() {
               </div>
             ) : (
               <>
-                <Podium top3={top3} view={displayView} />
-                <LeaderboardTable rows={rows} view={displayView} />
+                <Podium top3={top3} view={displayView} roleFilter={leaderRoleFilter} />
+                <LeaderboardTable rows={rows} view={displayView} roleFilter={leaderRoleFilter} />
               </>
             )}
           </>
@@ -417,10 +421,12 @@ function App() {
   );
 }
 
-function MetricCard({ label, value }) {
+function MetricCard({ label, value, className, ...props }) {
+  const cardClass = mergeClassNames("metric-card", className);
   return (
     <motion.div
-      className="metric-card"
+      {...props}
+      className={cardClass}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -440,7 +446,14 @@ function Podium({ top3, view }) {
   return (
     <div className="podium">
       {arranged.map((item, index) => {
-        if (!item) return <div key={index} className="podium-card podium-card--placeholder" />;
+        if (!item) {
+          return (
+            <div
+              key={index}
+              className={mergeClassNames("podium-card", "podium-card--placeholder")}
+            />
+          );
+        }
         const rank =
           index === 1
             ? 1
@@ -448,18 +461,17 @@ function Podium({ top3, view }) {
             ? (top3[1]?.rank ?? 2)
             : (top3[2]?.rank ?? 3);
 
-        const accentClasses = [
+        const accentClasses = mergeClassNames(
+          "podium-card",
           rank === 1 ? "podium-card--winner" : "",
           rank === 1 ? "podium-card--gold" : "",
-          rank === 3 ? "podium-card--orange" : "",
-        ]
-          .filter(Boolean)
-          .join(" ");
+          rank === 3 ? "podium-card--orange" : ""
+        );
 
         return (
           <motion.div
             key={item.key || item.id}
-            className={`podium-card${accentClasses ? ` ${accentClasses}` : ""}`}
+            className={accentClasses}
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: index * 0.1 }}
@@ -490,7 +502,7 @@ function Podium({ top3, view }) {
   );
 }
 
-function LeaderboardTable({ rows, view }) {
+function LeaderboardTable({ rows, view, roleFilter }) {
   if (!rows.length) return null;
 
   const labelHeader =
@@ -502,6 +514,8 @@ function LeaderboardTable({ rows, view }) {
       ? "Upline"
       : "Commander";
 
+  const showUpline = view === "leaders" && roleFilter === "squad";
+
   return (
     <div className="table-wrapper">
       <table className="leader-table">
@@ -509,6 +523,7 @@ function LeaderboardTable({ rows, view }) {
           <tr>
             <th>Rank</th>
             <th>{labelHeader}</th>
+            {showUpline && <th>Upline</th>}
             <th>Leads</th>
             <th>Payins</th>
             <th>Sales</th>
@@ -541,6 +556,7 @@ function LeaderboardTable({ rows, view }) {
                   </div>
                 </div>
               </td>
+              {showUpline && <td>{r.uplineName || "—"}</td>}
               <td>{r.leads}</td>
               <td>{r.payins}</td>
               <td>{formatCurrencyPHP(r.sales)}</td>
