@@ -15,17 +15,17 @@ export async function listAllFormulasForSuperAdmin() {
 }
 
 export async function createDraft(payload) {
-  const { data, error } = await supabase.rpc("create_scoring_formula_draft", payload);
+  const { data, error } = await supabase.rpc("create_draft_scoring_formula", payload);
   return { data, error };
 }
 
 export async function updateDraft(payload) {
-  const { data, error } = await supabase.rpc("update_scoring_formula_draft", payload);
+  const { data, error } = await supabase.rpc("update_draft_scoring_formula", payload);
   return { data, error };
 }
 
 export async function publishDraft(formula_id, reason) {
-  const { data, error } = await supabase.rpc("publish_scoring_formula_draft", {
+  const { data, error } = await supabase.rpc("publish_scoring_formula", {
     formula_id,
     reason,
   });
