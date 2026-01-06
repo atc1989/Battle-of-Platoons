@@ -10,11 +10,11 @@ import "./styles.css";
 const VIEW_TABS = [
   { key: "depots", label: "Depots" },
   { key: "leaders", label: "Leaders" },
-  { key: "companies", label: "Commanders" },
+  { key: "commanders", label: "Commanders" },
+  { key: "companies", label: "Companies" },
 ];
 
 const LEADER_ROLE_TABS = [
-  { key: "all", label: "All" },
   { key: "platoon", label: "Platoon" },
   { key: "squad", label: "Squad" },
   { key: "team", label: "Team" },
@@ -57,7 +57,7 @@ function buildWeekTabsForCurrentMonth(baseDate = new Date()) {
   const monthEndDay = new Date(year, month + 1, 0).getDate();
   const todayDay = baseDate.getDate();
 
-  // current week number 1–4, based on day of month
+  // current week number 1â€“4, based on day of month
   const currentWeekNumber = Math.min(4, Math.ceil(todayDay / 7));
 
   const tabs = [];
@@ -181,11 +181,18 @@ function isWeekKeyInRange(weekKey, startKey, endKey) {
 function getBattleTypeForView(viewKey, roleFilter) {
   if (viewKey === "depots") return "depots";
   if (viewKey === "companies") return "companies";
+  if (viewKey === "commanders") return "companies";
   if (viewKey === "platoon") return "platoons";
   if (viewKey === "leaders" && roleFilter === "platoon") return "platoons";
   if (viewKey === "leaders" && roleFilter === "squad") return "squads";
   if (viewKey === "leaders" && roleFilter === "team") return "teams";
   return viewKey || "leaders";
+}
+
+function getGroupByForView(viewKey, roleFilter) {
+  if (viewKey === "commanders") return "companies";
+  if (viewKey === "leaders" && roleFilter === "platoon") return "platoon";
+  return viewKey;
 }
 
 function App() {
@@ -195,7 +202,7 @@ function App() {
   const activeWeekTab = weekTabs.find((w) => w.key === activeWeek);
   const weekRangeLabel = formatWeekRange(activeWeekTab?.displayRange);
   const [activeView, setActiveView] = useState("depots");
-  const [leaderRoleFilter, setLeaderRoleFilter] = useState("all");
+  const [leaderRoleFilter, setLeaderRoleFilter] = useState(LEADER_ROLE_TABS[0].key);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState(null);
@@ -223,20 +230,15 @@ function App() {
         const week = weekTabs.find((w) => w.key === activeWeek);
         const range = week?.range;
         const leadersPlatoonView = activeView === "leaders" && leaderRoleFilter === "platoon";
-        const battleTypeKey = getBattleTypeForView(
-          leadersPlatoonView ? "platoon" : activeView,
-          leaderRoleFilter
-        );
+        const groupByView = getGroupByForView(activeView, leaderRoleFilter);
+        const battleTypeKey = getBattleTypeForView(groupByView, leaderRoleFilter);
         const weekKey = range?.end ? toIsoWeekKey(range.end) : null;
 
         const result = await getLeaderboard({
           startDate: toYMD(range.start),
           endDate: toYMD(range.end),
-          groupBy: leadersPlatoonView ? "platoon" : activeView,
-          roleFilter:
-            activeView === "leaders" && !leadersPlatoonView && leaderRoleFilter !== "all"
-              ? leaderRoleFilter
-              : null,
+          groupBy: groupByView,
+          roleFilter: activeView === "leaders" && !leadersPlatoonView ? leaderRoleFilter : null,
           battleType: battleTypeKey,
           weekKey,
         });
@@ -305,13 +307,14 @@ function App() {
   const activeFormula = data?.formula?.data || null;
   const selectedWeekKey = data?.formula?.weekKey || null;
   const formulaMetrics = normalizeFormulaMetrics(activeFormula);
-  const formulaVersion = activeFormula?.version ?? activeFormula?.revision ?? "�";
+  const formulaVersion = activeFormula?.version ?? activeFormula?.revision ?? "—";
   const formulaTitle = `${activeFormula?.label ?? "Not published"} (v${formulaVersion})`;
   const top3 = rows.slice(0, 3);
-  const rest = rows.slice(3);
   const entitiesLabel =
-    displayView === "companies"
+    displayView === "commanders"
       ? "Commanders"
+      : displayView === "companies"
+      ? "Companies"
       : displayView === "depots"
       ? "Depots"
       : displayView === "platoon"
@@ -325,6 +328,8 @@ function App() {
       ? "Platoon Leader Rankings"
       : displayView === "depots"
       ? "Depot Rankings"
+      : displayView === "companies"
+      ? "Company Rankings"
       : "Commander Rankings";
 
   const statusBlocks = [];
@@ -353,7 +358,7 @@ function App() {
         <ul style={{ marginTop: 6, paddingLeft: 18, fontSize: 13 }}>
           <li>RLS publishable filter might hide all rows (approved=true OR matched depot/company totals).</li>
           <li>No approved/matched company rows exist for this project yet.</li>
-          <li>Project ref mismatch—verify you are using the correct Supabase env vars (see debug banner).</li>
+          <li>Project ref mismatchâ€”verify you are using the correct Supabase env vars (see debug banner).</li>
         </ul>
         <div style={{ fontSize: 13, marginTop: 4 }}>
           Next actions: approve one company row and re-test; verify <code>raw_data</code> RLS for source='company' &amp;
@@ -495,35 +500,35 @@ function App() {
                 >
                   {role.label}
                 </button>
-            ))}
-          </div>
-        )}
-        <h2 className="section-title">{title}</h2>
-        <div className="formula-summary">
-          <div className="formula-title">
-            Formula: {formulaTitle}
-          </div>
-          <div className="formula-details">
-            {activeFormula ? (
-              formulaMetrics.length ? (
-                formulaMetrics.map((m) => (
-                  <span key={m.key || m.divisor} className="formula-pill">
-                    {m.key || "Metric"}: ÷{m.divisor} • Max {m.maxPoints}
-                  </span>
-                ))
+              ))}
+            </div>
+          )}
+          <h2 className="section-title">{title}</h2>
+          <div className="formula-summary">
+            <div className="formula-title">
+              Formula: {formulaTitle}
+            </div>
+            <div className="formula-details">
+              {activeFormula ? (
+                formulaMetrics.length ? (
+                  formulaMetrics.map((m) => (
+                    <span key={m.key || m.divisor} className="formula-pill">
+                      {m.key || "Metric"}: ÷{m.divisor} • Max {m.maxPoints}
+                    </span>
+                  ))
+                ) : (
+                  <span className="formula-warning">Formula metrics are not configured.</span>
+                )
               ) : (
-                <span className="formula-warning">Formula metrics are not configured.</span>
-              )
-            ) : (
-              <span className="formula-warning">No published formula for this week.</span>
-            )}
+                <span className="formula-warning">No published formula for this week.</span>
+              )}
+            </div>
           </div>
-        </div>
       </section>
 
         {/* Loading / error */}
         {loading && (
-          <div className="status-text">Loading live rankings…</div>
+          <div className="status-text">Loading live rankingsâ€¦</div>
         )}
         {error && <div className="status-text status-text--error">{error}</div>}
 
@@ -611,6 +616,8 @@ function LeaderboardTable({ rows, view, roleFilter }) {
       ? "Depot"
       : view === "platoon"
       ? "Upline"
+      : view === "companies"
+      ? "Company"
       : "Commander";
 
   const showUpline = false;
@@ -655,12 +662,6 @@ function LeaderboardTable({ rows, view, roleFilter }) {
                   </div>
                 </div>
               </td>
-              {showUpline && <td>{r.uplineName || "—"}</td>}
-              <td>{r.leads}</td>
-              <td>{r.payins}</td>
-              <td>{formatCurrencyPHP(r.sales)}</td>
-              <td className="cell-right">{r.points.toFixed(1)}</td>
-            </tr>
           ))}
         </tbody>
       </table>

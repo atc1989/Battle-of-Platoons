@@ -254,7 +254,7 @@ function aggregateLeaderboard({
       avatarUrl = depot?.photoURL ?? "";
     } else if (mode === "companies") {
       key = String(companyId ?? "");
-      name = (company?.name ?? key) || "(No Commander)";
+      name = (company?.name ?? key) || "(No Company)";
       avatarUrl = company?.photoURL ?? "";
     } else {
       // fallback to leaders
