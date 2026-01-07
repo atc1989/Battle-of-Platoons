@@ -14,6 +14,7 @@ import Upload from "./pages/Upload";
 import Compare from "./pages/Compare";
 import Publishing from "./pages/Publishing";
 import Finalization from "./pages/Finalization";
+import AuditLog from "./pages/AuditLog";
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="compare" element={<Compare />} />
             <Route path="publishing" element={<Publishing />} />
             <Route path="finalization" element={<Finalization />} />
+            <Route path="audit-log" element={<AuditLog />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
