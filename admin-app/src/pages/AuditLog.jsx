@@ -721,17 +721,10 @@ export default function AuditLog() {
 
       <button
         onClick={async () => {
-          const { data, error } = await supabase.rpc(
-            "get_user_emails_super_admin_json",
-            {
-              payload: {
-                user_ids: ["b5dff50a-2d06-43ee-990e-3c936e6ed35a"],
-              },
-            }
-          );
-
-          console.log("RPC result:", { data, error });
-          alert(error ? error.message : JSON.stringify(data, null, 2));
+          const { data, error } = await supabase.rpc("get_user_emails_super_admin_json", {
+  payload: { user_ids: ["b5dff50a-2d06-43ee-990e-3c936e6ed35a"] },
+          });
+          console.log({ data, error });
         }}
       >
         Test Email Resolver RPC
