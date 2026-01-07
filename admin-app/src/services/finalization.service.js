@@ -1,7 +1,11 @@
 import { supabase } from "./supabase";
 
 function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function normalizeFinalizationError(error) {
@@ -71,7 +75,7 @@ async function fetchWeekRow(weekKey, fallbackDate) {
 }
 
 export async function getWeekStatusByDate(dateStr) {
-  const targetDate = await ensureWeek(dateStr);
+  const targetDate = dateStr || todayIsoDate();
   const weekKey = await getWeekKey(targetDate);
   return fetchWeekRow(weekKey, targetDate);
 }
