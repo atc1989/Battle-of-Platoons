@@ -359,7 +359,7 @@ export default function AuditLog() {
     else if (emailUnavailable) display = "(email unavailable)";
     else if (nonUuidActorLabel) display = nonUuidActorLabel;
 
-    return { display, secondary, actorId: actorId || "" };
+    return { display, actorId: actorId || "" };
   }
 
   const actorResolver = useMemo(() => ({
