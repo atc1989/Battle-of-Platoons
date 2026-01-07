@@ -31,6 +31,7 @@ const BLOCKED_PROPS = new Set([
 
 export default function isPropValid(prop) {
   if (BLOCKED_PROPS.has(prop)) return false;
+  if (prop === "className" || prop === "style") return true;
   // Allow standard data/aria attributes and anything React already permits.
   return (
     prop.startsWith('data-') ||
