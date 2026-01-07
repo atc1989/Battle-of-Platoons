@@ -6,6 +6,7 @@ import {
   listScoringFormulaAudit,
 } from "../services/auditLog.service";
 import { getMyProfile } from "../services/profile.service";
+import { supabase } from "../supabase";
 
 const PAGE_SIZE = 50;
 const BASE_ACTIONS = [
@@ -717,6 +718,25 @@ export default function AuditLog() {
           {exportProgress ? <div className="muted" style={{ alignSelf: "center" }}>{exportProgress}</div> : null}
         </div>
       </div>
+
+      <button
+  onClick={async () => {
+    const { data, error } = await supabase.rpc(
+      "get_user_emails_super_admin_json",
+      {
+        payload: {
+          user_ids: ["b5dff50a-2d06-43ee-990e-3c936e6ed35a"],
+        },
+      }
+    );
+
+    console.log("RPC result:", { data, error });
+    alert(error ? error.message : JSON.stringify(data, null, 2));
+  }}
+>
+  Test Email Resolver RPC
+</button>
+
 
       {error ? (
         <div className="error-box" role="alert" style={{ marginBottom: 12 }}>
