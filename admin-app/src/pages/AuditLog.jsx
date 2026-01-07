@@ -346,25 +346,15 @@ export default function AuditLog() {
 
   function getActorMeta(row) {
     const actorId = row.actor_id ? row.actor_id.toString() : "";
-    const uuidActorId = isUuid(actorId) ? actorId : "";
     const resolvedEmail = uuidActorId ? emailById[uuidActorId] : "";
     const actorEmail = row.actor_email ? row.actor_email.toString() : "";
     const actorName = row.actor_name ? row.actor_name.toString() : "";
-    const nonUuidActorLabel = actorName && !isUuid(actorName) ? actorName : "";
     const emailUnavailable = uuidActorId && emailMissingById[uuidActorId] && !resolvedEmail && !actorEmail;
 
     let display = "Unknown";
     if (resolvedEmail) display = resolvedEmail;
     else if (actorEmail) display = actorEmail;
     else if (emailUnavailable) display = "(email unavailable)";
-    else if (nonUuidActorLabel) display = nonUuidActorLabel;
-    else if (uuidActorId) display = shortUuid(uuidActorId);
-
-    const secondary = resolvedEmail
-      ? shortUuid(uuidActorId)
-      : emailUnavailable
-        ? shortUuid(uuidActorId)
-        : "";
 
     return { display, secondary, actorId: actorId || "" };
   }
@@ -751,11 +741,6 @@ export default function AuditLog() {
                   <td>{row.action || "—"}</td>
                   <td title={actorMeta.actorId || undefined}>
                     <div>{actorMeta.display}</div>
-                    {actorMeta.secondary ? (
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        {actorMeta.secondary}
-                      </div>
-                    ) : null}
                   </td>
                   <td>{row.leader_id || "—"}</td>
                   <td title={row.reason}>{truncate(row.reason)}</td>
