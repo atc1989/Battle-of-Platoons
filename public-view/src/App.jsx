@@ -51,47 +51,52 @@ function toIsoWeekKey(date) {
   return `${utcDate.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
+function startOfDay(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+
+function endOfDay(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
+
+// Returns the first Monday ON or AFTER the 1st day of the month
+function firstMondayOfMonth(year, monthIndex) {
+  const first = new Date(year, monthIndex, 1);
+  const day = first.getDay(); // 0=Sun, 1=Mon, ... 6=Sat
+  const delta = (8 - day) % 7; // days to next Monday (0 if already Monday)
+  return new Date(year, monthIndex, 1 + delta);
+}
+
 function buildWeekTabsForCurrentMonth(baseDate = new Date()) {
   const year = baseDate.getFullYear();
-  const month = baseDate.getMonth(); // 0 = Jan
-  const monthEndDay = new Date(year, month + 1, 0).getDate();
-  const todayDay = baseDate.getDate();
+  const month = baseDate.getMonth(); // 0=Jan
 
-  // current week number 1â€“4, based on day of month
-  const currentWeekNumber = Math.min(4, Math.ceil(todayDay / 7));
+  const week1Start = startOfDay(firstMondayOfMonth(year, month));
+
+  // Determine current week number based on Monday-based weeks
+  const today = startOfDay(baseDate);
+  const diffDays = Math.floor((today - week1Start) / 86400000);
+
+  // If today is before week1Start (ex: first days before first Monday), treat as Week 1.
+  const computedWeek = diffDays < 0 ? 1 : Math.floor(diffDays / 7) + 1;
+  const currentWeekNumber = Math.min(4, Math.max(1, computedWeek));
 
   const tabs = [];
 
   for (let weekIndex = 1; weekIndex <= 4; weekIndex++) {
-    // ----- DISPLAY RANGE (7-day block) -----
-    const displayStartDay = (weekIndex - 1) * 7 + 1;
-    if (displayStartDay > monthEndDay) break; // no more weeks in this month
+    const start = new Date(week1Start);
+    start.setDate(start.getDate() + (weekIndex - 1) * 7);
 
-    const displayEndDay = Math.min(displayStartDay + 6, monthEndDay);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
 
-    const displayStart = new Date(year, month, displayStartDay, 0, 0, 0, 0);
-    const displayEnd = new Date(
-      year,
-      month,
-      displayEndDay,
-      23,
-      59,
-      59,
-      999
-    );
+    // Display range = that week (Mon?Sun)
+    const displayStart = startOfDay(start);
+    const displayEnd = endOfDay(end);
 
-    // ----- QUERY RANGE (cumulative) -----
-    const cumulativeEndDay = Math.min(weekIndex * 7, monthEndDay);
-    const queryStart = new Date(year, month, 1, 0, 0, 0, 0);
-    const queryEnd = new Date(
-      year,
-      month,
-      cumulativeEndDay,
-      23,
-      59,
-      59,
-      999
-    );
+    // Query range = cumulative from week1Start to the end of this week
+    const queryStart = startOfDay(week1Start);
+    const queryEnd = endOfDay(end);
 
     const isCurrent = weekIndex === currentWeekNumber;
     const enabled = weekIndex <= currentWeekNumber;
@@ -99,8 +104,8 @@ function buildWeekTabsForCurrentMonth(baseDate = new Date()) {
     tabs.push({
       key: `week${weekIndex}`,
       label: isCurrent ? `Week ${weekIndex} - Current` : `Week ${weekIndex}`,
-      range: { start: queryStart, end: queryEnd }, // used for Firestore query
-      displayRange: { start: displayStart, end: displayEnd }, // used for text
+      range: { start: queryStart, end: queryEnd },
+      displayRange: { start: displayStart, end: displayEnd },
       isCurrent,
       enabled,
     });
@@ -114,13 +119,21 @@ function buildWeekTabsForCurrentMonth(baseDate = new Date()) {
 
 function formatWeekRange(displayRange) {
   if (!displayRange) return "";
-  const month = displayRange.start.toLocaleDateString("en-US", {
+
+  const start = displayRange.start;
+  const end = displayRange.end;
+
+  const startStr = start.toLocaleDateString("en-US", {
     month: "short",
+    day: "2-digit",
   });
-  const startDay = displayRange.start.getDate().toString().padStart(2, "0");
-  const endDay = displayRange.end.getDate().toString().padStart(2, "0");
-  const year = displayRange.end.getFullYear();
-  return `${month} ${startDay} - ${month} ${endDay}, ${year}`;
+  const endStr = end.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+
+  return `${startStr} - ${endStr}`;
 }
 
 function getInitials(name = "") {
