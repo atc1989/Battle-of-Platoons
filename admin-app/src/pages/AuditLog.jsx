@@ -719,17 +719,6 @@ export default function AuditLog() {
         </div>
       </div>
 
-      <button
-        onClick={async () => {
-          const { data, error } = await supabase.rpc("get_user_emails_super_admin_json", {
-  payload: { user_ids: ["b5dff50a-2d06-43ee-990e-3c936e6ed35a"] },
-          });
-          console.log({ data, error });
-        }}
-      >
-        Test Email Resolver RPC
-      </button>
-
       {error ? (
         <div className="error-box" role="alert" style={{ marginBottom: 12 }}>
           {error}
@@ -779,13 +768,6 @@ export default function AuditLog() {
                 </tr>
               );
             })}
-            {!visibleRows.length && !loading ? (
-              <tr>
-                <td colSpan={8} className="muted" style={{ textAlign: "center" }}>
-                  No audit entries found for the selected filters.
-                </td>
-              </tr>
-            ) : null}
           </tbody>
         </table>
       </div>
