@@ -66,9 +66,14 @@ export default function Sidebar() {
         </NavLink>
 
         {isSuperAdmin ? (
-          <NavLink to="/finalization" className={({ isActive }) => "sb-link" + (isActive ? " active" : "")}>
-            Week Finalization
-          </NavLink>
+          <>
+            <NavLink to="/audit-log" className={({ isActive }) => "sb-link" + (isActive ? " active" : "")}>
+              Audit Log
+            </NavLink>
+            <NavLink to="/finalization" className={({ isActive }) => "sb-link" + (isActive ? " active" : "")}>
+              Week Finalization
+            </NavLink>
+          </>
         ) : null}
 
         {/* Later: Download Template & Reset Sample can be inside Upload page */}
