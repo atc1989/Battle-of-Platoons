@@ -312,7 +312,12 @@ function App() {
 
   const leadersPlatoonView = activeView === "leaders" && leaderRoleFilter === "platoon";
   const displayView = leadersPlatoonView ? "platoon" : activeView;
-  const metrics = data?.metrics || { entitiesCount: 0, totalLeads: 0, totalSales: 0 };
+  const metrics = data?.metrics || {
+    entitiesCount: 0,
+    totalLeads: 0,
+    totalPayins: 0,
+    totalSales: 0,
+  };
   const rows = data?.rows || [];
   const debug = data?.debug || {};
   const publishableRowsCount = debug.publishableRowsCount ?? 0;
@@ -481,8 +486,8 @@ function App() {
             <div className="topbar-divider" aria-hidden="true"></div>
 
             <div className="topbar-segment topbar-segment--metric">
-              <div className="metric-label">Sales</div>
-              <div className="metric-value">{formatCurrencyPHP(metrics.totalSales)}</div>
+              <div className="metric-label">Total Payins</div>
+              <div className="metric-value">{formatCurrencyPHP(metrics.totalPayins)}</div>
             </div>
           </div>
         </section>
