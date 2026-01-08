@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { getLeaderboard, probeRawDataVisibility } from "./services/leaderboard.service";
 import { supabaseConfigured, supabaseConfigError, getSupabaseProjectRef } from "./services/supabase";
@@ -223,6 +223,7 @@ function App() {
   const [data, setData] = useState(null);
   const [probe, setProbe] = useState({ status: "idle", count: null, error: null });
   const projectRef = getSupabaseProjectRef();
+  const weekTabsRef = useRef(null);
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -303,6 +304,23 @@ function App() {
       cancelled = true;
     };
   }, [supabaseConfigured]);
+
+  useEffect(() => {
+    const el = weekTabsRef.current;
+    if (!el) return;
+
+    const activeBtn = el.querySelector(".week-tab--active");
+    if (!activeBtn) return;
+
+    const containerRect = el.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+
+    const delta =
+      (btnRect.left - containerRect.left) -
+      (containerRect.width / 2 - btnRect.width / 2);
+
+    el.scrollBy({ left: delta, behavior: "smooth" });
+  }, [activeWeek]);
 
   const today = new Date().toLocaleDateString("en-US", {
     month: "long",
@@ -454,7 +472,7 @@ function App() {
                 <div className="week-range">{weekRangeLabel}</div>
               </div>
 
-              <div className="week-tabs">
+              <div className="week-tabs" ref={weekTabsRef}>
                 {weekTabs.map((w) => (
                   <button
                     key={w.key}
@@ -469,26 +487,22 @@ function App() {
               </div>
             </div>
 
-            <div className="topbar-divider" aria-hidden="true"></div>
+            <div className="topbar-metrics">
+    <div className="topbar-segment topbar-segment--metric">
+      <div className="metric-label">{entitiesLabel}</div>
+      <div className="metric-value">{metrics.entitiesCount}</div>
+    </div>
 
-            <div className="topbar-segment topbar-segment--metric">
-              <div className="metric-label">{entitiesLabel}</div>
-              <div className="metric-value">{metrics.entitiesCount}</div>
-            </div>
+    <div className="topbar-segment topbar-segment--metric">
+      <div className="metric-label">Leads</div>
+      <div className="metric-value">{metrics.totalLeads}</div>
+    </div>
 
-            <div className="topbar-divider" aria-hidden="true"></div>
-
-            <div className="topbar-segment topbar-segment--metric">
-              <div className="metric-label">Leads</div>
-              <div className="metric-value">{metrics.totalLeads}</div>
-            </div>
-
-            <div className="topbar-divider" aria-hidden="true"></div>
-
-            <div className="topbar-segment topbar-segment--metric">
-              <div className="metric-label">Payins</div>
-              <div className="metric-value">{(metrics.totalPayins)}</div>
-            </div>
+    <div className="topbar-segment topbar-segment--metric">
+      <div className="metric-label">Payins</div>
+      <div className="metric-value">{metrics.totalPayins}</div>
+    </div>
+  </div>
           </div>
         </section>
 
