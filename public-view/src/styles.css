@@ -580,6 +580,11 @@ button {
 }
 
 @media (max-width: 980px) {
+  .brand-logo {
+    width: 28px;
+    height: 28px;
+  }
+
   .topbar {
     flex-wrap: nowrap; /* keep one row */
     min-height: 80px;
@@ -625,6 +630,12 @@ button {
 
   .brand {
     justify-content: center;
+    gap: 8px;
+  }
+
+  .brand-logo {
+    width: 25px;
+    height: 25px;
   }
 
   .page-date {
@@ -661,8 +672,17 @@ button {
     gap: 4vw;
   }
 
+  .brand {
+    gap: 4px;
+  }
+
   .brand-text {
-    font-size: 2.5vw;
+    font-size: 1.5vw;
+  }
+
+  .brand-logo {
+    width: 3vw;
+    height: 3vw;
   }
 
   .page-title {
@@ -670,7 +690,7 @@ button {
   }
 
   .page-date {
-    font-size: 2.5vw;
+    font-size: 1.5vw;
   }
 
   .week-tab--active {
