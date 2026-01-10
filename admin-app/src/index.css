@@ -1028,19 +1028,23 @@ textarea.input:focus{
 .dashboard-rank{
   background: #0b1aa5;
   color: #fff;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 12px;
-  padding: 4px 8px;
+  width: 34px;
+  height: 34px;
   border-radius: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
 }
 
 .dashboard-name-cell span{
   font-weight: 600;
   color: #22265c;
+}
+
+.dashboard-table-row{
+  color: #0b1aa5;
 }
 
 .dashboard-table-body::-webkit-scrollbar{
