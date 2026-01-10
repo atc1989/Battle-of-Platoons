@@ -432,7 +432,7 @@ textarea.input:focus{
   z-index: 2;
   position: relative;
   font-weight: 600;
-  color: var(--text);
+  color: var(--blue);
 }
 
 .p-title-row{
