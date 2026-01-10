@@ -170,17 +170,6 @@ body{
   margin-bottom: 10px;
 }
 
-.page-header{
-  display:flex;
-  flex-direction:column;
-  gap: 10px;
-}
-
-.page-title{
-  margin: 0;
-  line-height: 1.2;
-}
-
 .form{ display:flex; flex-direction:column; gap: 10px; }
 
 .grid{
@@ -282,13 +271,6 @@ textarea.input:focus{
   background: var(--blue);
   color:#fff;
   box-shadow: 0 8px 24px rgba(5,15,90,0.25);
-}
-
-.tabs-row{
-  align-items: flex-end;
-  min-height: 48px;
-  overflow: visible;
-  padding-top: 8px;
 }
 
 .tab-panel{
