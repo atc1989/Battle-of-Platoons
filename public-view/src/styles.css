@@ -901,6 +901,11 @@ button {
     gap: 4vw;
   }
 
+  .week-tab--active {
+    align-items: center;
+    justify-content: center;
+  }
+
   .brand {
     gap: 4px;
   }
