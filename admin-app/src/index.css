@@ -427,6 +427,20 @@ textarea.input:focus{
   gap: 10px;
 }
 
+.table-scroll-y{
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.table-scroll-y .t-head{
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+  padding-top: 6px;
+}
+
 .t-head, .t-row{
   display:grid;
   grid-template-columns: 2fr 1fr 1fr 1fr .8fr;

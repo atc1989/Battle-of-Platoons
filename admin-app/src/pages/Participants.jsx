@@ -968,28 +968,30 @@ export default function Participants() {
       {tab === "leaders" && (
         <div className="card">
           <div className="card-title">Leaders List</div>
-          <div className="table">
-            <div className="t-head">
-              <div>Leader</div><div>Depot</div><div>Commander</div><div>Company</div><div>Upline</div><div className="t-right">Actions</div>
-            </div>
-
-            {agents.map(a => (
-              <div className="t-row" key={a.id}>
-                <div className="t-leader">
-                  <div className="avatar">
-                    {a.photoURL ? <img src={a.photoURL} alt={a.name} /> : <span className="initials">{getInitials(a.name)}</span>}
-                  </div>
-                  <div className="t-name">{a.name}</div>
-                </div>
-                <div>{depotById[a.depotId]?.name || a.depotId || "-"}</div>
-                <div>{companyById[a.companyId]?.name || a.companyId || "-"}</div>
-                <div>{platoonById[a.platoonId]?.name || a.platoonId || "-"}</div>
-                <div>{a.uplineAgentId ? (agentById[a.uplineAgentId]?.name || a.uplineAgentId) : "-"}</div>
-                <div className="t-right">
-                  <button className="btn-link" onClick={() => editLeader(a)}>Edit</button>
-                </div>
+          <div className="table-scroll-y">
+            <div className="table">
+              <div className="t-head">
+                <div>Leader</div><div>Depot</div><div>Commander</div><div>Company</div><div>Upline</div><div className="t-right">Actions</div>
               </div>
-            ))}
+
+              {agents.map(a => (
+                <div className="t-row" key={a.id}>
+                  <div className="t-leader">
+                    <div className="avatar">
+                      {a.photoURL ? <img src={a.photoURL} alt={a.name} /> : <span className="initials">{getInitials(a.name)}</span>}
+                    </div>
+                    <div className="t-name">{a.name}</div>
+                  </div>
+                  <div>{depotById[a.depotId]?.name || a.depotId || "-"}</div>
+                  <div>{companyById[a.companyId]?.name || a.companyId || "-"}</div>
+                  <div>{platoonById[a.platoonId]?.name || a.platoonId || "-"}</div>
+                  <div>{a.uplineAgentId ? (agentById[a.uplineAgentId]?.name || a.uplineAgentId) : "-"}</div>
+                  <div className="t-right">
+                    <button className="btn-link" onClick={() => editLeader(a)}>Edit</button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
