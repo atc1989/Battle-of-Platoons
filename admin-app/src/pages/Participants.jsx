@@ -559,17 +559,29 @@ export default function Participants() {
   return (
     <div className="p-page">
       <div className="p-head">
-        <div className="p-tabs">
-          <button className={`p-tab ${tab === "leaders" ? "active" : ""}`} onClick={() => { setTab("leaders"); setStatus({type:"",msg:""}); }}>
+        <div className="tab-row">
+          <button
+            className={`tab-btn${tab === "leaders" ? " active" : ""}`}
+            onClick={() => { setTab("leaders"); setStatus({type:"",msg:""}); }}
+          >
             Leaders
           </button>
-          <button className={`p-tab ${tab === "companies" ? "active" : ""}`} onClick={() => { setTab("companies"); clearSimple(); }}>
+          <button
+            className={`tab-btn${tab === "companies" ? " active" : ""}`}
+            onClick={() => { setTab("companies"); clearSimple(); }}
+          >
             Commanders
           </button>
-          <button className={`p-tab ${tab === "depots" ? "active" : ""}`} onClick={() => { setTab("depots"); clearSimple(); }}>
+          <button
+            className={`tab-btn${tab === "depots" ? " active" : ""}`}
+            onClick={() => { setTab("depots"); clearSimple(); }}
+          >
             Depots
           </button>
-          <button className={`p-tab ${tab === "platoons" ? "active" : ""}`} onClick={() => { setTab("platoons"); clearPlatoon(); }}>
+          <button
+            className={`tab-btn${tab === "platoons" ? " active" : ""}`}
+            onClick={() => { setTab("platoons"); clearPlatoon(); }}
+          >
             Companies
           </button>
         </div>
