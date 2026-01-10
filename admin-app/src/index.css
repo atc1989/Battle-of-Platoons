@@ -395,7 +395,7 @@ textarea.input:focus{
   content:"";
   position:absolute;
   inset:0;
-  background: var(--blue2);
+  background: #f4f5ff;
   border-radius: 14px;
   z-index:0;
 }
@@ -405,7 +405,7 @@ textarea.input:focus{
   background: transparent;
   padding: 10px 14px;
   cursor:pointer;
-  color: #e7ecff;
+  color: var(--muted);
   font-weight:700;
   border-radius: 12px;
   transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-radius .18s ease, color .18s ease;
@@ -414,9 +414,9 @@ textarea.input:focus{
 }
 
 .tab-btn:hover{
-  background: rgba(255,255,255,0.12);
+  background: #e7e9ff;
   transform: translateY(-1px);
-  color: #fff;
+  color: var(--text);
 }
 
 .tab-btn:focus-visible{
