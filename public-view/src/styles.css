@@ -424,10 +424,11 @@ button {
 
 .podium {
   display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
-  justify-items: center;
+  grid-template-columns: repeat(3, max-content);
+  justify-content: center;   /* centers the 3 cards as a group */
   align-items: flex-end;
-  gap: 24px;
+  column-gap: 30px;          /* EXACT spacing between cards */
+  row-gap: 24px;
   margin: 22px 0 30px;
 }
 
@@ -435,13 +436,13 @@ button {
   position: relative;
   display: flex;
   align-items: stretch;
-  width: 100%;
+  width: auto;
   justify-content: center;
 }
 
 .podium-card {
   position: relative;
-  width: clamp(240px, 26vw, 360px);
+  width: 320px;
   background: #0b1770;
   border-radius: 24px;
   padding: 18px 16px 20px;
@@ -466,13 +467,25 @@ button {
   box-shadow: 0 0 0 4px rgba(255, 122, 60, 0.7), 0 18px 40px rgba(13, 33, 99, 0.18);
 }
 
-.podium-item--rank-1 .podium-card { min-height: 270px; }
-.podium-item--rank-2 .podium-card { min-height: 240px; }
-.podium-item--rank-3 .podium-card { min-height: 220px; }
+/* Rank heights that scale with viewport height */
+.podium-item--rank-1 .podium-card {
+  min-height: clamp(250px, 52vh, 380px);
+}
 
-.podium-item--rank-1 { transform: translateY(0); }
-.podium-item--rank-2 { transform: translateY(0); }
-.podium-item--rank-3 { transform: translateY(0); }
+.podium-item--rank-2 .podium-card {
+  min-height: clamp(220px, 42vh, 300px);
+}
+
+.podium-item--rank-3 .podium-card {
+  min-height: clamp(200px, 34vh, 250px);
+}
+
+/* keep transforms off (aligned baseline) */
+.podium-item--rank-1,
+.podium-item--rank-2,
+.podium-item--rank-3 {
+  transform: translateY(0);
+}
 
 .podium-rank-badge {
   position: absolute;
