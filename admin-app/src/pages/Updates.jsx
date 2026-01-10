@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { listAgents } from "../services/agents.service";
 import {
   canEditRow,
@@ -100,6 +100,14 @@ const PERMISSION_TOOLTIP = role => {
 
 export default function Updates() {
   const [activeTab, setActiveTab] = useState("leaders");
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [pendingTab, setPendingTab] = useState("");
+  const [isSlowLoading, setIsSlowLoading] = useState(false);
+  const [panelMinHeight, setPanelMinHeight] = useState(null);
+
+  const animationTimerRef = useRef(null);
+  const slowLoadingTimerRef = useRef(null);
+  const panelRef = useRef(null);
 
   const [agents, setAgents] = useState([]);
   const [rows, setRows] = useState([]);
@@ -187,6 +195,30 @@ export default function Updates() {
     void applyFilters(initialFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+      if (slowLoadingTimerRef.current) clearTimeout(slowLoadingTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      if (slowLoadingTimerRef.current) clearTimeout(slowLoadingTimerRef.current);
+      setIsSlowLoading(false);
+      return;
+    }
+
+    if (slowLoadingTimerRef.current) clearTimeout(slowLoadingTimerRef.current);
+    slowLoadingTimerRef.current = setTimeout(() => {
+      setIsSlowLoading(true);
+    }, 200);
+
+    return () => {
+      if (slowLoadingTimerRef.current) clearTimeout(slowLoadingTimerRef.current);
+    };
+  }, [loading]);
 
   // If user changes tab while editing, cancel edit
   useEffect(() => {
@@ -304,6 +336,13 @@ export default function Updates() {
 
   return filtered;
   }, [activeTab, agentMap, filtersApplied, rows]);
+
+  useLayoutEffect(() => {
+    if (isAnimating) return;
+    const panelEl = panelRef.current;
+    if (!panelEl) return;
+    setPanelMinHeight(panelEl.offsetHeight);
+  }, [activeTab, isAnimating, loading, visibleRows.length]);
 
   // ----------------------
   // Editing (Leaders only)
@@ -554,6 +593,23 @@ export default function Updates() {
     );
   }
 
+  function handleTabChange(nextTab) {
+    if (nextTab === activeTab && !pendingTab) return;
+    if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+
+    const panelEl = panelRef.current;
+    if (panelEl) setPanelMinHeight(panelEl.offsetHeight);
+
+    setPendingTab(nextTab);
+    setIsAnimating(true);
+
+    animationTimerRef.current = setTimeout(() => {
+      setActiveTab(nextTab);
+      setIsAnimating(false);
+      setPendingTab("");
+    }, 160);
+  }
+
   return (
     <div className="card">
       <div className="card-title">Updates History</div>
@@ -566,7 +622,7 @@ export default function Updates() {
             key={t.key}
             type="button"
             className={`tab-button${activeTab === t.key ? " active" : ""}`}
-            onClick={() => setActiveTab(t.key)}
+            onClick={() => handleTabChange(t.key)}
             disabled={loading}
           >
             {t.label}
@@ -574,289 +630,296 @@ export default function Updates() {
         ))}
       </div>
 
-      {/* Filters */}
       <div
-        style={{
-          marginTop: 14,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-          gap: 12,
-          alignItems: "end",
-        }}
+        className="tab-panel"
+        data-state={isAnimating ? "out" : "in"}
+        ref={panelRef}
+        style={panelMinHeight ? { minHeight: panelMinHeight } : undefined}
       >
-        <div>
-          <label className="input-label">Date From</label>
-          <input
-            type="date"
-            className="input"
-            value={filtersInput.dateFrom}
-            onChange={e => setFiltersInput(p => ({ ...p, dateFrom: e.target.value }))}
-          />
+        {/* Filters */}
+        <div
+          style={{
+            marginTop: 14,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+            gap: 12,
+            alignItems: "end",
+          }}
+        >
+          <div>
+            <label className="input-label">Date From</label>
+            <input
+              type="date"
+              className="input"
+              value={filtersInput.dateFrom}
+              onChange={e => setFiltersInput(p => ({ ...p, dateFrom: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <label className="input-label">Date To</label>
+            <input
+              type="date"
+              className="input"
+              value={filtersInput.dateTo}
+              onChange={e => setFiltersInput(p => ({ ...p, dateTo: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <label className="input-label">{filterLabel}</label>
+            <select
+              className="input"
+              value={filtersInput[activeTab]}
+              onChange={e => setFiltersInput(p => ({ ...p, [activeTab]: e.target.value }))}
+            >
+              <option value="">All {TABS.find(x => x.key === activeTab)?.label.toLowerCase()}</option>
+              {filterOptions.map(o => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {/* IMPORTANT: do NOT pass applyFilters directly (it would receive click event) */}
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => applyFilters(filtersInput)}
+              disabled={loading}
+            >
+              Apply Filters
+            </button>
+
+            <button type="button" className="button secondary" onClick={clearFilters} disabled={loading}>
+              Clear
+            </button>
+
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+              <input type="checkbox" checked={showVoided} onChange={toggleShowVoided} disabled={loading} />
+              Show voided
+            </label>
+          </div>
         </div>
 
-        <div>
-          <label className="input-label">Date To</label>
-          <input
-            type="date"
-            className="input"
-            value={filtersInput.dateTo}
-            onChange={e => setFiltersInput(p => ({ ...p, dateTo: e.target.value }))}
-          />
-        </div>
+        {/* Status/Error */}
+        {(error || status) && (
+          <div style={{ marginTop: 12 }}>
+            {error ? (
+              <div className="error-box" role="alert">
+                {error}
+              </div>
+            ) : null}
+            {status ? <div className="hint">{status}</div> : null}
+          </div>
+        )}
 
-        <div>
-          <label className="input-label">{filterLabel}</label>
-          <select
-            className="input"
-            value={filtersInput[activeTab]}
-            onChange={e => setFiltersInput(p => ({ ...p, [activeTab]: e.target.value }))}
-          >
-            <option value="">All {TABS.find(x => x.key === activeTab)?.label.toLowerCase()}</option>
-            {filterOptions.map(o => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {isSlowLoading ? (
+          <div className="muted" style={{ marginTop: 12 }}>
+            Loading...
+          </div>
+        ) : null}
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {/* IMPORTANT: do NOT pass applyFilters directly (it would receive click event) */}
-          <button
-            type="button"
-            className="button primary"
-            onClick={() => applyFilters(filtersInput)}
-            disabled={loading}
-          >
-            Apply Filters
-          </button>
+        {/* Table */}
+        <div className="table-scroll" style={{ marginTop: 14 }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>{identityHeader}</th>
+                <th>Source</th>
+                <th>Leads</th>
+                <th>Payins</th>
+                <th>Sales</th>
+                <th>Computed ID</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
 
-          <button type="button" className="button secondary" onClick={clearFilters} disabled={loading}>
-            Clear
-          </button>
+            <tbody>
+              {visibleRows.map((row, index) => {
+                const isEditing = activeTab === "leaders" && row.id === editingId;
+                const agent = agentMap[row.agent_id];
+                const canModify = canEditRow(row, profile, agent);
+                const canModifyVoid = canVoidRow(row, profile, agent);
+                const permissionBlocked = profileLoading || !canModify;
+                const permissionBlockedVoid = profileLoading || !canModifyVoid;
+                const permissionTitle = permissionBlocked ? PERMISSION_TOOLTIP(currentRole) : undefined;
+                const permissionTitleVoid = permissionBlockedVoid ? PERMISSION_TOOLTIP(currentRole) : undefined;
+                const isEditDisabled = savingId === row.id || row.voided || permissionBlocked;
+                const isVoidDisabled = actionLoading || permissionBlockedVoid;
+                const isUnvoidDisabled = actionLoading || permissionBlockedVoid;
 
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14 }}>
-            <input type="checkbox" checked={showVoided} onChange={toggleShowVoided} disabled={loading} />
-            Show voided
-          </label>
-        </div>
-      </div>
+                return (
+                  <tr key={row.id}>
+                    <td>
+                      <div className="muted" style={{ fontSize: 12 }}>{index + 1}</div>
+                    </td>
+                    <td>{row.date_real}</td>
+                    <td>{renderIdentityCell(row)}</td>
+                    <td>{renderSourcePill(row)}</td>
 
-      {/* Status/Error */}
-      {(error || status) && (
-        <div style={{ marginTop: 12 }}>
-          {error ? (
-            <div className="error-box" role="alert">
-              {error}
-            </div>
-          ) : null}
-          {status ? <div className="hint">{status}</div> : null}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="muted" style={{ marginTop: 12 }}>
-          Loading...
-        </div>
-      ) : null}
-
-      {/* Table */}
-      <div className="table-scroll" style={{ marginTop: 14 }}>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Date</th>
-              <th>{identityHeader}</th>
-              <th>Source</th>
-              <th>Leads</th>
-              <th>Payins</th>
-              <th>Sales</th>
-              <th>Computed ID</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {visibleRows.map((row, index) => {
-              const isEditing = activeTab === "leaders" && row.id === editingId;
-              const agent = agentMap[row.agent_id];
-              const canModify = canEditRow(row, profile, agent);
-              const canModifyVoid = canVoidRow(row, profile, agent);
-              const permissionBlocked = profileLoading || !canModify;
-              const permissionBlockedVoid = profileLoading || !canModifyVoid;
-              const permissionTitle = permissionBlocked ? PERMISSION_TOOLTIP(currentRole) : undefined;
-              const permissionTitleVoid = permissionBlockedVoid ? PERMISSION_TOOLTIP(currentRole) : undefined;
-              const isEditDisabled = savingId === row.id || row.voided || permissionBlocked;
-              const isVoidDisabled = actionLoading || permissionBlockedVoid;
-              const isUnvoidDisabled = actionLoading || permissionBlockedVoid;
-
-              return (
-                <tr key={row.id}>
-                  <td>
-                    <div className="muted" style={{ fontSize: 12 }}>{index + 1}</div>
-                  </td>
-                  <td>{row.date_real}</td>
-                  <td>{renderIdentityCell(row)}</td>
-                  <td>{renderSourcePill(row)}</td>
-
-                  <td>
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        className="input"
-                        style={{ maxWidth: 120 }}
-                        value={editValues.leads}
-                        onChange={e => onEditChange("leads", e.target.value)}
-                      />
-                    ) : (
-                      formatNumber(row.leads)
-                    )}
-                  </td>
-
-                  <td>
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        className="input"
-                        style={{ maxWidth: 120 }}
-                        value={editValues.payins}
-                        onChange={e => onEditChange("payins", e.target.value)}
-                      />
-                    ) : (
-                      formatNumber(row.payins)
-                    )}
-                  </td>
-
-                  <td>
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        className="input"
-                        style={{ maxWidth: 140 }}
-                        value={editValues.sales}
-                        onChange={e => onEditChange("sales", e.target.value)}
-                      />
-                    ) : (
-                      formatCurrency(row.sales)
-                    )}
-                  </td>
-
-                  <td>
-                    <div className="muted" style={{ fontSize: 12 }}>
-                      {row.id}
-                    </div>
-                  </td>
-
-                  <td>{renderStatus(row)}</td>
-
-                  <td>
-                    {isEditing ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 320 }}>
-                        <textarea
+                    <td>
+                      {isEditing ? (
+                        <input
+                          type="number"
                           className="input"
-                          rows={2}
-                          placeholder="Reason for edit (required)"
-                          value={editReason}
-                          onChange={e => setEditReason(e.target.value)}
+                          style={{ maxWidth: 120 }}
+                          value={editValues.leads}
+                          onChange={e => onEditChange("leads", e.target.value)}
                         />
-                        <div className="muted" style={{ fontSize: 12 }}>
-                          Minimum 5 characters.
-                        </div>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button
-                            type="button"
-                            className="button primary"
-                            onClick={() => saveEdit(row.id)}
-                            disabled={savingId === row.id || editReason.trim().length < 5}
-                          >
-                            {savingId === row.id ? "Saving..." : "Save"}
-                          </button>
-                          <button
-                            type="button"
-                            className="button secondary"
-                            onClick={cancelEdit}
-                            disabled={savingId === row.id}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {activeTab === "leaders" ? (
-                          <button
-                            type="button"
-                            className="button secondary"
-                            onClick={() => startEdit(row)}
-                            disabled={isEditDisabled}
-                            title={
-                              !canModify
-                                ? permissionTitle
-                                : row.voided
-                                ? "Cannot edit a voided row"
-                                : undefined
-                            }
-                            style={isEditDisabled ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
-                          >
-                            Edit
-                          </button>
-                        ) : (
-                          <button type="button" className="button secondary" disabled title="Editable only on Leaders tab">
-                            Edit
-                          </button>
-                        )}
+                      ) : (
+                        formatNumber(row.leads)
+                      )}
+                    </td>
 
-                        {!row.voided ? (
-                          <button
-                            type="button"
-                            className="button secondary"
-                            onClick={() => openConfirm("void", row)}
-                            disabled={isVoidDisabled}
-                            style={{
-                              background: "#ffe8e8",
-                              color: "#b00020",
-                              ...(isVoidDisabled ? { opacity: 0.6, cursor: "not-allowed" } : {}),
-                            }}
-                            title={permissionTitleVoid}
-                          >
-                            Void
-                          </button>
-                        ) : null}
+                    <td>
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          className="input"
+                          style={{ maxWidth: 120 }}
+                          value={editValues.payins}
+                          onChange={e => onEditChange("payins", e.target.value)}
+                        />
+                      ) : (
+                        formatNumber(row.payins)
+                      )}
+                    </td>
 
-                        {row.voided && showVoided ? (
-                          <button
-                            type="button"
-                            className="button secondary"
-                            onClick={() => openConfirm("unvoid", row)}
-                            disabled={isUnvoidDisabled}
-                            style={{
-                              background: "#e6f5e6",
-                              color: "#1b6b1b",
-                              ...(isUnvoidDisabled ? { opacity: 0.6, cursor: "not-allowed" } : {}),
-                            }}
-                            title={permissionTitleVoid}
-                          >
-                            Unvoid
-                          </button>
-                        ) : null}
+                    <td>
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          className="input"
+                          style={{ maxWidth: 140 }}
+                          value={editValues.sales}
+                          onChange={e => onEditChange("sales", e.target.value)}
+                        />
+                      ) : (
+                        formatCurrency(row.sales)
+                      )}
+                    </td>
+
+                    <td>
+                      <div className="muted" style={{ fontSize: 12 }}>
+                        {row.id}
                       </div>
-                    )}
+                    </td>
+
+                    <td>{renderStatus(row)}</td>
+
+                    <td>
+                      {isEditing ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 320 }}>
+                          <textarea
+                            className="input"
+                            rows={2}
+                            placeholder="Reason for edit (required)"
+                            value={editReason}
+                            onChange={e => setEditReason(e.target.value)}
+                          />
+                          <div className="muted" style={{ fontSize: 12 }}>
+                            Minimum 5 characters.
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              type="button"
+                              className="button primary"
+                              onClick={() => saveEdit(row.id)}
+                              disabled={savingId === row.id || editReason.trim().length < 5}
+                            >
+                              {savingId === row.id ? "Saving..." : "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              className="button secondary"
+                              onClick={cancelEdit}
+                              disabled={savingId === row.id}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {activeTab === "leaders" ? (
+                            <button
+                              type="button"
+                              className="button secondary"
+                              onClick={() => startEdit(row)}
+                              disabled={isEditDisabled}
+                              title={
+                                !canModify
+                                  ? permissionTitle
+                                  : row.voided
+                                  ? "Cannot edit a voided row"
+                                  : undefined
+                              }
+                              style={isEditDisabled ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+                            >
+                              Edit
+                            </button>
+                          ) : (
+                            <button type="button" className="button secondary" disabled title="Editable only on Leaders tab">
+                              Edit
+                            </button>
+                          )}
+
+                          {!row.voided ? (
+                            <button
+                              type="button"
+                              className="button secondary"
+                              onClick={() => openConfirm("void", row)}
+                              disabled={isVoidDisabled}
+                              style={{
+                                background: "#ffe8e8",
+                                color: "#b00020",
+                                ...(isVoidDisabled ? { opacity: 0.6, cursor: "not-allowed" } : {}),
+                              }}
+                              title={permissionTitleVoid}
+                            >
+                              Void
+                            </button>
+                          ) : null}
+
+                          {row.voided && showVoided ? (
+                            <button
+                              type="button"
+                              className="button secondary"
+                              onClick={() => openConfirm("unvoid", row)}
+                              disabled={isUnvoidDisabled}
+                              style={{
+                                background: "#e6f5e6",
+                                color: "#1b6b1b",
+                                ...(isUnvoidDisabled ? { opacity: 0.6, cursor: "not-allowed" } : {}),
+                              }}
+                              title={permissionTitleVoid}
+                            >
+                              Unvoid
+                            </button>
+                          ) : null}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {!visibleRows.length && !loading ? (
+                <tr>
+                  <td colSpan={10} className="muted" style={{ textAlign: "center", padding: 16 }}>
+                    No data to display.
                   </td>
                 </tr>
-              );
-            })}
-
-            {!visibleRows.length && !loading ? (
-              <tr>
-                <td colSpan={10} className="muted" style={{ textAlign: "center", padding: 16 }}>
-                  No data to display.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Confirm modal */}

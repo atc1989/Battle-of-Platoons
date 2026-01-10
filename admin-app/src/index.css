@@ -272,6 +272,25 @@ textarea.input:focus{
   box-shadow: 0 8px 24px rgba(5,15,90,0.25);
 }
 
+.tab-panel{
+  transition: opacity 180ms ease, transform 180ms ease;
+  will-change: opacity, transform;
+}
+
+.tab-panel[data-state="in"]{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tab-panel[data-state="out"]{
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+@media (prefers-reduced-motion: reduce){
+  .tab-panel{ transition: none; }
+}
+
 .photo-section{
   grid-column: 1 / -1;
   display:flex;
