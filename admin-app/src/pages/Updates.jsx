@@ -607,7 +607,7 @@ export default function Updates() {
       setActiveTab(nextTab);
       setIsAnimating(false);
       setPendingTab("");
-    }, 160);
+    }, 100);
   }
 
   return (
