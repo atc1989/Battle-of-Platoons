@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { getLeaderboard, probeRawDataVisibility } from "./services/leaderboard.service";
+import { getActiveFormula } from "./services/scoringFormula.service";
 import { supabaseConfigured, supabaseConfigError, getSupabaseProjectRef } from "./services/supabase";
 import "./styles.css";
 
@@ -13,6 +14,8 @@ const VIEW_TABS = [
   { key: "commanders", label: "Commanders" },
   { key: "companies", label: "Companies" },
 ];
+
+const ENTITY_KEYS = ["depots", "leaders", "commanders", "companies"];
 
 const LEADER_ROLE_TABS = [
   { key: "platoon", label: "Platoon" },
@@ -222,6 +225,12 @@ function getBattleTypeForView(viewKey, roleFilter) {
   return viewKey || "leaders";
 }
 
+function getFaqBattleType(entityKey) {
+  if (entityKey === "commanders") return "companies";
+  if (entityKey === "companies") return "companies";
+  return entityKey || "leaders";
+}
+
 function getGroupByForView(viewKey, roleFilter) {
   if (viewKey === "commanders") return "commanders";
   if (viewKey === "companies") return "teams";
@@ -235,6 +244,7 @@ function App() {
   const [activeWeek, setActiveWeek] = useState(initialWeeks.currentKey);
   const activeWeekTab = weekTabs.find((w) => w.key === activeWeek);
   const weekRangeLabel = formatWeekRange(activeWeekTab?.displayRange);
+  const faqWeekKey = activeWeekTab?.range?.end ? toIsoWeekKey(activeWeekTab.range.end) : null;
   const [activeView, setActiveView] = useState("depots");
   const [leaderRoleFilter, setLeaderRoleFilter] = useState(LEADER_ROLE_TABS[0].key);
   const [loading, setLoading] = useState(true);
@@ -242,6 +252,7 @@ function App() {
   const [data, setData] = useState(null);
   const [probe, setProbe] = useState({ status: "idle", count: null, error: null });
   const [isFaqOpen, setIsFaqOpen] = useState(false);
+  const [formulasByEntity, setFormulasByEntity] = useState({});
   const faqButtonRef = useRef(null);
   const faqCloseRef = useRef(null);
   const projectRef = getSupabaseProjectRef();
@@ -349,9 +360,6 @@ function App() {
   const depotRowsFetched = debug.depotRowsFetched ?? 0;
   const activeFormula = data?.formula?.data || null;
   const selectedWeekKey = data?.formula?.weekKey || null;
-  const formulaMetrics = normalizeFormulaMetrics(activeFormula);
-  const formulaVersion = activeFormula?.version ?? activeFormula?.revision ?? "?";
-  const formulaTitle = `${activeFormula?.label ?? "Not published"} (v${formulaVersion})`;
   const top3 = rows.slice(0, 3);
   const entitiesLabel =
     displayView === "commanders"
@@ -392,17 +400,58 @@ function App() {
     }
   }, [activeFormula, selectedWeekKey]);
 
-  const renderFormulaBlock = () => {
-    if (!activeFormula) {
+  useEffect(() => {
+    if (!supabaseConfigured || !faqWeekKey) {
+      setFormulasByEntity({});
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadFormulas() {
+      const entries = await Promise.all(
+        ENTITY_KEYS.map(async (entityKey) => {
+          const battleType = getFaqBattleType(entityKey);
+          try {
+            const { data: formulaData, error } = await getActiveFormula(battleType, faqWeekKey);
+            if (error) throw error;
+            return [entityKey, formulaData ?? null];
+          } catch (err) {
+            if (import.meta.env.DEV) {
+              console.warn("FAQ formula load failed", { entityKey, battleType, err });
+            }
+            return [entityKey, null];
+          }
+        })
+      );
+
+      if (!cancelled) {
+        setFormulasByEntity(Object.fromEntries(entries));
+      }
+    }
+
+    loadFormulas();
+    return () => {
+      cancelled = true;
+    };
+  }, [faqWeekKey, supabaseConfigured]);
+
+  const renderFormulaBlock = (formula) => {
+    if (!formula) {
       return <div className="formula-text__empty">No published formula for this week.</div>;
     }
 
+    const metrics = normalizeFormulaMetrics(formula);
+    const version = formula?.version ?? formula?.revision ?? "?";
+    const label = formula?.label ?? "Formula";
+    const title = `${label} (v${version})`;
+
     return (
       <div className="formula-text">
-        <div className="formula-text__title">Published: {formulaTitle}</div>
+        <div className="formula-text__title">Published: {title}</div>
         <div className="formula-text__metrics">
-          {formulaMetrics.length ? (
-            formulaMetrics.map((m) => {
+          {metrics.length ? (
+            metrics.map((m) => {
               const label = formatMetricLabel(m.key);
               const divisorText = formatNumber(m.divisor);
               const maxPointsText = formatNumber(m.maxPoints);
@@ -691,22 +740,22 @@ function App() {
 
                 <details className="faq-acc faq-acc--nested" open>
                   <summary className="faq-acc__summary">Depots</summary>
-                  {renderFormulaBlock()}
+                  {renderFormulaBlock(formulasByEntity.depots)}
                 </details>
 
                 <details className="faq-acc faq-acc--nested">
                   <summary className="faq-acc__summary">Leaders</summary>
-                  {renderFormulaBlock()}
+                  {renderFormulaBlock(formulasByEntity.leaders)}
                 </details>
 
                 <details className="faq-acc faq-acc--nested">
                   <summary className="faq-acc__summary">Commanders</summary>
-                  {renderFormulaBlock()}
+                  {renderFormulaBlock(formulasByEntity.commanders)}
                 </details>
 
                 <details className="faq-acc faq-acc--nested">
                   <summary className="faq-acc__summary">Companies</summary>
-                  {renderFormulaBlock()}
+                  {renderFormulaBlock(formulasByEntity.companies)}
                 </details>
               </details>
 
