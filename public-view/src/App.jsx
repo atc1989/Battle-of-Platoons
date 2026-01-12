@@ -1,6 +1,16 @@
 // src/App.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import {
+  Calculator,
+  Flag,
+  ClipboardList,
+  Wrench,
+  Building2,
+  User,
+  BadgeCheck,
+  Factory,
+} from "lucide-react";
 import { getLeaderboard, probeRawDataVisibility } from "./services/leaderboard.service";
 import { getActiveFormula } from "./services/scoringFormula.service";
 import { supabaseConfigured, supabaseConfigError, getSupabaseProjectRef } from "./services/supabase";
@@ -251,6 +261,8 @@ function App() {
   const [data, setData] = useState(null);
   const [probe, setProbe] = useState({ status: "idle", count: null, error: null });
   const [isFaqOpen, setIsFaqOpen] = useState(false);
+  const [faqOpenKey, setFaqOpenKey] = useState("formulas");
+  const [formulaOpenKey, setFormulaOpenKey] = useState("depots");
   const [formulasByType, setFormulasByType] = useState({});
   const faqButtonRef = useRef(null);
   const faqCloseRef = useRef(null);
@@ -497,6 +509,44 @@ function App() {
       </div>
     );
   };
+
+  const formulaAccordionItems = [
+    {
+      key: "depots",
+      label: "Depots",
+      content: renderFormulaBlock(resolvedFormulas.depots),
+    },
+    {
+      key: "leaders",
+      label: "Leaders",
+      content: (
+        <div className="faq-subsections">
+          <div className="faq-subsection">
+            <div className="faq-subsection__title">Platoon</div>
+            {renderFormulaBlock(resolvedFormulas.platoons)}
+          </div>
+          <div className="faq-subsection">
+            <div className="faq-subsection__title">Squad</div>
+            {renderFormulaBlock(resolvedFormulas.squads)}
+          </div>
+          <div className="faq-subsection">
+            <div className="faq-subsection__title">Team</div>
+            {renderFormulaBlock(resolvedFormulas.teams)}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "commanders",
+      label: "Commanders",
+      content: renderFormulaBlock(resolvedFormulas.commanders),
+    },
+    {
+      key: "companies",
+      label: "Companies",
+      content: renderFormulaBlock(resolvedFormulas.companies),
+    },
+  ];
 
   const openFaq = () => {
     setIsFaqOpen(true);
@@ -760,58 +810,185 @@ function App() {
             </div>
 
             <div className="faq-body">
-              <details className="faq-acc" open>
-                <summary className="faq-acc__summary">Formulas</summary>
+              <div className="faq-list">
+                <div className="faq-item">
+                  <button
+                    type="button"
+                    className="faq-row"
+                    aria-expanded={faqOpenKey === "formulas"}
+                    aria-controls="faq-panel-formulas"
+                    onClick={() =>
+                      setFaqOpenKey(faqOpenKey === "formulas" ? null : "formulas")
+                    }
+                  >
+                    <span className="faq-row__left">
+                      <span className="faq-row__icon" aria-hidden="true">
+                        <Calculator size={18} className="faq-row__icon-svg" />
+                      </span>
+                      <span className="faq-row__label">Formulas</span>
+                    </span>
+                    <span
+                      className={`faq-row__chev ${faqOpenKey === "formulas" ? "is-open" : ""}`}
+                      aria-hidden="true"
+                    >
+                      ⌄
+                    </span>
+                  </button>
 
-                <details className="faq-acc faq-acc--nested" open>
-                  <summary className="faq-acc__summary">Depots</summary>
-                  {renderFormulaBlock(resolvedFormulas.depots)}
-                </details>
+                  <div
+                    id="faq-panel-formulas"
+                    className={`faq-content ${faqOpenKey === "formulas" ? "is-open" : ""}`}
+                    aria-hidden={faqOpenKey !== "formulas"}
+                  >
+                    <div className="faq-sublist">
+                      {formulaAccordionItems.map((item) => (
+                        <div className="faq-subitem" key={item.key}>
+                          <button
+                            type="button"
+                            className="faq-subrow"
+                            aria-expanded={formulaOpenKey === item.key}
+                            aria-controls={`faq-panel-formula-${item.key}`}
+                            onClick={() =>
+                              setFormulaOpenKey(formulaOpenKey === item.key ? null : item.key)
+                            }
+                          >
+                            <span className="faq-row__left">
+                              <span className="faq-subrow__icon" aria-hidden="true">
+                                {item.key === "depots" ? (
+                                  <Building2 size={16} className="faq-subrow__icon-svg" />
+                                ) : item.key === "leaders" ? (
+                                  <User size={16} className="faq-subrow__icon-svg" />
+                                ) : item.key === "commanders" ? (
+                                  <BadgeCheck size={16} className="faq-subrow__icon-svg" />
+                                ) : (
+                                  <Factory size={16} className="faq-subrow__icon-svg" />
+                                )}
+                              </span>
+                              <span className="faq-row__label">{item.label}</span>
+                            </span>
+                            <span
+                              className={`faq-row__chev ${
+                                formulaOpenKey === item.key ? "is-open" : ""
+                              }`}
+                              aria-hidden="true"
+                            >
+                              ⌄
+                            </span>
+                          </button>
 
-                <details className="faq-acc faq-acc--nested">
-                  <summary className="faq-acc__summary">Leaders</summary>
+                          <div
+                            id={`faq-panel-formula-${item.key}`}
+                            className={`faq-content ${
+                              formulaOpenKey === item.key ? "is-open" : ""
+                            }`}
+                            aria-hidden={formulaOpenKey !== item.key}
+                          >
+                            <div className="faq-subcontent">{item.content}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
-                  <details className="faq-acc faq-acc--nested">
-                    <summary className="faq-acc__summary">Platoon</summary>
-                    {renderFormulaBlock(resolvedFormulas.platoons)}
-                  </details>
+                <div className="faq-item">
+                  <button
+                    type="button"
+                    className="faq-row"
+                    aria-expanded={faqOpenKey === "scoring"}
+                    aria-controls="faq-panel-scoring"
+                    onClick={() => setFaqOpenKey(faqOpenKey === "scoring" ? null : "scoring")}
+                  >
+                    <span className="faq-row__left">
+                      <span className="faq-row__icon" aria-hidden="true">
+                        <Flag size={18} className="faq-row__icon-svg" />
+                      </span>
+                      <span className="faq-row__label">Scoring</span>
+                    </span>
+                    <span
+                      className={`faq-row__chev ${faqOpenKey === "scoring" ? "is-open" : ""}`}
+                      aria-hidden="true"
+                    >
+                      ⌄
+                    </span>
+                  </button>
+                  <div
+                    id="faq-panel-scoring"
+                    className={`faq-content ${faqOpenKey === "scoring" ? "is-open" : ""}`}
+                    aria-hidden={faqOpenKey !== "scoring"}
+                  >
+                    <div className="faq-panel-body">Placeholder</div>
+                  </div>
+                </div>
 
-                  <details className="faq-acc faq-acc--nested">
-                    <summary className="faq-acc__summary">Squad</summary>
-                    {renderFormulaBlock(resolvedFormulas.squads)}
-                  </details>
+                <div className="faq-item">
+                  <button
+                    type="button"
+                    className="faq-row"
+                    aria-expanded={faqOpenKey === "data-rules"}
+                    aria-controls="faq-panel-data-rules"
+                    onClick={() =>
+                      setFaqOpenKey(faqOpenKey === "data-rules" ? null : "data-rules")
+                    }
+                  >
+                    <span className="faq-row__left">
+                      <span className="faq-row__icon" aria-hidden="true">
+                        <ClipboardList size={18} className="faq-row__icon-svg" />
+                      </span>
+                      <span className="faq-row__label">Data Rules</span>
+                    </span>
+                    <span
+                      className={`faq-row__chev ${faqOpenKey === "data-rules" ? "is-open" : ""}`}
+                      aria-hidden="true"
+                    >
+                      ⌄
+                    </span>
+                  </button>
+                  <div
+                    id="faq-panel-data-rules"
+                    className={`faq-content ${faqOpenKey === "data-rules" ? "is-open" : ""}`}
+                    aria-hidden={faqOpenKey !== "data-rules"}
+                  >
+                    <div className="faq-panel-body">Placeholder</div>
+                  </div>
+                </div>
 
-                  <details className="faq-acc faq-acc--nested">
-                    <summary className="faq-acc__summary">Team</summary>
-                    {renderFormulaBlock(resolvedFormulas.teams)}
-                  </details>
-                </details>
-
-                <details className="faq-acc faq-acc--nested">
-                  <summary className="faq-acc__summary">Commanders</summary>
-                  {renderFormulaBlock(resolvedFormulas.commanders)}
-                </details>
-
-                <details className="faq-acc faq-acc--nested">
-                  <summary className="faq-acc__summary">Companies</summary>
-                  {renderFormulaBlock(resolvedFormulas.companies)}
-                </details>
-              </details>
-
-              <details className="faq-acc">
-                <summary className="faq-acc__summary">Scoring</summary>
-                <div className="faq-acc__content">Placeholder</div>
-              </details>
-
-              <details className="faq-acc">
-                <summary className="faq-acc__summary">Data Rules</summary>
-                <div className="faq-acc__content">Placeholder</div>
-              </details>
-
-              <details className="faq-acc">
-                <summary className="faq-acc__summary">Troubleshooting</summary>
-                <div className="faq-acc__content">Placeholder</div>
-              </details>
+                <div className="faq-item">
+                  <button
+                    type="button"
+                    className="faq-row"
+                    aria-expanded={faqOpenKey === "troubleshooting"}
+                    aria-controls="faq-panel-troubleshooting"
+                    onClick={() =>
+                      setFaqOpenKey(
+                        faqOpenKey === "troubleshooting" ? null : "troubleshooting"
+                      )
+                    }
+                  >
+                    <span className="faq-row__left">
+                      <span className="faq-row__icon" aria-hidden="true">
+                        <Wrench size={18} className="faq-row__icon-svg" />
+                      </span>
+                      <span className="faq-row__label">Troubleshooting</span>
+                    </span>
+                    <span
+                      className={`faq-row__chev ${
+                        faqOpenKey === "troubleshooting" ? "is-open" : ""
+                      }`}
+                      aria-hidden="true"
+                    >
+                      ⌄
+                    </span>
+                  </button>
+                  <div
+                    id="faq-panel-troubleshooting"
+                    className={`faq-content ${faqOpenKey === "troubleshooting" ? "is-open" : ""}`}
+                    aria-hidden={faqOpenKey !== "troubleshooting"}
+                  >
+                    <div className="faq-panel-body">Placeholder</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -946,7 +1123,3 @@ function LeaderboardTable({ rows, view, roleFilter }) {
 }
 
 export default App;
-
-
-
-
