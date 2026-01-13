@@ -4,6 +4,8 @@ import { listDepots } from "./depots.service";
 import { supabase } from "./supabase";
 import { computeTotalScore } from "./scoringEngine";
 
+const DEBUG_DASHBOARD = Boolean(import.meta?.env?.DEV);
+
 function toYMD(date) {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -47,6 +49,70 @@ function toNumber(value) {
   return Number.isFinite(num) ? num : 0;
 }
 
+function parseFirestoreTimestampJson(ts) {
+  if (!ts) return null;
+  if (typeof ts === "string") {
+    const d = new Date(ts);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const sec = ts._seconds ?? ts.seconds;
+  const nsec = ts._nanoseconds ?? ts.nanoseconds ?? 0;
+  if (typeof sec === "number") {
+    const ms = sec * 1000 + Math.floor(nsec / 1e6);
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+function getRowDate(row) {
+  if (row?.date_real) return new Date(`${row.date_real}T00:00:00`);
+  return parseFirestoreTimestampJson(row?.date);
+}
+
+async function fetchRawData({
+  startDate,
+  endDate,
+  requireApproved,
+  requireNotVoided,
+  useDateFilter,
+}) {
+  let query = supabase
+    .from("raw_data")
+    .select(
+      `
+      id,
+      agent_id,
+      leads,
+      payins,
+      sales,
+      date_real,
+      date,
+      approved,
+      voided,
+      source,
+      agents:agents (
+        id,
+        name,
+        photo_url,
+        photoURL,
+        depot_id,
+        company_id,
+        platoon_id,
+        role
+      )
+    `
+    );
+
+  if (useDateFilter && startDate && endDate) {
+    query = query.gte("date_real", startDate).lte("date_real", endDate);
+  }
+  if (requireApproved) query = query.eq("approved", true);
+  if (requireNotVoided) query = query.eq("voided", false);
+
+  return query;
+}
+
 export async function getDashboardData({ mode, dateFrom, dateTo } = {}) {
   const resolvedView = normalizeViewKey(mode);
   const today = new Date();
@@ -62,38 +128,28 @@ export async function getDashboardData({ mode, dateFrom, dateTo } = {}) {
       battle_type: resolvedView,
       week_key: weekKey,
     }),
-    supabase
-      .from("raw_data")
-      .select(
-        `
-        id,
-        agent_id,
-        leads,
-        payins,
-        sales,
-        date_real,
-        approved,
-        voided,
-        agents:agents (
-          id,
-          name,
-          photo_url,
-          photoURL,
-          depot_id,
-          company_id,
-          platoon_id,
-          role
-        )
-      `
-      )
-      .gte("date_real", startDate)
-      .lte("date_real", endDate)
-      .eq("approved", true)
-      .eq("voided", false),
+    fetchRawData({
+      startDate,
+      endDate,
+      requireApproved: true,
+      requireNotVoided: true,
+      useDateFilter: true,
+    }),
   ]);
 
   if (rawResult.error) throw rawResult.error;
   if (formulaResult.error) throw formulaResult.error;
+
+  if (DEBUG_DASHBOARD) {
+    console.info("[dashboard] raw_data filters", {
+      dateFrom: startDate,
+      dateTo: endDate,
+      approved: true,
+      voided: false,
+    });
+    console.info("[dashboard] raw_data count", rawResult.data?.length ?? 0);
+    console.info("[dashboard] raw_data sample", rawResult.data?.[0] ?? null);
+  }
 
   const depotsMap = new Map((depots ?? []).map((d) => [String(d.id), d]));
   const companiesMap = new Map((companies ?? []).map((c) => [String(c.id), c]));
@@ -104,7 +160,73 @@ export async function getDashboardData({ mode, dateFrom, dateTo } = {}) {
   const scoringConfig = formulaRow?.config ?? null;
 
   const grouped = new Map();
-  const rows = rawResult.data ?? [];
+  let rows = rawResult.data ?? [];
+  let relaxedFilter = null;
+
+  if (rows.length === 0) {
+    const relaxedDateResult = await fetchRawData({
+      startDate,
+      endDate,
+      requireApproved: true,
+      requireNotVoided: true,
+      useDateFilter: false,
+    });
+    if (relaxedDateResult?.data?.length) {
+      rows = relaxedDateResult.data;
+      relaxedFilter = "date";
+    }
+  }
+
+  if (rows.length === 0) {
+    const relaxedApprovedResult = await fetchRawData({
+      startDate,
+      endDate,
+      requireApproved: false,
+      requireNotVoided: true,
+      useDateFilter: true,
+    });
+    if (relaxedApprovedResult?.data?.length) {
+      rows = relaxedApprovedResult.data;
+      relaxedFilter = "approved";
+    }
+  }
+
+  if (rows.length === 0) {
+    const relaxedVoidedResult = await fetchRawData({
+      startDate,
+      endDate,
+      requireApproved: true,
+      requireNotVoided: false,
+      useDateFilter: true,
+    });
+    if (relaxedVoidedResult?.data?.length) {
+      rows = relaxedVoidedResult.data;
+      relaxedFilter = "voided";
+    }
+  }
+
+  if (DEBUG_DASHBOARD && relaxedFilter) {
+    console.warn("[dashboard] raw_data filter relaxed", relaxedFilter);
+    console.info("[dashboard] raw_data relaxed count", rows.length);
+  }
+
+  if (!rawResult.data?.length && rows.length && relaxedFilter === "date") {
+    rows = rows.filter((row) => {
+      const d = getRowDate(row);
+      if (!d) return false;
+      const start = new Date(`${startDate}T00:00:00`);
+      const end = new Date(`${endDate}T23:59:59`);
+      return d >= start && d <= end;
+    });
+  }
+
+  if (relaxedFilter === "approved") {
+    rows = rows.filter((row) => row.approved === true || row.approved == null);
+  }
+
+  if (relaxedFilter === "voided") {
+    rows = rows.filter((row) => row.voided !== true);
+  }
   const totals = rows.reduce(
     (acc, row) => {
       acc.totalLeads += toNumber(row.leads);
@@ -166,6 +288,10 @@ export async function getDashboardData({ mode, dateFrom, dateTo } = {}) {
     ...row,
     points: computeTotalScore(resolvedView, row, scoringConfig),
   }));
+
+  if (DEBUG_DASHBOARD) {
+    console.info("[dashboard] leaderboard rows", aggregated.length);
+  }
 
   aggregated.sort(
     (a, b) =>

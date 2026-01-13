@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { getDashboardData } from "../services/dashboard.service";
 import "./Dashboard.css";
 
+const DEBUG_DASHBOARD = Boolean(import.meta?.env?.DEV);
 const VIEW_TABS = [
   { key: "depots", label: "Depots" },
   { key: "leaders", label: "Leaders" },
@@ -88,6 +89,10 @@ export default function Dashboard() {
     })
       .then(result => {
         if (cancelled) return;
+        if (DEBUG_DASHBOARD) {
+          console.info("[dashboard] kpis", result?.kpis ?? null);
+          console.info("[dashboard] leaderboardRows", result?.leaderboardRows?.length ?? 0);
+        }
         setData(result);
       })
       .catch(err => {
