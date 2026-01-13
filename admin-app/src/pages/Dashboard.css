@@ -85,6 +85,16 @@
   box-shadow: 0 8px 18px rgba(5,15,90,0.08);
 }
 
+.dashboard-table-head,
+.dashboard-table-row{
+  grid-template-columns: 60px 2fr repeat(4, 1fr);
+}
+
+.dashboard-page[data-mode="depots"] .dashboard-table-head,
+.dashboard-page[data-mode="depots"] .dashboard-table-row{
+  grid-template-columns: 60px 2fr repeat(3, 1fr);
+}
+
 .dashboard-table-body{
   max-height: 420px;
   overflow-y: auto;
