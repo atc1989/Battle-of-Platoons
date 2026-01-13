@@ -604,7 +604,7 @@ button {
   overflow: hidden;
   max-height: 0;
   opacity: 0;
-  transition: max-height 0.22s ease, opacity 0.22s ease;
+  transition: max-height 0.18s ease-out, opacity 0.18s ease-out, padding 0.18s ease-out;
   padding: 0 8px;
 }
 
@@ -657,7 +657,6 @@ button {
   width: 26px;
   height: 26px;
   border-radius: 9px;
-  background: #f1f5ff;
   display: grid;
   place-items: center;
 }
@@ -677,11 +676,6 @@ button {
 .faq-subsection__title{
   font-weight: 700;
   color: #0f172a;
-}
-
-.faq-subcontent{
-  margin-left: 6px;
-  padding: 8px 10px 6px;
 }
 
 .formula-summary--modal{
