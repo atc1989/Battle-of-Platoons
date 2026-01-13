@@ -158,8 +158,13 @@ export default function Dashboard() {
       String(a.id || "").localeCompare(String(b.id || ""))
   );
 
-  const podium = arrangePodiumRows(sortedRows.slice(0, 3));
-  const tableRows = sortedRows.slice(3);
+  const rankedRows = sortedRows.map((row, index) => ({
+    ...row,
+    rank: index + 1,
+  }));
+
+  const podium = arrangePodiumRows(rankedRows.slice(0, 3));
+  const tableRows = rankedRows.slice(3);
 
   return (
     <div className="dashboard-page">
@@ -230,7 +235,7 @@ export default function Dashboard() {
         ) : (
           <div className="dashboard-podium">
             {podium.map(item => (
-              <div key={item.key || item.id} className={`dashboard-podium-card rank-${item.rank}`}>
+              <div key={item.id} className={`dashboard-podium-card rank-${item.rank}`}>
                 <div className="dashboard-podium-rank">{item.rank}</div>
                 <div className="dashboard-podium-avatar">
                   {item.photoUrl ? (
@@ -286,7 +291,7 @@ export default function Dashboard() {
               ))
             ) : tableRows.length ? (
               tableRows.map(row => (
-                <div key={`${row.rank}-${row.key}`} className="dashboard-table-row">
+                <div key={row.id} className="dashboard-table-row">
                   <div className="dashboard-rank">{row.rank}</div>
                   <div className="dashboard-name-cell">
                     <div className="dashboard-row-avatar">
