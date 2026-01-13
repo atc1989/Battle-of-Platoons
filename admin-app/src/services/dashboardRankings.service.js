@@ -3,6 +3,8 @@ import { listCompanies } from "./companies.service";
 import { listDepots } from "./depots.service";
 import { supabase } from "./supabase";
 
+const DEBUG_DASHBOARD = Boolean(import.meta?.env?.DEV);
+
 function normalizeMode(mode) {
   const key = String(mode || "").toLowerCase();
   if (key === "depots") return "depots";
@@ -80,6 +82,12 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
 
   let rawRows = rawResult?.data ?? [];
 
+  if (DEBUG_DASHBOARD) {
+    console.log("[dashboard] mode", resolvedMode);
+    console.log("[dashboard] raw_data count", rawRows.length);
+    console.log("[dashboard] raw_data sample", rawRows[0] ?? null);
+  }
+
   if (dateFrom && dateTo) {
     const start = new Date(`${dateFrom}T00:00:00`);
     const end = new Date(`${dateTo}T23:59:59`);
@@ -137,6 +145,19 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
       item.sales += toNumber(row.sales);
     });
   } else if (resolvedMode === "companies") {
+    if (DEBUG_DASHBOARD) {
+      const companyIds = new Set(
+        rawRows
+          .map((row) => {
+            const agentId = String(row.agent_id ?? "");
+            const agent = row.agents ?? agentsMap.get(agentId) ?? {};
+            return agent.company_id ?? agent.companyId ?? null;
+          })
+          .filter(Boolean)
+      );
+      console.log("[dashboard] distinct company_id count", companyIds.size);
+      console.log("[dashboard] companies fetched", companiesMap.size);
+    }
     rawRows.forEach((row) => {
       const agentId = String(row.agent_id ?? "");
       const agent = row.agents ?? agentsMap.get(agentId) ?? {};

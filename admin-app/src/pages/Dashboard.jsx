@@ -81,6 +81,7 @@ export default function Dashboard() {
     let cancelled = false;
     setLoading(true);
     setError("");
+    setData(null);
 
     getDashboardRankings({
       mode: activeView,
