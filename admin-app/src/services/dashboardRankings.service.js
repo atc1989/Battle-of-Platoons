@@ -21,6 +21,46 @@ function toNumber(value) {
   return Number.isFinite(num) ? num : 0;
 }
 
+function getMetric(row, primaryKey, fallbackKeys = []) {
+  const value = row?.[primaryKey];
+  if (value != null) return toNumber(value);
+  for (const key of fallbackKeys) {
+    if (row?.[key] != null) return toNumber(row[key]);
+  }
+  return 0;
+}
+
+function buildDepotRankings({ rawRows, agentsMap, depotsMap }) {
+  const grouped = new Map();
+
+  rawRows.forEach((row) => {
+    const agentId = String(row.agent_id ?? "");
+    const agent = row.agents ?? agentsMap.get(agentId) ?? {};
+    const depotId = agent.depot_id ?? agent.depotId ?? "";
+    const key = depotId ? String(depotId) : "";
+    if (!key) return;
+
+    const depot = depotsMap.get(key);
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        id: key,
+        name: depot?.name ?? "Unknown Depot",
+        photoUrl: normalizePhotoUrl(depot),
+        leads: 0,
+        payins: 0,
+        sales: 0,
+        points: 0,
+      });
+    }
+
+    const item = grouped.get(key);
+    item.leads += getMetric(row, "leads", ["total_leads", "leads_count"]);
+    item.sales += getMetric(row, "sales", ["total_sales", "sales_amount"]);
+  });
+
+  return Array.from(grouped.values());
+}
+
 function parseFirestoreTimestampJson(ts) {
   if (!ts) return null;
   if (typeof ts === "string") {
@@ -98,6 +138,7 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
   }
 
   const grouped = new Map();
+  let rows = [];
 
   if (resolvedMode === "leaders") {
     rawRows.forEach((row) => {
@@ -116,34 +157,13 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
         });
       }
       const item = grouped.get(agentId);
-      item.leads += toNumber(row.leads);
-      item.payins += toNumber(row.payins);
-      item.sales += toNumber(row.sales);
+      item.leads += getMetric(row, "leads", ["total_leads", "leads_count"]);
+      item.payins += getMetric(row, "payins", ["total_payins", "payins_count"]);
+      item.sales += getMetric(row, "sales", ["total_sales", "sales_amount"]);
     });
+    rows = Array.from(grouped.values());
   } else if (resolvedMode === "depots") {
-    rawRows.forEach((row) => {
-      const agentId = String(row.agent_id ?? "");
-      const agent = row.agents ?? agentsMap.get(agentId) ?? {};
-      const depotId = agent.depot_id ?? agent.depotId ?? "";
-      const key = depotId ? String(depotId) : "";
-      if (!key) return;
-      const depot = depotsMap.get(key);
-      if (!grouped.has(key)) {
-        grouped.set(key, {
-          id: key,
-          name: depot?.name ?? "Unknown Depot",
-          photoUrl: normalizePhotoUrl(depot),
-          leads: 0,
-          payins: 0,
-          sales: 0,
-          points: 0,
-        });
-      }
-      const item = grouped.get(key);
-      item.leads += toNumber(row.leads);
-      item.payins += toNumber(row.payins);
-      item.sales += toNumber(row.sales);
-    });
+    rows = buildDepotRankings({ rawRows, agentsMap, depotsMap });
   } else if (resolvedMode === "companies") {
     if (DEBUG_DASHBOARD) {
       const companyIds = new Set(
@@ -177,13 +197,17 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
         });
       }
       const item = grouped.get(key);
-      item.leads += toNumber(row.leads);
-      item.payins += toNumber(row.payins);
-      item.sales += toNumber(row.sales);
+      item.leads += getMetric(row, "leads", ["total_leads", "leads_count"]);
+      item.payins += getMetric(row, "payins", ["total_payins", "payins_count"]);
+      item.sales += getMetric(row, "sales", ["total_sales", "sales_amount"]);
     });
+    rows = Array.from(grouped.values());
   }
 
-  const rows = Array.from(grouped.values());
+  if (DEBUG_DASHBOARD) {
+    console.log("[dashboard] rows length", rows.length);
+    console.log("[dashboard] first row", rows[0] ?? null);
+  }
 
   const totals = rows.reduce(
     (acc, row) => {
