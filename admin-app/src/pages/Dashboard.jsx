@@ -3,6 +3,7 @@ import { getDashboardRankings } from "../services/dashboardRankings.service";
 import "./Dashboard.css";
 
 const DEBUG_DASHBOARD = Boolean(import.meta?.env?.DEV);
+const DEBUG = true;
 const VIEW_TABS = [
   { key: "depots", label: "Depots" },
   { key: "leaders", label: "Leaders" },
@@ -319,6 +320,17 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+        {DEBUG && (
+          <div style={{ marginTop: 16, padding: 12, background: "#fff", borderRadius: 8, fontSize: 12 }}>
+            <div><b>mode:</b> {activeView}</div>
+            <div><b>rows:</b> {sortedRows?.length ?? 0}</div>
+            <div><b>podium names:</b> {(sortedRows ?? []).slice(0, 3).map(r => r?.name).join(", ")}</div>
+            <div><b>table names:</b> {(tableRows ?? []).slice(0, 5).map(r => r?.name).join(", ")}</div>
+            <pre style={{ whiteSpace: "pre-wrap" }}>
+              {JSON.stringify({ sampleRows: (sortedRows ?? []).slice(0, 3) }, null, 2)}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );
