@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { listAgents, upsertAgent } from "../services/agents.service";
 import { listDepots, upsertDepot } from "../services/depots.service";
 import { listCompanies, upsertCompany } from "../services/companies.service";
@@ -44,6 +44,12 @@ function useFilePreview(file) {
 export default function Participants() {
   const [tab, setTab] = useState("leaders"); // leaders | companies | depots | platoons
   const [status, setStatus] = useState({ type: "", msg: "" });
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [pendingTab, setPendingTab] = useState("");
+  const [panelMinHeight, setPanelMinHeight] = useState(null);
+
+  const animationTimerRef = useRef(null);
+  const panelRef = useRef(null);
 
   const [agents, setAgents] = useState([]);
   const [depots, setDepots] = useState([]);
@@ -555,21 +561,63 @@ export default function Participants() {
   const simplePhotoPreviewUrl = simpleFilePreview || simplePhotoUrlInput.trim() || simpleForm.photoURL.trim();
   const platoonPhotoPreviewUrl = platoonFilePreview || platoonPhotoUrlInput.trim() || platoonForm.photoURL.trim();
 
+  useEffect(() => {
+    return () => {
+      if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (isAnimating) return;
+    const panelEl = panelRef.current;
+    if (!panelEl) return;
+    setPanelMinHeight(panelEl.offsetHeight);
+  }, [tab, isAnimating]);
+
+  function handleTabChange(nextTab) {
+    if (nextTab === tab && !pendingTab) return;
+    if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+
+    const panelEl = panelRef.current;
+    if (panelEl) setPanelMinHeight(panelEl.offsetHeight);
+
+    setPendingTab(nextTab);
+    setIsAnimating(true);
+
+    animationTimerRef.current = setTimeout(() => {
+      setTab(nextTab);
+      setIsAnimating(false);
+      setPendingTab("");
+    }, 100);
+  }
+
   // ---- UI
   return (
     <div className="p-page">
       <div className="p-head">
-        <div className="p-tabs">
-          <button className={`p-tab ${tab === "leaders" ? "active" : ""}`} onClick={() => { setTab("leaders"); setStatus({type:"",msg:""}); }}>
+        <div className="tabs">
+          <button
+            className={`tab-button${tab === "leaders" ? " active" : ""}`}
+            onClick={() => { handleTabChange("leaders"); setStatus({type:"",msg:""}); }}
+          >
             Leaders
           </button>
-          <button className={`p-tab ${tab === "companies" ? "active" : ""}`} onClick={() => { setTab("companies"); clearSimple(); }}>
+          <button
+            className={`tab-button${tab === "companies" ? " active" : ""}`}
+            onClick={() => { handleTabChange("companies"); clearSimple(); }}
+          >
             Commanders
           </button>
-          <button className={`p-tab ${tab === "depots" ? "active" : ""}`} onClick={() => { setTab("depots"); clearSimple(); }}>
+          <button
+            className={`tab-button${tab === "depots" ? " active" : ""}`}
+            onClick={() => { handleTabChange("depots"); clearSimple(); }}
+          >
             Depots
           </button>
-          <button className={`p-tab ${tab === "platoons" ? "active" : ""}`} onClick={() => { setTab("platoons"); clearPlatoon(); }}>
+          <button
+            className={`tab-button${tab === "platoons" ? " active" : ""}`}
+            onClick={() => { handleTabChange("platoons"); clearPlatoon(); }}
+          >
             Companies
           </button>
         </div>
@@ -595,6 +643,12 @@ export default function Participants() {
         )}
       </div>
 
+      <div
+        className="tab-panel"
+        data-state={isAnimating ? "out" : "in"}
+        ref={panelRef}
+        style={panelMinHeight ? { minHeight: panelMinHeight } : undefined}
+      >
       {/* FORM AREA */}
       {tab === "leaders" && (
         <div className="card">
@@ -968,28 +1022,30 @@ export default function Participants() {
       {tab === "leaders" && (
         <div className="card">
           <div className="card-title">Leaders List</div>
-          <div className="table">
-            <div className="t-head">
-              <div>Leader</div><div>Depot</div><div>Commander</div><div>Company</div><div>Upline</div><div className="t-right">Actions</div>
-            </div>
-
-            {agents.map(a => (
-              <div className="t-row" key={a.id}>
-                <div className="t-leader">
-                  <div className="avatar">
-                    {a.photoURL ? <img src={a.photoURL} alt={a.name} /> : <span className="initials">{getInitials(a.name)}</span>}
-                  </div>
-                  <div className="t-name">{a.name}</div>
-                </div>
-                <div>{depotById[a.depotId]?.name || a.depotId || "-"}</div>
-                <div>{companyById[a.companyId]?.name || a.companyId || "-"}</div>
-                <div>{platoonById[a.platoonId]?.name || a.platoonId || "-"}</div>
-                <div>{a.uplineAgentId ? (agentById[a.uplineAgentId]?.name || a.uplineAgentId) : "-"}</div>
-                <div className="t-right">
-                  <button className="btn-link" onClick={() => editLeader(a)}>Edit</button>
-                </div>
+          <div className="table-scroll-y">
+            <div className="table">
+              <div className="t-head">
+                <div>Leader</div><div>Depot</div><div>Commander</div><div>Company</div><div>Upline</div><div className="t-right">Actions</div>
               </div>
-            ))}
+
+              {agents.map(a => (
+                <div className="t-row" key={a.id}>
+                  <div className="t-leader">
+                    <div className="avatar">
+                      {a.photoURL ? <img src={a.photoURL} alt={a.name} /> : <span className="initials">{getInitials(a.name)}</span>}
+                    </div>
+                    <div className="t-name">{a.name}</div>
+                  </div>
+                  <div>{depotById[a.depotId]?.name || a.depotId || "-"}</div>
+                  <div>{companyById[a.companyId]?.name || a.companyId || "-"}</div>
+                  <div>{platoonById[a.platoonId]?.name || a.platoonId || "-"}</div>
+                  <div>{a.uplineAgentId ? (agentById[a.uplineAgentId]?.name || a.uplineAgentId) : "-"}</div>
+                  <div className="t-right">
+                    <button className="btn-link" onClick={() => editLeader(a)}>Edit</button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -1073,6 +1129,7 @@ export default function Participants() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
