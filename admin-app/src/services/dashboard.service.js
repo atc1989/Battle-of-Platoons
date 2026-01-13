@@ -205,6 +205,20 @@ export async function getDashboardData({ mode, dateFrom, dateTo } = {}) {
     }
   }
 
+  if (rows.length === 0) {
+    const relaxedAllResult = await fetchRawData({
+      startDate,
+      endDate,
+      requireApproved: false,
+      requireNotVoided: false,
+      useDateFilter: false,
+    });
+    if (relaxedAllResult?.data?.length) {
+      rows = relaxedAllResult.data;
+      relaxedFilter = "all";
+    }
+  }
+
   if (DEBUG_DASHBOARD && relaxedFilter) {
     console.warn("[dashboard] raw_data filter relaxed", relaxedFilter);
     console.info("[dashboard] raw_data relaxed count", rows.length);
@@ -220,11 +234,11 @@ export async function getDashboardData({ mode, dateFrom, dateTo } = {}) {
     });
   }
 
-  if (relaxedFilter === "approved") {
+  if (relaxedFilter === "approved" || relaxedFilter === "all") {
     rows = rows.filter((row) => row.approved === true || row.approved == null);
   }
 
-  if (relaxedFilter === "voided") {
+  if (relaxedFilter === "voided" || relaxedFilter === "all") {
     rows = rows.filter((row) => row.voided !== true);
   }
   const totals = rows.reduce(
