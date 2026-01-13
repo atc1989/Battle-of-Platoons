@@ -24,7 +24,6 @@ body{
 /* ----- Admin Shell (Sidebar + Topbar) ----- */
 .admin-shell{
   display:grid;
-  grid-template-columns: 260px minmax(0, 1fr);
   min-height: 100vh;
 }
 
