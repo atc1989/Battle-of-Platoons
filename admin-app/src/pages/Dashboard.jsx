@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { getDashboardData } from "../services/dashboard.service";
+import { getLeaderboardDataset } from "../services/leaderboardData.service";
 import "./Dashboard.css";
 
 const DEBUG_DASHBOARD = Boolean(import.meta?.env?.DEV);
@@ -82,16 +82,18 @@ export default function Dashboard() {
     setLoading(true);
     setError("");
 
-    getDashboardData({
+    getLeaderboardDataset({
+      mode: activeView,
       dateFrom: dateRange.start,
       dateTo: dateRange.end,
-      mode: activeView,
     })
       .then(result => {
         if (cancelled) return;
         if (DEBUG_DASHBOARD) {
-          console.info("[dashboard] kpis", result?.kpis ?? null);
-          console.info("[dashboard] leaderboardRows", result?.leaderboardRows?.length ?? 0);
+          console.info("[dashboard] dataset rows", result?.rows?.length ?? 0);
+          console.info("[dashboard] sample row", result?.rows?.[0] ?? null);
+          console.info("[dashboard] totals", result?.totals ?? null);
+          console.info("[dashboard] counts", result?.counts ?? null);
         }
         setData(result);
       })
@@ -132,14 +134,16 @@ export default function Dashboard() {
     }, 100);
   }
 
-  const kpis = data?.kpis || {
+  const counts = data?.counts || {
     leadersCount: 0,
     companiesCount: 0,
     depotsCount: 0,
+  };
+  const totals = data?.totals || {
     totalLeads: 0,
     totalSales: 0,
   };
-  const leaderboardRows = data?.leaderboardRows || [];
+  const leaderboardRows = data?.rows || [];
   const podiumRows = arrangePodiumRows(leaderboardRows.slice(0, 3));
   const tableRows = leaderboardRows.slice(3);
 
@@ -150,31 +154,31 @@ export default function Dashboard() {
           <div className="dashboard-kpi">
             <div className="dashboard-kpi-label">Leaders</div>
             <div className="dashboard-kpi-value">
-              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(kpis.leadersCount)}
+              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(counts.leadersCount)}
             </div>
           </div>
           <div className="dashboard-kpi">
             <div className="dashboard-kpi-label">Companies</div>
             <div className="dashboard-kpi-value">
-              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(kpis.companiesCount)}
+              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(counts.companiesCount)}
             </div>
           </div>
           <div className="dashboard-kpi">
             <div className="dashboard-kpi-label">Depots</div>
             <div className="dashboard-kpi-value">
-              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(kpis.depotsCount)}
+              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(counts.depotsCount)}
             </div>
           </div>
           <div className="dashboard-kpi">
             <div className="dashboard-kpi-label">Total Leads</div>
             <div className="dashboard-kpi-value">
-              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(kpis.totalLeads)}
+              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(totals.totalLeads)}
             </div>
           </div>
           <div className="dashboard-kpi">
             <div className="dashboard-kpi-label">Total Sales</div>
             <div className="dashboard-kpi-value">
-              {loading ? <span className="dashboard-kpi-skeleton" /> : formatCurrency(kpis.totalSales)}
+              {loading ? <span className="dashboard-kpi-skeleton" /> : formatCurrency(totals.totalSales)}
             </div>
           </div>
         </div>
@@ -215,26 +219,26 @@ export default function Dashboard() {
               <div key={item.key || item.id} className={`dashboard-podium-card rank-${item.rank}`}>
                 <div className="dashboard-podium-rank">{item.rank}</div>
                 <div className="dashboard-podium-avatar">
-                  {item.avatarUrl ? (
-                    <img src={item.avatarUrl} alt={item.name} />
+                  {item.photoUrl ? (
+                    <img src={item.photoUrl} alt={item.name} />
                   ) : (
                     <span>{getInitials(item.name)}</span>
                   )}
                 </div>
                 <div className="dashboard-podium-name">{item.name}</div>
-                <div className="dashboard-podium-points">{item.points.toFixed(1)}</div>
+                <div className="dashboard-podium-points">{Number(item.points || 0).toFixed(1)}</div>
                 <div className="dashboard-podium-label">points</div>
                 <div className="dashboard-podium-stats">
                   <div>
-                    <span className="dashboard-stat-value">{formatNumber(item.leads)}</span>
+                    <span className="dashboard-stat-value">{formatNumber(item.leads || 0)}</span>
                     <span className="dashboard-stat-label">leads</span>
                   </div>
                   <div>
-                    <span className="dashboard-stat-value">{formatNumber(item.payins)}</span>
+                    <span className="dashboard-stat-value">{formatNumber(item.payins || 0)}</span>
                     <span className="dashboard-stat-label">payins</span>
                   </div>
                   <div>
-                    <span className="dashboard-stat-value">{formatCurrency(item.sales)}</span>
+                    <span className="dashboard-stat-value">{formatCurrency(item.sales || 0)}</span>
                     <span className="dashboard-stat-label">sales</span>
                   </div>
                 </div>
@@ -270,18 +274,18 @@ export default function Dashboard() {
                   <div className="dashboard-rank">{row.rank}</div>
                   <div className="dashboard-name-cell">
                     <div className="dashboard-row-avatar">
-                      {row.avatarUrl ? (
-                        <img src={row.avatarUrl} alt={row.name} />
+                      {row.photoUrl ? (
+                        <img src={row.photoUrl} alt={row.name} />
                       ) : (
                         <span>{getInitials(row.name)}</span>
                       )}
                     </div>
                     <span>{row.name}</span>
                   </div>
-                  <div>{formatNumber(row.leads)}</div>
-                  <div>{formatNumber(row.payins)}</div>
-                  <div>{formatCurrency(row.sales)}</div>
-                  <div>{row.points.toFixed(1)}</div>
+                  <div>{formatNumber(row.leads || 0)}</div>
+                  <div>{formatNumber(row.payins || 0)}</div>
+                  <div>{formatCurrency(row.sales || 0)}</div>
+                  <div>{Number(row.points || 0).toFixed(1)}</div>
                 </div>
               ))
             ) : (
