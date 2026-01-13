@@ -3,8 +3,6 @@ import { listCompanies } from "./companies.service";
 import { listDepots } from "./depots.service";
 import { supabase } from "./supabase";
 
-const DEBUG_DASHBOARD = Boolean(import.meta?.env?.DEV);
-
 function normalizeMode(mode) {
   const key = String(mode || "").toLowerCase();
   if (key === "depots") return "depots";
@@ -19,46 +17,6 @@ function normalizePhotoUrl(item) {
 function toNumber(value) {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
-}
-
-function getMetric(row, primaryKey, fallbackKeys = []) {
-  const value = row?.[primaryKey];
-  if (value != null) return toNumber(value);
-  for (const key of fallbackKeys) {
-    if (row?.[key] != null) return toNumber(row[key]);
-  }
-  return 0;
-}
-
-function buildDepotRankings({ rawRows, agentsMap, depotsMap }) {
-  const grouped = new Map();
-
-  rawRows.forEach((row) => {
-    const agentId = String(row.agent_id ?? "");
-    const agent = row.agents ?? agentsMap.get(agentId) ?? {};
-    const depotId = agent.depot_id ?? agent.depotId ?? "";
-    const key = depotId ? String(depotId) : "";
-    if (!key) return;
-
-    const depot = depotsMap.get(key);
-    if (!grouped.has(key)) {
-      grouped.set(key, {
-        id: key,
-        name: depot?.name ?? "Unknown Depot",
-        photoUrl: normalizePhotoUrl(depot),
-        leads: 0,
-        payins: 0,
-        sales: 0,
-        points: 0,
-      });
-    }
-
-    const item = grouped.get(key);
-    item.leads += getMetric(row, "leads", ["total_leads", "leads_count"]);
-    item.sales += getMetric(row, "sales", ["total_sales", "sales_amount"]);
-  });
-
-  return Array.from(grouped.values());
 }
 
 function parseFirestoreTimestampJson(ts) {
@@ -122,12 +80,6 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
 
   let rawRows = rawResult?.data ?? [];
 
-  if (DEBUG_DASHBOARD) {
-    console.log("[dashboard] mode", resolvedMode);
-    console.log("[dashboard] raw_data count", rawRows.length);
-    console.log("[dashboard] raw_data sample", rawRows[0] ?? null);
-  }
-
   if (dateFrom && dateTo) {
     const start = new Date(`${dateFrom}T00:00:00`);
     const end = new Date(`${dateTo}T23:59:59`);
@@ -157,27 +109,37 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
         });
       }
       const item = grouped.get(agentId);
-      item.leads += getMetric(row, "leads", ["total_leads", "leads_count"]);
-      item.payins += getMetric(row, "payins", ["total_payins", "payins_count"]);
-      item.sales += getMetric(row, "sales", ["total_sales", "sales_amount"]);
+      item.leads += toNumber(row.leads);
+      item.payins += toNumber(row.payins);
+      item.sales += toNumber(row.sales);
     });
     rows = Array.from(grouped.values());
   } else if (resolvedMode === "depots") {
-    rows = buildDepotRankings({ rawRows, agentsMap, depotsMap });
+    rawRows.forEach((row) => {
+      const agentId = String(row.agent_id ?? "");
+      const agent = row.agents ?? agentsMap.get(agentId) ?? {};
+      const depotId = agent.depot_id ?? agent.depotId ?? "";
+      const key = depotId ? String(depotId) : "";
+      if (!key) return;
+      const depot = depotsMap.get(key);
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          id: key,
+          name: depot?.name ?? "Unknown Depot",
+          photoUrl: normalizePhotoUrl(depot),
+          leads: 0,
+          payins: 0,
+          sales: 0,
+          points: 0,
+        });
+      }
+      const item = grouped.get(key);
+      item.leads += toNumber(row.leads);
+      item.payins += toNumber(row.payins);
+      item.sales += toNumber(row.sales);
+    });
+    rows = Array.from(grouped.values());
   } else if (resolvedMode === "companies") {
-    if (DEBUG_DASHBOARD) {
-      const companyIds = new Set(
-        rawRows
-          .map((row) => {
-            const agentId = String(row.agent_id ?? "");
-            const agent = row.agents ?? agentsMap.get(agentId) ?? {};
-            return agent.company_id ?? agent.companyId ?? null;
-          })
-          .filter(Boolean)
-      );
-      console.log("[dashboard] distinct company_id count", companyIds.size);
-      console.log("[dashboard] companies fetched", companiesMap.size);
-    }
     rawRows.forEach((row) => {
       const agentId = String(row.agent_id ?? "");
       const agent = row.agents ?? agentsMap.get(agentId) ?? {};
@@ -197,16 +159,11 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
         });
       }
       const item = grouped.get(key);
-      item.leads += getMetric(row, "leads", ["total_leads", "leads_count"]);
-      item.payins += getMetric(row, "payins", ["total_payins", "payins_count"]);
-      item.sales += getMetric(row, "sales", ["total_sales", "sales_amount"]);
+      item.leads += toNumber(row.leads);
+      item.payins += toNumber(row.payins);
+      item.sales += toNumber(row.sales);
     });
     rows = Array.from(grouped.values());
-  }
-
-  if (DEBUG_DASHBOARD) {
-    console.log("[dashboard] rows length", rows.length);
-    console.log("[dashboard] first row", rows[0] ?? null);
   }
 
   const totals = rows.reduce(

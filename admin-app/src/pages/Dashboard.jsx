@@ -297,7 +297,7 @@ export default function Dashboard() {
               ))
             ) : tableRows.length ? (
               tableRows.map(row => (
-                <div key={`${row.rank}-${row.id}`} className="dashboard-table-row">
+                <div key={`${row.rank}-${row.key}`} className="dashboard-table-row">
                   <div className="dashboard-rank">{row.rank}</div>
                   <div className="dashboard-name-cell">
                     <div className="dashboard-row-avatar">
