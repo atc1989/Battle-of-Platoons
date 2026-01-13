@@ -49,20 +49,6 @@ function toNumber(value) {
   return Number.isFinite(num) ? num : 0;
 }
 
-function toBooleanLoose(value) {
-  if (value === true || value === false) return value;
-  if (value == null) return null;
-  if (typeof value === "number") return value !== 0;
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true") return true;
-    if (normalized === "false") return false;
-    if (normalized === "1") return true;
-    if (normalized === "0") return false;
-  }
-  return Boolean(value);
-}
-
 function parseFirestoreTimestampJson(ts) {
   if (!ts) return null;
   if (typeof ts === "string") {
@@ -249,17 +235,11 @@ export async function getDashboardData({ mode, dateFrom, dateTo } = {}) {
   }
 
   if (relaxedFilter === "approved" || relaxedFilter === "all") {
-    rows = rows.filter((row) => {
-      const approved = toBooleanLoose(row.approved);
-      return approved === true || approved == null;
-    });
+    rows = rows.filter((row) => row.approved === true || row.approved == null);
   }
 
   if (relaxedFilter === "voided" || relaxedFilter === "all") {
-    rows = rows.filter((row) => {
-      const voided = toBooleanLoose(row.voided);
-      return voided !== true;
-    });
+    rows = rows.filter((row) => row.voided !== true);
   }
   const totals = rows.reduce(
     (acc, row) => {
