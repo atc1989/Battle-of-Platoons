@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { getDashboardSummary } from "../services/dashboard.service";
+import { getDashboardData } from "../services/dashboard.service";
 
 const VIEW_TABS = [
   { key: "depots", label: "Depots" },
@@ -23,6 +23,14 @@ function formatNumber(value) {
   return numberFormatter.format(Number(value) || 0);
 }
 
+const KPI_ITEMS = [
+  { key: "leadersCount", label: "Leaders", format: formatNumber },
+  { key: "companiesCount", label: "Companies", format: formatNumber },
+  { key: "depotsCount", label: "Depots", format: formatNumber },
+  { key: "totalLeads", label: "Total Leads", format: formatNumber },
+  { key: "totalSales", label: "Total Sales", format: formatCurrency },
+];
+
 function toYMD(date) {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -39,6 +47,17 @@ function getInitials(name = "") {
   if (!parts.length) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function arrangePodiumRows(rows = []) {
+  const cleaned = rows.filter(Boolean);
+  if (cleaned.length >= 3) {
+    return [cleaned[1], cleaned[0], cleaned[2]];
+  }
+  if (cleaned.length === 2) {
+    return [cleaned[1], cleaned[0]];
+  }
+  return cleaned;
 }
 
 export default function Dashboard() {
@@ -73,10 +92,10 @@ export default function Dashboard() {
     setLoading(true);
     setError("");
 
-    getDashboardSummary({
+    getDashboardData({
       dateFrom: dateRange.start,
       dateTo: dateRange.end,
-      view: activeView,
+      mode: activeView,
     })
       .then(result => {
         if (cancelled) return;
@@ -126,43 +145,26 @@ export default function Dashboard() {
     totalLeads: 0,
     totalSales: 0,
   };
-  const podium = data?.podium || [];
-  const rows = data?.rows || [];
+  const leaderboardRows = data?.leaderboardRows || [];
+  const podiumRows = arrangePodiumRows(leaderboardRows.slice(0, 3));
+  const tableRows = leaderboardRows.slice(3);
 
   return (
     <div className="dashboard-page">
       <div className="dashboard-kpis">
         <div className={`dashboard-kpi-strip${loading ? " is-loading" : ""}`}>
-          <div className="dashboard-kpi">
-            <div className="dashboard-kpi-label">Leaders</div>
-            <div className="dashboard-kpi-value">
-              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(kpis.leadersCount)}
+          {KPI_ITEMS.map((item) => (
+            <div key={item.key} className="dashboard-kpi">
+              <div className="dashboard-kpi-label">{item.label}</div>
+              <div className="dashboard-kpi-value">
+                {loading ? (
+                  <span className="dashboard-kpi-skeleton" />
+                ) : (
+                  item.format(kpis[item.key])
+                )}
+              </div>
             </div>
-          </div>
-          <div className="dashboard-kpi">
-            <div className="dashboard-kpi-label">Companies</div>
-            <div className="dashboard-kpi-value">
-              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(kpis.companiesCount)}
-            </div>
-          </div>
-          <div className="dashboard-kpi">
-            <div className="dashboard-kpi-label">Depots</div>
-            <div className="dashboard-kpi-value">
-              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(kpis.depotsCount)}
-            </div>
-          </div>
-          <div className="dashboard-kpi">
-            <div className="dashboard-kpi-label">Total Leads</div>
-            <div className="dashboard-kpi-value">
-              {loading ? <span className="dashboard-kpi-skeleton" /> : formatNumber(kpis.totalLeads)}
-            </div>
-          </div>
-          <div className="dashboard-kpi">
-            <div className="dashboard-kpi-label">Total Sales</div>
-            <div className="dashboard-kpi-value">
-              {loading ? <span className="dashboard-kpi-skeleton" /> : formatCurrency(kpis.totalSales)}
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -197,7 +199,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="dashboard-podium">
-            {podium.map(item => (
+            {podiumRows.map(item => (
               <div key={item.key || item.id} className={`dashboard-podium-card rank-${item.rank}`}>
                 <div className="dashboard-podium-rank">{item.rank}</div>
                 <div className="dashboard-podium-avatar">
@@ -250,8 +252,8 @@ export default function Dashboard() {
                   <span className="dashboard-skeleton" />
                 </div>
               ))
-            ) : rows.length ? (
-              rows.map(row => (
+            ) : tableRows.length ? (
+              tableRows.map(row => (
                 <div key={`${row.rank}-${row.key}`} className="dashboard-table-row">
                   <div className="dashboard-rank">{row.rank}</div>
                   <div className="dashboard-name-cell">
