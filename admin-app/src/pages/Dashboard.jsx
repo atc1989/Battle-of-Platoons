@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { getDashboardSummary } from "../services/dashboard.service";
+import { getDashboardRankings } from "../services/dashboardRankings.service";
 const VIEW_TABS = [
   { key: "depots", label: "Depots" },
   { key: "leaders", label: "Leaders" },
@@ -79,8 +79,8 @@ export default function Dashboard() {
     setLoading(true);
     setError("");
 
-    getDashboardSummary({
-      view: activeView,
+    getDashboardRankings({
+      mode: activeView,
       dateFrom: dateRange.start,
       dateTo: dateRange.end,
     })
@@ -132,8 +132,34 @@ export default function Dashboard() {
     totalLeads: 0,
     totalSales: 0,
   };
-  const podium = data?.podium || [];
   const rows = data?.rows || [];
+  const labelHeader =
+    activeView === "depots"
+      ? "Depot Name"
+      : activeView === "companies"
+      ? "Company Name"
+      : "Leader Name";
+
+  const sectionTitle =
+    activeView === "depots"
+      ? "Depot Rankings"
+      : activeView === "companies"
+      ? "Company Rankings"
+      : "Platoon Leader Rankings";
+
+  const showPayins = activeView !== "depots";
+
+  const sortedRows = [...rows].sort(
+    (a, b) =>
+      (b.points || 0) - (a.points || 0) ||
+      (b.sales || 0) - (a.sales || 0) ||
+      (b.leads || 0) - (a.leads || 0) ||
+      String(a.name || "").localeCompare(String(b.name || "")) ||
+      String(a.id || "").localeCompare(String(b.id || ""))
+  );
+
+  const podium = arrangePodiumRows(sortedRows.slice(0, 3));
+  const tableRows = sortedRows.slice(3);
 
   return (
     <div className="dashboard-page">
@@ -191,7 +217,7 @@ export default function Dashboard() {
         ref={panelRef}
         style={panelMinHeight ? { minHeight: panelMinHeight } : undefined}
       >
-        <div className="dashboard-section-title">Platoon Leader Rankings</div>
+        <div className="dashboard-section-title">{sectionTitle}</div>
 
         {error ? <div className="dashboard-error">{error}</div> : null}
 
@@ -221,10 +247,12 @@ export default function Dashboard() {
                     <span className="dashboard-stat-value">{formatNumber(item.leads || 0)}</span>
                     <span className="dashboard-stat-label">leads</span>
                   </div>
-                  <div>
-                    <span className="dashboard-stat-value">{formatNumber(item.payins || 0)}</span>
-                    <span className="dashboard-stat-label">payins</span>
-                  </div>
+                  {showPayins && (
+                    <div>
+                      <span className="dashboard-stat-value">{formatNumber(item.payins || 0)}</span>
+                      <span className="dashboard-stat-label">payins</span>
+                    </div>
+                  )}
                   <div>
                     <span className="dashboard-stat-value">{formatCurrency(item.sales || 0)}</span>
                     <span className="dashboard-stat-label">sales</span>
@@ -238,9 +266,9 @@ export default function Dashboard() {
         <div className="dashboard-table">
           <div className="dashboard-table-head">
             <div>Rank</div>
-            <div>Leader Name</div>
+            <div>{labelHeader}</div>
             <div>Leads</div>
-            <div>Payins</div>
+            {showPayins && <div>Payins</div>}
             <div>Sales</div>
             <div>Points</div>
           </div>
@@ -251,13 +279,13 @@ export default function Dashboard() {
                   <span className="dashboard-skeleton" />
                   <span className="dashboard-skeleton" />
                   <span className="dashboard-skeleton" />
-                  <span className="dashboard-skeleton" />
+                  {showPayins && <span className="dashboard-skeleton" />}
                   <span className="dashboard-skeleton" />
                   <span className="dashboard-skeleton" />
                 </div>
               ))
-            ) : rows.length ? (
-              rows.map(row => (
+            ) : tableRows.length ? (
+              tableRows.map(row => (
                 <div key={`${row.rank}-${row.key}`} className="dashboard-table-row">
                   <div className="dashboard-rank">{row.rank}</div>
                   <div className="dashboard-name-cell">
@@ -271,7 +299,7 @@ export default function Dashboard() {
                     <span>{row.name}</span>
                   </div>
                   <div>{formatNumber(row.leads || 0)}</div>
-                  <div>{formatNumber(row.payins || 0)}</div>
+                  {showPayins && <div>{formatNumber(row.payins || 0)}</div>}
                   <div>{formatCurrency(row.sales || 0)}</div>
                   <div>{Number(row.points || 0).toFixed(1)}</div>
                 </div>
