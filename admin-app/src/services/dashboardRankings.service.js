@@ -90,7 +90,6 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
   }
 
   const grouped = new Map();
-  let rows = [];
 
   if (resolvedMode === "leaders") {
     rawRows.forEach((row) => {
@@ -113,7 +112,6 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
       item.payins += toNumber(row.payins);
       item.sales += toNumber(row.sales);
     });
-    rows = Array.from(grouped.values());
   } else if (resolvedMode === "depots") {
     rawRows.forEach((row) => {
       const agentId = String(row.agent_id ?? "");
@@ -138,7 +136,10 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
       item.payins += toNumber(row.payins);
       item.sales += toNumber(row.sales);
     });
+<<<<<<< ours
     rows = Array.from(grouped.values());
+=======
+>>>>>>> theirs
   } else if (resolvedMode === "companies") {
     rawRows.forEach((row) => {
       const agentId = String(row.agent_id ?? "");
@@ -163,9 +164,13 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
       item.payins += toNumber(row.payins);
       item.sales += toNumber(row.sales);
     });
-    rows = Array.from(grouped.values());
   }
 
+<<<<<<< ours
+=======
+  const rows = Array.from(grouped.values());
+
+>>>>>>> theirs
   const totals = rows.reduce(
     (acc, row) => {
       acc.totalLeads += toNumber(row.leads);
