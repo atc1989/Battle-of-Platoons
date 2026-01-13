@@ -33,6 +33,24 @@ function formatCurrencyPHP(n) {
   });
 }
 
+function formatNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric.toLocaleString("en-US") : "--";
+}
+
+function formatKpiValue(value, formatter) {
+  if (value == null) return "--";
+  return formatter ? formatter(value) : formatNumber(value);
+}
+
+const KPI_ITEMS = [
+  { key: "leadersCount", label: "Leaders" },
+  { key: "companiesCount", label: "Companies" },
+  { key: "depotsCount", label: "Depots" },
+  { key: "totalLeads", label: "Total Leads" },
+  { key: "totalSales", label: "Total Sales", format: formatCurrencyPHP },
+];
+
 function toYMD(d) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -145,24 +163,29 @@ function getInitials(name = "") {
 
 function normalizePodiumItems(topItems = []) {
   const cleaned = (topItems || []).filter(Boolean);
-  const sorted = [...cleaned].sort((a, b) => {
-    if (a?.rank != null && b?.rank != null) return a.rank - b.rank;
-    return (b?.points ?? 0) - (a?.points ?? 0);
-  });
 
-  if (sorted.length >= 3) {
-    return [sorted[1], sorted[0], sorted[2]];
+  if (cleaned.length >= 3) {
+    return [cleaned[1], cleaned[0], cleaned[2]];
   }
 
-  if (sorted.length === 2) {
-    return [sorted[1], sorted[0]];
+  if (cleaned.length === 2) {
+    return [cleaned[1], cleaned[0]];
   }
 
-  if (sorted.length === 1) {
-    return [sorted[0]];
+  if (cleaned.length === 1) {
+    return [cleaned[0]];
   }
 
   return [];
+}
+
+function KpiCard({ label, value }) {
+  return (
+    <div className="topbar-segment topbar-segment--metric">
+      <div className="metric-label">{label}</div>
+      <div className="metric-value">{value}</div>
+    </div>
+  );
 }
 
 function normalizeFormulaMetrics(formula) {
@@ -313,13 +336,8 @@ function App() {
 
   const leadersPlatoonView = activeView === "leaders" && leaderRoleFilter === "platoon";
   const displayView = leadersPlatoonView ? "platoon" : activeView;
-  const metrics = data?.metrics || {
-    entitiesCount: 0,
-    totalLeads: 0,
-    totalPayins: 0,
-    totalSales: 0,
-  };
-  const rows = data?.rows || [];
+  const kpis = data?.kpis ?? null;
+  const leaderboardRows = data?.leaderboardRows || [];
   const debug = data?.debug || {};
   const publishableRowsCount = debug.publishableRowsCount ?? 0;
   const filteredByRangeCount = debug.filteredByRangeCount ?? 0;
@@ -330,17 +348,8 @@ function App() {
   const formulaMetrics = normalizeFormulaMetrics(activeFormula);
   const formulaVersion = activeFormula?.version ?? activeFormula?.revision ?? "—";
   const formulaTitle = `${activeFormula?.label ?? "Not published"} (v${formulaVersion})`;
-  const top3 = rows.slice(0, 3);
-  const entitiesLabel =
-    displayView === "commanders"
-      ? "Commanders"
-      : displayView === "companies"
-      ? "Companies"
-      : displayView === "depots"
-      ? "Depots"
-      : displayView === "platoon"
-      ? "Uplines"
-      : "Leaders";
+  const podiumRows = leaderboardRows.slice(0, 3);
+  const tableRows = leaderboardRows.slice(3);
 
   const title =
     displayView === "platoon"
@@ -396,7 +405,7 @@ function App() {
         <strong>Connected, but raw_data probe failed:</strong> {probeMsg}
       </div>
     );
-  } else if (probe.status === "done" && (probe.count ?? 0) > 0 && !loading && rows.length === 0) {
+  } else if (probe.status === "done" && (probe.count ?? 0) > 0 && !loading && leaderboardRows.length === 0) {
     statusBlocks.push(
       <div key="no-publishable" className="status-text" style={{ marginBottom: 12 }}>
         <strong>raw_data is visible, but no publishable results for this week range.</strong>{" "}
@@ -429,7 +438,7 @@ function App() {
         >
           <span>Project: {projectRef}</span>
           <span>raw_data visible: {probe.status === "done" ? probe.count ?? "error" : "?"}</span>
-          <span>Leaderboard rows: {rows.length}</span>
+          <span>Leaderboard rows: {leaderboardRows.length}</span>
           <span>Error: {error || "none"}</span>
         </div>
       )}
@@ -476,27 +485,15 @@ function App() {
             </div>
 
             <div className="topbar-metrics">
-
-                <div className="topbar-divider" aria-hidden="true"></div>
-
-              <div className="topbar-segment topbar-segment--metric">
-                <div className="metric-label">{entitiesLabel}</div>
-                <div className="metric-value">{metrics.entitiesCount}</div>
-              </div>
-
-              <div className="topbar-divider" aria-hidden="true"></div>
-
-              <div className="topbar-segment topbar-segment--metric">
-                <div className="metric-label">Leads</div>
-                <div className="metric-value">{metrics.totalLeads}</div>
-              </div>
-
-              <div className="topbar-divider" aria-hidden="true"></div>
-
-              <div className="topbar-segment topbar-segment--metric">
-                <div className="metric-label">Payins</div>
-                <div className="metric-value">{metrics.totalPayins}</div>
-              </div>
+              {KPI_ITEMS.map((item, index) => (
+                <React.Fragment key={item.key}>
+                  {index > 0 && <div className="topbar-divider" aria-hidden="true"></div>}
+                  <KpiCard
+                    label={item.label}
+                    value={formatKpiValue(kpis?.[item.key], item.format)}
+                  />
+                </React.Fragment>
+              ))}
             </div>
           </div>
         </section>
@@ -563,14 +560,14 @@ function App() {
 
         {!loading && !error && (
           <>
-            {rows.length === 0 ? (
+            {leaderboardRows.length === 0 ? (
               <div className="empty-state">
                 No publishable data for this period.
               </div>
             ) : (
               <>
-                <Podium top3={top3} view={displayView} roleFilter={leaderRoleFilter} />
-                <LeaderboardTable rows={rows} view={displayView} roleFilter={leaderRoleFilter} />
+                <Podium top3={podiumRows} view={displayView} roleFilter={leaderRoleFilter} />
+                <LeaderboardTable rows={tableRows} view={displayView} roleFilter={leaderRoleFilter} />
               </>
             )}
           </>
@@ -625,7 +622,8 @@ function Podium({ top3, view }) {
               )}
               <div className="podium-stats">
                 <div>{item.points.toFixed(1)} pts</div>
-                <div>{item.leads} leads</div>
+                <div>{formatNumber(item.leads)} leads</div>
+                <div>{formatNumber(item.payins)} payins</div>
                 <div>{formatCurrencyPHP(item.sales)} sales</div>
               </div>
             </motion.div>
@@ -706,7 +704,3 @@ function LeaderboardTable({ rows, view, roleFilter }) {
 }
 
 export default App;
-
-
-
-

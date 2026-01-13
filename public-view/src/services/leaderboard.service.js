@@ -9,8 +9,8 @@ import { computeTotalScore } from "./scoringEngine";
  * Contract:
  * getLeaderboard({ startDate, endDate, groupBy }) returns:
  * {
- *   metrics: { entitiesCount, totalLeads, totalPayins, totalSales },
- *   rows: [{ key, name, avatarUrl, leads, payins, sales, points, rank, platoon? }]
+ *   kpis: { leadersCount, companiesCount, depotsCount, totalLeads, totalSales },
+ *   leaderboardRows: [{ key, name, avatarUrl, leads, payins, sales, points, rank, platoon? }]
  * }
  *
  * Notes:
@@ -156,17 +156,20 @@ export async function getLeaderboard({
     agentsMap,
   });
 
-  // 5) Metrics for header cards
-  const metrics = {
-    entitiesCount: rows.length,
-    totalLeads: rows.reduce((s, r) => s + toNumber(r.leads), 0),
-    totalPayins: rows.reduce((s, r) => s + toNumber(r.payins), 0),
-    totalSales: rows.reduce((s, r) => s + toNumber(r.sales), 0),
+  // 5) KPIs for header cards (counts come from base tables)
+  const totalLeads = rows.reduce((s, r) => s + toNumber(r.leads), 0);
+  const totalSales = rows.reduce((s, r) => s + toNumber(r.sales), 0);
+  const kpis = {
+    leadersCount: normalizedAgents.length,
+    companiesCount: (commanders ?? []).length,
+    depotsCount: (depots ?? []).length,
+    totalLeads,
+    totalSales,
   };
 
   return {
-    metrics,
-    rows,
+    kpis,
+    leaderboardRows: rows,
     formula: {
       data: activeFormula ?? null,
       battleType: resolvedBattleType,
@@ -312,7 +315,12 @@ function aggregateLeaderboard({
 
   result.sort(
     (a, b) =>
-      b.points - a.points || b.sales - a.sales || b.leads - a.leads || b.payins - a.payins
+      b.points - a.points ||
+      b.sales - a.sales ||
+      b.leads - a.leads ||
+      b.payins - a.payins ||
+      a.name.localeCompare(b.name) ||
+      String(a.key).localeCompare(String(b.key))
   );
 
   for (let i = 0; i < result.length; i++) result[i].rank = i + 1;
@@ -377,7 +385,12 @@ function aggregateUplines({ rows, scoringFn, agentsMap }) {
 
   result.sort(
     (a, b) =>
-      b.points - a.points || b.sales - a.sales || b.leads - a.leads || b.payins - a.payins
+      b.points - a.points ||
+      b.sales - a.sales ||
+      b.leads - a.leads ||
+      b.payins - a.payins ||
+      a.name.localeCompare(b.name) ||
+      String(a.key).localeCompare(String(b.key))
   );
 
   for (let i = 0; i < result.length; i++) result[i].rank = i + 1;
