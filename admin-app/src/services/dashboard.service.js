@@ -37,13 +37,18 @@ function normalizeViewKey(view) {
   return "leaders";
 }
 
+function isLeaderRole(role) {
+  const normalized = String(role || "").toLowerCase();
+  return normalized === "platoon" || normalized === "leader" || normalized === "squad" || normalized === "team";
+}
+
 function toNumber(value) {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
 }
 
-export async function getDashboardSummary({ dateFrom, dateTo, view = "leaders" } = {}) {
-  const resolvedView = normalizeViewKey(view);
+export async function getDashboardData({ mode, dateFrom, dateTo } = {}) {
+  const resolvedView = normalizeViewKey(mode);
   const today = new Date();
   const startDate = dateFrom || toYMD(startOfMonth(today));
   const endDate = dateTo || toYMD(today);
@@ -67,7 +72,7 @@ export async function getDashboardSummary({ dateFrom, dateTo, view = "leaders" }
         payins,
         sales,
         date_real,
-        source,
+        approved,
         voided,
         agents:agents (
           id,
@@ -76,15 +81,15 @@ export async function getDashboardSummary({ dateFrom, dateTo, view = "leaders" }
           photoURL,
           depot_id,
           company_id,
-          platoon_id
+          platoon_id,
+          role
         )
       `
       )
       .gte("date_real", startDate)
       .lte("date_real", endDate)
-      .eq("voided", false)
-      .eq("source", "company")
-      .limit(10000),
+      .eq("approved", true)
+      .eq("voided", false),
   ]);
 
   if (rawResult.error) throw rawResult.error;
@@ -100,10 +105,19 @@ export async function getDashboardSummary({ dateFrom, dateTo, view = "leaders" }
 
   const grouped = new Map();
   const rows = rawResult.data ?? [];
+  const totals = rows.reduce(
+    (acc, row) => {
+      acc.totalLeads += toNumber(row.leads);
+      acc.totalSales += toNumber(row.sales);
+      return acc;
+    },
+    { totalLeads: 0, totalSales: 0 }
+  );
 
   rows.forEach((row) => {
     const agentId = String(row.agent_id ?? "");
     const agent = row.agents ?? agentsMap.get(agentId) ?? {};
+    if (resolvedView === "leaders" && !isLeaderRole(agent.role)) return;
     const depotId = agent.depot_id ?? agent.depotId ?? "";
     const companyId = agent.company_id ?? agent.companyId ?? "";
 
@@ -155,30 +169,31 @@ export async function getDashboardSummary({ dateFrom, dateTo, view = "leaders" }
 
   aggregated.sort(
     (a, b) =>
-      b.points - a.points || b.sales - a.sales || b.leads - a.leads || b.payins - a.payins
+      b.points - a.points ||
+      b.sales - a.sales ||
+      b.leads - a.leads ||
+      b.payins - a.payins ||
+      a.name.localeCompare(b.name) ||
+      String(a.key).localeCompare(String(b.key))
   );
   aggregated.forEach((row, idx) => {
     row.rank = idx + 1;
   });
 
-  const totals = aggregated.reduce(
-    (acc, row) => {
-      acc.totalLeads += row.leads;
-      acc.totalSales += row.sales;
-      return acc;
-    },
-    { totalLeads: 0, totalSales: 0 }
-  );
+  const leadersCount = (agents ?? []).filter((agent) => isLeaderRole(agent.role)).length;
 
   return {
     kpis: {
-      leadersCount: (agents ?? []).length,
+      leadersCount,
       companiesCount: (companies ?? []).length,
       depotsCount: (depots ?? []).length,
       totalLeads: totals.totalLeads,
       totalSales: totals.totalSales,
     },
-    podium: aggregated.slice(0, 3),
-    rows: aggregated.slice(3),
+    leaderboardRows: aggregated,
   };
+}
+
+export async function getDashboardSummary({ dateFrom, dateTo, view = "leaders" } = {}) {
+  return getDashboardData({ mode: view, dateFrom, dateTo });
 }

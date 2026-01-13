@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { getDashboardSummary } from "../services/dashboard.service";
+import { getDashboardData } from "../services/dashboard.service";
+import "./Dashboard.css";
 
 const VIEW_TABS = [
   { key: "depots", label: "Depots" },
@@ -41,6 +42,13 @@ function getInitials(name = "") {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function arrangePodiumRows(rows = []) {
+  const cleaned = rows.filter(Boolean);
+  if (cleaned.length >= 3) return [cleaned[1], cleaned[0], cleaned[2]];
+  if (cleaned.length === 2) return [cleaned[1], cleaned[0]];
+  return cleaned;
+}
+
 export default function Dashboard() {
   const today = useMemo(() => new Date(), []);
   const dateRange = useMemo(
@@ -73,10 +81,10 @@ export default function Dashboard() {
     setLoading(true);
     setError("");
 
-    getDashboardSummary({
+    getDashboardData({
       dateFrom: dateRange.start,
       dateTo: dateRange.end,
-      view: activeView,
+      mode: activeView,
     })
       .then(result => {
         if (cancelled) return;
@@ -126,8 +134,9 @@ export default function Dashboard() {
     totalLeads: 0,
     totalSales: 0,
   };
-  const podium = data?.podium || [];
-  const rows = data?.rows || [];
+  const leaderboardRows = data?.leaderboardRows || [];
+  const podiumRows = arrangePodiumRows(leaderboardRows.slice(0, 3));
+  const tableRows = leaderboardRows.slice(3);
 
   return (
     <div className="dashboard-page">
@@ -197,7 +206,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="dashboard-podium">
-            {podium.map(item => (
+            {podiumRows.map(item => (
               <div key={item.key || item.id} className={`dashboard-podium-card rank-${item.rank}`}>
                 <div className="dashboard-podium-rank">{item.rank}</div>
                 <div className="dashboard-podium-avatar">
@@ -250,8 +259,8 @@ export default function Dashboard() {
                   <span className="dashboard-skeleton" />
                 </div>
               ))
-            ) : rows.length ? (
-              rows.map(row => (
+            ) : tableRows.length ? (
+              tableRows.map(row => (
                 <div key={`${row.rank}-${row.key}`} className="dashboard-table-row">
                   <div className="dashboard-rank">{row.rank}</div>
                   <div className="dashboard-name-cell">
