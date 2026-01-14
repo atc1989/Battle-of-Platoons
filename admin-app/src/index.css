@@ -21,6 +21,16 @@ body{
   overflow-y: scroll;
 }
 
+.hide-scrollbar{
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar{
+  width: 0;
+  height: 0;
+}
+
 /* ----- Admin Shell (Sidebar + Topbar) ----- */
 .admin-shell{
   display:grid;
@@ -197,12 +207,12 @@ body{
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  padding: 16px;
+  padding: 12px;
 }
 
 .modal-card{
-  width: min(960px, 100%);
-  max-height: calc(100vh - 32px);
+  width: min(980px, 100%);
+  max-height: calc(100vh - 24px);
   overflow: hidden;
   background: #fff;
   border-radius: 18px;
@@ -223,21 +233,14 @@ body{
   position: sticky;
   top: 0;
   background: #fff;
-  padding: 14px 18px;
+  padding: 12px 16px;
   z-index: 2;
 }
 
 .modal-body{
-  padding: 0 18px 18px;
-  max-height: calc(100vh - 32px - 56px);
+  padding: 6px 16px 14px;
+  max-height: calc(100vh - 24px - 56px);
   overflow: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.modal-body::-webkit-scrollbar{
-  width: 0;
-  height: 0;
 }
 
 .modal-body .form{
@@ -245,7 +248,7 @@ body{
 }
 
 .modal-body .grid{
-  gap: 8px;
+  gap: 10px;
 }
 
 @media (max-width: 720px){
