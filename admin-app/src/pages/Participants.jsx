@@ -709,7 +709,7 @@ export default function Participants() {
 
                 <div className="modal-body hide-scrollbar">
                   <div className="card">
-          <form className="form" onSubmit={saveLeader}>
+          <form id="addLeaderForm" className="form" onSubmit={saveLeader}>
             <div className="grid">
               <div className="field">
                 <label>Leader Name</label>
@@ -863,11 +863,20 @@ export default function Participants() {
               <div className="p-status warn">Another leader with the same name exists. Use agent_id in uploads to avoid ambiguity.</div>
             ) : null}
 
-            <div className="actions">
-              <button className="btn-primary" type="submit" disabled={leaderUploading || leaderIdConflict}>{isEditingLeader ? "Save Changes" : "Save"}</button>
-              <button className="btn" type="button" onClick={handleLeaderClear}>Clear</button>
-            </div>
           </form>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <div className="actions">
+                    <button
+                      className="btn-primary"
+                      type="submit"
+                      form="addLeaderForm"
+                      disabled={leaderUploading || leaderIdConflict}
+                    >
+                      {isEditingLeader ? "Save Changes" : "Save"}
+                    </button>
+                    <button className="btn" type="button" onClick={handleLeaderClear}>Clear</button>
                   </div>
                 </div>
               </div>
