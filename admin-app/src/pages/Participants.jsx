@@ -80,6 +80,9 @@ export default function Participants() {
   const [simpleUploading, setSimpleUploading] = useState(false);
   const [platoonUploading, setPlatoonUploading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isAddCommanderOpen, setIsAddCommanderOpen] = useState(false);
+  const [isAddDepotOpen, setIsAddDepotOpen] = useState(false);
+  const [isAddCompanyOpen, setIsAddCompanyOpen] = useState(false);
 
   const leaderFilePreview = useFilePreview(leaderPhotoFile);
   const simpleFilePreview = useFilePreview(simplePhotoFile);
@@ -388,6 +391,16 @@ export default function Participants() {
     setStatus({ type: "", msg: "" });
   }
 
+  function handleCommanderClear() {
+    clearSimple();
+    setIsAddCommanderOpen(false);
+  }
+
+  function handleDepotClear() {
+    clearSimple();
+    setIsAddDepotOpen(false);
+  }
+
   async function saveSimple(e) {
     e.preventDefault();
     setStatus({ type: "", msg: "" });
@@ -459,6 +472,7 @@ export default function Participants() {
     setSimplePhotoUrlInput(row.photoURL || "");
     setSimplePhotoError("");
     setStatus({ type: "", msg: "" });
+    setIsAddCompanyOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -496,6 +510,11 @@ export default function Participants() {
     setPlatoonPhotoUrlInput("");
     setPlatoonPhotoError("");
     setStatus({ type: "", msg: "" });
+  }
+
+  function handleCompanyClear() {
+    clearPlatoon();
+    setIsAddCompanyOpen(false);
   }
 
   async function savePlatoon(e) {
@@ -561,12 +580,20 @@ export default function Participants() {
     setPlatoonPhotoUrlInput(row.photoURL || "");
     setPlatoonPhotoError("");
     setStatus({ type: "", msg: "" });
+    setIsAddCompanyOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const leaderPhotoPreviewUrl = leaderFilePreview || leaderPhotoUrlInput.trim() || leaderForm.photoURL.trim();
   const simplePhotoPreviewUrl = simpleFilePreview || simplePhotoUrlInput.trim() || simpleForm.photoURL.trim();
   const platoonPhotoPreviewUrl = platoonFilePreview || platoonPhotoUrlInput.trim() || platoonForm.photoURL.trim();
+  const simpleModalType = isAddCommanderOpen ? "companies" : isAddDepotOpen ? "depots" : "";
+  const isSimpleModalOpen = !!simpleModalType;
+  const simpleModalTitle = simpleModalType
+    ? simpleForm.id
+      ? `Edit ${simpleModalType === "companies" ? "Commander" : "Depot"}`
+      : `Add ${simpleModalType === "companies" ? "Commander" : "Depot"}`
+    : "";
 
   useEffect(() => {
     return () => {
@@ -596,6 +623,9 @@ export default function Participants() {
       setIsAnimating(false);
       setPendingTab("");
       if (nextTab !== "leaders") setIsFormOpen(false);
+      if (nextTab !== "companies") setIsAddCommanderOpen(false);
+      if (nextTab !== "depots") setIsAddDepotOpen(false);
+      if (nextTab !== "platoons") setIsAddCompanyOpen(false);
     }, 100);
   }
 
@@ -603,16 +633,52 @@ export default function Participants() {
     if (e.target === e.currentTarget) setIsFormOpen(false);
   }
 
+  function handleSimpleOverlayClose(e, type) {
+    if (e.target !== e.currentTarget) return;
+    if (type === "companies") setIsAddCommanderOpen(false);
+    if (type === "depots") setIsAddDepotOpen(false);
+  }
+
+  function handleCompanyOverlayClose(e) {
+    if (e.target === e.currentTarget) setIsAddCompanyOpen(false);
+  }
+
+  function closeAllModals() {
+    setIsFormOpen(false);
+    setIsAddCommanderOpen(false);
+    setIsAddDepotOpen(false);
+    setIsAddCompanyOpen(false);
+  }
+
+  const isAnyModalOpen = isFormOpen || isAddCommanderOpen || isAddDepotOpen || isAddCompanyOpen;
+
   useEffect(() => {
-    if (!isFormOpen) return undefined;
+    if (!isAnyModalOpen) return undefined;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const adminMain = document.querySelector(".admin-main");
+    const prevMainOverflow = adminMain ? adminMain.style.overflow : "";
+    const prevMainOverflowY = adminMain ? adminMain.style.overflowY : "";
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    if (adminMain) {
+      adminMain.style.overflow = "hidden";
+      adminMain.style.overflowY = "hidden";
+    }
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") setIsFormOpen(false);
+      if (event.key === "Escape") closeAllModals();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      if (adminMain) {
+        adminMain.style.overflow = prevMainOverflow;
+        adminMain.style.overflowY = prevMainOverflowY;
+      }
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isFormOpen]);
+  }, [isAnyModalOpen]);
 
   useEffect(() => {
     return undefined;
@@ -659,8 +725,20 @@ export default function Participants() {
                 setIsFormOpen(true);
                 return;
               }
-              if (tab === "companies" || tab === "depots") clearSimple();
-              if (tab === "platoons") clearPlatoon();
+              if (tab === "companies") {
+                clearSimple();
+                setIsAddCommanderOpen(true);
+                return;
+              }
+              if (tab === "depots") {
+                clearSimple();
+                setIsAddDepotOpen(true);
+                return;
+              }
+              if (tab === "platoons") {
+                clearPlatoon();
+                setIsAddCompanyOpen(true);
+              }
             }}
           >
             Add +
@@ -860,208 +938,242 @@ export default function Participants() {
         </>
       )}
 
-      {(tab === "companies" || tab === "depots") && (
-        <div className="card">
-          <div className="card-title">{simpleForm.id ? `Edit ${tab === "companies" ? "Commander" : "Depot"}` : `Add ${tab === "companies" ? "Commander" : "Depot"}`}</div>
+      {isSimpleModalOpen && (
+        <div className="modal-overlay" onMouseDown={(e) => handleSimpleOverlayClose(e, simpleModalType)}>
+          <form className="modal-form form" onSubmit={saveSimple} onMouseDown={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{simpleModalTitle}</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => {
+                  if (simpleModalType === "companies") setIsAddCommanderOpen(false);
+                  if (simpleModalType === "depots") setIsAddDepotOpen(false);
+                }}
+              >
+                X
+              </button>
+            </div>
 
-          <form className="form" onSubmit={saveSimple}>
-            <div className="grid">
-              <div className="field">
-                <label>Name</label>
-                <input value={simpleForm.name} onChange={(e) => setSimpleForm(s => ({ ...s, name: e.target.value }))} />
-              </div>
-
-              <div className="field photo-section">
-                <label>Photo (optional)</label>
-                <div className="photo-mode-toggle">
-                  <button
-                    type="button"
-                    className={`photo-mode-pill ${simplePhotoMode === "upload" ? "active" : ""}`}
-                    onClick={() => handleSimpleModeChange("upload")}
-                  >
-                    Upload Photo
-                  </button>
-                  <button
-                    type="button"
-                    className={`photo-mode-pill ${simplePhotoMode === "url" ? "active" : ""}`}
-                    onClick={() => handleSimpleModeChange("url")}
-                  >
-                    Use Photo URL
-                  </button>
-                </div>
-
-                <div className="photo-input-row">
-                  <div className="photo-preview">
-                    {simplePhotoPreviewUrl ? (
-                      <img src={simplePhotoPreviewUrl} alt={simpleForm.name || "Preview"} />
-                    ) : (
-                      <span className="initials">{getInitials(simpleForm.name)}</span>
-                    )}
+            <div className="modal-body">
+              <div className="card">
+                <div className="grid">
+                  <div className="field">
+                    <label>Name</label>
+                    <input value={simpleForm.name} onChange={(e) => setSimpleForm(s => ({ ...s, name: e.target.value }))} />
                   </div>
 
-                  {simplePhotoMode === "upload" && (
-                    <input
-                      key={simpleFileKey}
-                      type="file"
-                      accept={ACCEPTED_TYPES.join(",")}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        setSimplePhotoFile(file || null);
-                        setSimplePhotoError("");
-                        if (file) {
+                  <div className="field photo-section">
+                    <label>Photo (optional)</label>
+                    <div className="photo-mode-toggle">
+                      <button
+                        type="button"
+                        className={`photo-mode-pill ${simplePhotoMode === "upload" ? "active" : ""}`}
+                        onClick={() => handleSimpleModeChange("upload")}
+                      >
+                        Upload Photo
+                      </button>
+                      <button
+                        type="button"
+                        className={`photo-mode-pill ${simplePhotoMode === "url" ? "active" : ""}`}
+                        onClick={() => handleSimpleModeChange("url")}
+                      >
+                        Use Photo URL
+                      </button>
+                    </div>
+
+                    <div className="photo-input-row">
+                      <div className="photo-preview">
+                        {simplePhotoPreviewUrl ? (
+                          <img src={simplePhotoPreviewUrl} alt={simpleForm.name || "Preview"} />
+                        ) : (
+                          <span className="initials">{getInitials(simpleForm.name)}</span>
+                        )}
+                      </div>
+
+                      {simplePhotoMode === "upload" && (
+                        <input
+                          key={simpleFileKey}
+                          type="file"
+                          accept={ACCEPTED_TYPES.join(",")}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            setSimplePhotoFile(file || null);
+                            setSimplePhotoError("");
+                            if (file) {
+                              setSimplePhotoUrlInput("");
+                              setSimpleForm(s => ({ ...s, photoURL: "" }));
+                            }
+                          }}
+                        />
+                      )}
+
+                      {simplePhotoMode === "url" && (
+                        <input
+                          value={simplePhotoUrlInput}
+                          placeholder="https://..."
+                          onChange={(e) => {
+                            setSimplePhotoUrlInput(e.target.value);
+                            setSimplePhotoError("");
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    <div className="actions">
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => {
+                          setSimplePhotoFile(null);
+                          setSimpleFileKey(k => k + 1);
                           setSimplePhotoUrlInput("");
+                          setSimplePhotoError("");
+                          setSimplePhotoMode("upload");
                           setSimpleForm(s => ({ ...s, photoURL: "" }));
-                        }
-                      }}
-                    />
-                  )}
+                        }}
+                      >
+                        Clear Photo
+                      </button>
+                    </div>
 
-                  {simplePhotoMode === "url" && (
-                    <input
-                      value={simplePhotoUrlInput}
-                      placeholder="https://..."
-                      onChange={(e) => {
-                        setSimplePhotoUrlInput(e.target.value);
-                        setSimplePhotoError("");
-                      }}
-                    />
-                  )}
+                    <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
+                    {simplePhotoError && <div className="photo-error">{simplePhotoError}</div>}
+                    {simpleUploading && <div className="hint">Uploadingƒ?I</div>}
+                  </div>
                 </div>
 
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => {
-                      setSimplePhotoFile(null);
-                      setSimpleFileKey(k => k + 1);
-                      setSimplePhotoUrlInput("");
-                      setSimplePhotoError("");
-                      setSimplePhotoMode("upload");
-                      setSimpleForm(s => ({ ...s, photoURL: "" }));
-                    }}
-                  >
-                    Clear Photo
-                  </button>
-                </div>
-
-                <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
-                {simplePhotoError && <div className="photo-error">{simplePhotoError}</div>}
-                {simpleUploading && <div className="hint">Uploadingâ€¦</div>}
+                <div className="hint">ID: <b>{simpleIdPreview || "(auto)"}</b></div>
               </div>
             </div>
 
-            <div className="hint">ID: <b>{simpleIdPreview || "(auto)"}</b></div>
-
-            <div className="actions">
-              <button className="btn-primary" type="submit" disabled={simpleUploading}>{simpleForm.id ? "Save Changes" : "Save"}</button>
-              <button className="btn" type="button" onClick={clearSimple}>Clear</button>
+            <div className="modal-footer">
+              <div className="actions">
+                <button className="btn-primary" type="submit" disabled={simpleUploading}>{simpleForm.id ? "Save Changes" : "Save"}</button>
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => {
+                    if (simpleModalType === "companies") handleCommanderClear();
+                    if (simpleModalType === "depots") handleDepotClear();
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
             </div>
           </form>
         </div>
       )}
+      {isAddCompanyOpen && (
+        <div className="modal-overlay" onMouseDown={handleCompanyOverlayClose}>
+          <form className="modal-form form" onSubmit={savePlatoon} onMouseDown={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{platoonForm.id ? "Edit Company" : "Add Company"}</h2>
+              <button type="button" className="modal-close" onClick={() => setIsAddCompanyOpen(false)}>X</button>
+            </div>
 
-      {tab === "platoons" && (
-        <div className="card">
-          <div className="card-title">{platoonForm.id ? "Edit Company" : "Add Company"}</div>
-
-          <form className="form" onSubmit={savePlatoon}>
-            <div className="grid">
-              <div className="field">
-                <label>Name</label>
-                <input value={platoonForm.name} onChange={(e) => setPlatoonForm(s => ({ ...s, name: e.target.value }))} />
-              </div>
-
-              <div className="field photo-section">
-                <label>Photo (optional)</label>
-                <div className="photo-mode-toggle">
-                  <button
-                    type="button"
-                    className={`photo-mode-pill ${platoonPhotoMode === "upload" ? "active" : ""}`}
-                    onClick={() => handlePlatoonModeChange("upload")}
-                  >
-                    Upload Photo
-                  </button>
-                  <button
-                    type="button"
-                    className={`photo-mode-pill ${platoonPhotoMode === "url" ? "active" : ""}`}
-                    onClick={() => handlePlatoonModeChange("url")}
-                  >
-                    Use Photo URL
-                  </button>
-                </div>
-
-                <div className="photo-input-row">
-                  <div className="photo-preview">
-                    {platoonPhotoPreviewUrl ? (
-                      <img src={platoonPhotoPreviewUrl} alt={platoonForm.name || "Preview"} />
-                    ) : (
-                      <span className="initials">{getInitials(platoonForm.name)}</span>
-                    )}
+            <div className="modal-body">
+              <div className="card">
+                <div className="grid">
+                  <div className="field">
+                    <label>Name</label>
+                    <input value={platoonForm.name} onChange={(e) => setPlatoonForm(s => ({ ...s, name: e.target.value }))} />
                   </div>
 
-                  {platoonPhotoMode === "upload" && (
-                    <input
-                      key={platoonFileKey}
-                      type="file"
-                      accept={ACCEPTED_TYPES.join(",")}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        setPlatoonPhotoFile(file || null);
-                        setPlatoonPhotoError("");
-                        if (file) {
+                  <div className="field photo-section">
+                    <label>Photo (optional)</label>
+                    <div className="photo-mode-toggle">
+                      <button
+                        type="button"
+                        className={`photo-mode-pill ${platoonPhotoMode === "upload" ? "active" : ""}`}
+                        onClick={() => handlePlatoonModeChange("upload")}
+                      >
+                        Upload Photo
+                      </button>
+                      <button
+                        type="button"
+                        className={`photo-mode-pill ${platoonPhotoMode === "url" ? "active" : ""}`}
+                        onClick={() => handlePlatoonModeChange("url")}
+                      >
+                        Use Photo URL
+                      </button>
+                    </div>
+
+                    <div className="photo-input-row">
+                      <div className="photo-preview">
+                        {platoonPhotoPreviewUrl ? (
+                          <img src={platoonPhotoPreviewUrl} alt={platoonForm.name || "Preview"} />
+                        ) : (
+                          <span className="initials">{getInitials(platoonForm.name)}</span>
+                        )}
+                      </div>
+
+                      {platoonPhotoMode === "upload" && (
+                        <input
+                          key={platoonFileKey}
+                          type="file"
+                          accept={ACCEPTED_TYPES.join(",")}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            setPlatoonPhotoFile(file || null);
+                            setPlatoonPhotoError("");
+                            if (file) {
+                              setPlatoonPhotoUrlInput("");
+                              setPlatoonForm(s => ({ ...s, photoURL: "" }));
+                            }
+                          }}
+                        />
+                      )}
+
+                      {platoonPhotoMode === "url" && (
+                        <input
+                          value={platoonPhotoUrlInput}
+                          placeholder="https://..."
+                          onChange={(e) => {
+                            setPlatoonPhotoUrlInput(e.target.value);
+                            setPlatoonPhotoError("");
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    <div className="actions">
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => {
+                          setPlatoonPhotoFile(null);
+                          setPlatoonFileKey(k => k + 1);
                           setPlatoonPhotoUrlInput("");
+                          setPlatoonPhotoError("");
+                          setPlatoonPhotoMode("upload");
                           setPlatoonForm(s => ({ ...s, photoURL: "" }));
-                        }
-                      }}
-                    />
-                  )}
+                        }}
+                      >
+                        Clear Photo
+                      </button>
+                    </div>
 
-                  {platoonPhotoMode === "url" && (
-                    <input
-                      value={platoonPhotoUrlInput}
-                      placeholder="https://..."
-                      onChange={(e) => {
-                        setPlatoonPhotoUrlInput(e.target.value);
-                        setPlatoonPhotoError("");
-                      }}
-                    />
-                  )}
+                    <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
+                    {platoonPhotoError && <div className="photo-error">{platoonPhotoError}</div>}
+                    {platoonUploading && <div className="hint">Uploadingƒ?I</div>}
+                  </div>
                 </div>
 
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => {
-                      setPlatoonPhotoFile(null);
-                      setPlatoonFileKey(k => k + 1);
-                      setPlatoonPhotoUrlInput("");
-                      setPlatoonPhotoError("");
-                      setPlatoonPhotoMode("upload");
-                      setPlatoonForm(s => ({ ...s, photoURL: "" }));
-                    }}
-                  >
-                    Clear Photo
-                  </button>
-                </div>
-
-                <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
-                {platoonPhotoError && <div className="photo-error">{platoonPhotoError}</div>}
-                {platoonUploading && <div className="hint">Uploadingâ€¦</div>}
+                <div className="hint">ID: <b>{platoonIdPreview || "(auto)"}</b></div>
               </div>
             </div>
 
-            <div className="hint">ID: <b>{platoonIdPreview || "(auto)"}</b></div>
-
-            <div className="actions">
-              <button className="btn-primary" type="submit" disabled={platoonUploading}>{platoonForm.id ? "Save Changes" : "Save"}</button>
-              <button className="btn" type="button" onClick={clearPlatoon}>Clear</button>
+            <div className="modal-footer">
+              <div className="actions">
+                <button className="btn-primary" type="submit" disabled={platoonUploading}>{platoonForm.id ? "Save Changes" : "Save"}</button>
+                <button className="btn" type="button" onClick={handleCompanyClear}>Clear</button>
+              </div>
             </div>
           </form>
         </div>
       )}
-
       {/* LIST AREA */}
       {tab === "leaders" && (
         <div className="card">
@@ -1113,7 +1225,7 @@ export default function Participants() {
                 <div className="muted">{d.photoURL ? "Has photoURL" : "-"}</div>
                 <div></div><div></div>
                 <div className="t-right">
-                  <button className="btn-link" onClick={() => { setTab("depots"); editSimple(d); }}>Edit</button>
+                  <button className="btn-link" onClick={() => { setTab("depots"); editSimple(d); setIsAddDepotOpen(true); }}>Edit</button>
                 </div>
               </div>
             ))}
@@ -1140,7 +1252,7 @@ export default function Participants() {
                 <div className="muted">{c.photoURL ? "Has photoURL" : "-"}</div>
                 <div></div><div></div>
                 <div className="t-right">
-                  <button className="btn-link" onClick={() => { setTab("companies"); editSimple(c); }}>Edit</button>
+                  <button className="btn-link" onClick={() => { setTab("companies"); editSimple(c); setIsAddCommanderOpen(true); }}>Edit</button>
                 </div>
               </div>
             ))}
@@ -1177,3 +1289,7 @@ export default function Participants() {
     </div>
   );
 }
+
+
+
+
