@@ -128,9 +128,9 @@ function buildWeekTabsForCurrentMonth(baseDate = new Date()) {
     const displayStart = startOfDay(start);
     const displayEnd = endOfDay(end);
 
-    // Query range = cumulative from week1Start to the end of this week
-    const queryStart = startOfDay(week1Start);
-    const queryEnd = endOfDay(end);
+    // Query range = this week only
+    const queryStart = displayStart;
+    const queryEnd = displayEnd;
 
     const isCurrent = weekIndex === currentWeekNumber;
     const enabled = weekIndex <= currentWeekNumber;
