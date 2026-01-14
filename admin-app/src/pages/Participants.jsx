@@ -555,6 +555,59 @@ export default function Participants() {
   const simplePhotoPreviewUrl = simpleFilePreview || simplePhotoUrlInput.trim() || simpleForm.photoURL.trim();
   const platoonPhotoPreviewUrl = platoonFilePreview || platoonPhotoUrlInput.trim() || platoonForm.photoURL.trim();
 
+<<<<<<< HEAD
+=======
+  useEffect(() => {
+    return () => {
+      if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (isAnimating) return;
+    const panelEl = panelRef.current;
+    if (!panelEl) return;
+    setPanelMinHeight(panelEl.offsetHeight);
+  }, [tab, isAnimating]);
+
+  function handleTabChange(nextTab) {
+    if (nextTab === tab && !pendingTab) return;
+    if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+
+    const panelEl = panelRef.current;
+    if (panelEl) setPanelMinHeight(panelEl.offsetHeight);
+
+    setPendingTab(nextTab);
+    setIsAnimating(true);
+
+    animationTimerRef.current = setTimeout(() => {
+      setTab(nextTab);
+      setIsAnimating(false);
+      setPendingTab("");
+      if (nextTab !== "leaders") setIsFormOpen(false);
+    }, 100);
+  }
+
+  function handleOverlayClose(e) {
+    if (e.target === e.currentTarget) setIsFormOpen(false);
+  }
+
+  useEffect(() => {
+    if (!isFormOpen) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setIsFormOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFormOpen]);
+
+  useEffect(() => {
+    return undefined;
+  }, []);
+
+>>>>>>> bec06cf1 (participants modal)
   // ---- UI
   return (
     <div className="p-page">
