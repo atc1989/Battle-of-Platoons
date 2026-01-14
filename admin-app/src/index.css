@@ -11,14 +11,14 @@
 *{box-sizing:border-box;}
 html{
   scrollbar-gutter: stable;
-  overflow-y: scroll;
+  overflow: hidden;
 }
 body{
   margin:0;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background: linear-gradient(to bottom, #f5f6ff 0%, #ffffff 40%);
   color: var(--text);
-  overflow-y: scroll;
+  overflow: hidden;
 }
 
 .hide-scrollbar{
@@ -43,6 +43,8 @@ body{
   flex-direction:column;
   min-width: 0;
   overflow-x: hidden;
+  overflow-y: auto;
+  height: 100vh;
 }
 
 .admin-content{
