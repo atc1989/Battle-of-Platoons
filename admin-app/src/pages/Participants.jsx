@@ -625,13 +625,7 @@ export default function Participants() {
   }, [isFormOpen]);
 
   useEffect(() => {
-    const adminMain = document.querySelector(".admin-main");
-    document.body.classList.add("hide-scrollbar");
-    if (adminMain) adminMain.classList.add("hide-scrollbar");
-    return () => {
-      document.body.classList.remove("hide-scrollbar");
-      if (adminMain) adminMain.classList.remove("hide-scrollbar");
-    };
+    return undefined;
   }, []);
 
   // ---- UI
