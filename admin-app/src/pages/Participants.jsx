@@ -774,7 +774,6 @@ export default function Participants() {
               </>
             )}
           >
-            <div className="card">
             <div className="grid">
               <div className="field">
                 <label>Leader Name</label>
@@ -927,8 +926,6 @@ export default function Participants() {
             ) : leaderNameConflict ? (
               <div className="p-status warn">Another leader with the same name exists. Use agent_id in uploads to avoid ambiguity.</div>
             ) : null}
-
-            </div>
           </ModalForm>
         </>
       )}
@@ -958,8 +955,7 @@ export default function Participants() {
           </>
         )}
       >
-        <div className="card">
-                <div className="grid">
+        <div className="grid">
                   <div className="field">
                     <label>Name</label>
                     <input value={simpleForm.name} onChange={(e) => setSimpleForm(s => ({ ...s, name: e.target.value }))} />
@@ -1045,8 +1041,7 @@ export default function Participants() {
                   </div>
                 </div>
 
-                <div className="hint">ID: <b>{simpleIdPreview || "(auto)"}</b></div>
-        </div>
+        <div className="hint">ID: <b>{simpleIdPreview || "(auto)"}</b></div>
       </ModalForm>
       <ModalForm
         isOpen={isAddCompanyOpen}
@@ -1061,8 +1056,7 @@ export default function Participants() {
           </>
         )}
       >
-        <div className="card">
-                <div className="grid">
+        <div className="grid">
                   <div className="field">
                     <label>Name</label>
                     <input value={platoonForm.name} onChange={(e) => setPlatoonForm(s => ({ ...s, name: e.target.value }))} />
@@ -1148,8 +1142,7 @@ export default function Participants() {
                   </div>
                 </div>
 
-                <div className="hint">ID: <b>{platoonIdPreview || "(auto)"}</b></div>
-        </div>
+        <div className="hint">ID: <b>{platoonIdPreview || "(auto)"}</b></div>
       </ModalForm>
       {/* LIST AREA */}
       {tab === "leaders" && (
