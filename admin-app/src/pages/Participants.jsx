@@ -701,15 +701,14 @@ export default function Participants() {
         <>
           {isFormOpen && (
             <div className="modal-overlay" onMouseDown={handleOverlayClose}>
-              <div className="modal-card" onMouseDown={(e) => e.stopPropagation()}>
+              <form className="modal-form form" onSubmit={saveLeader} onMouseDown={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                   <h2>{leaderForm.id ? "Edit Leader" : "Add Leader"}</h2>
                   <button type="button" className="modal-close" onClick={() => setIsFormOpen(false)}>X</button>
                 </div>
 
-                <div className="modal-body hide-scrollbar">
+                <div className="modal-body">
                   <div className="card">
-          <form id="addLeaderForm" className="form" onSubmit={saveLeader}>
             <div className="grid">
               <div className="field">
                 <label>Leader Name</label>
@@ -863,23 +862,15 @@ export default function Participants() {
               <div className="p-status warn">Another leader with the same name exists. Use agent_id in uploads to avoid ambiguity.</div>
             ) : null}
 
-          </form>
                   </div>
                 </div>
                 <div className="modal-footer">
                   <div className="actions">
-                    <button
-                      className="btn-primary"
-                      type="submit"
-                      form="addLeaderForm"
-                      disabled={leaderUploading || leaderIdConflict}
-                    >
-                      {isEditingLeader ? "Save Changes" : "Save"}
-                    </button>
+                    <button className="btn-primary" type="submit" disabled={leaderUploading || leaderIdConflict}>{isEditingLeader ? "Save Changes" : "Save"}</button>
                     <button className="btn" type="button" onClick={handleLeaderClear}>Clear</button>
                   </div>
                 </div>
-              </div>
+              </form>
             </div>
           )}
         </>
