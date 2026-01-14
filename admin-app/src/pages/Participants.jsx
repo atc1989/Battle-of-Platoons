@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ModalForm } from "./components";
 import { listAgents, upsertAgent } from "../services/agents.service";
 import { listDepots, upsertDepot } from "../services/depots.service";
 import { listCompanies, upsertCompany } from "../services/companies.service";
@@ -39,24 +40,6 @@ function useFilePreview(file) {
   }, [file, preview]);
 
   return preview;
-}
-
-function ModalForm({ isOpen, onOverlayClose, onSubmit, title, onClose, children, footer }) {
-  if (!isOpen) return null;
-  return (
-    <div className="modal-overlay" onMouseDown={onOverlayClose}>
-      <form className="modal-form form" onSubmit={onSubmit} onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{title}</h2>
-          <button type="button" className="modal-close" onClick={onClose}>X</button>
-        </div>
-        <div className="modal-body">{children}</div>
-        <div className="modal-footer">
-          <div className="actions">{footer}</div>
-        </div>
-      </form>
-    </div>
-  );
 }
 
 export default function Participants() {
@@ -793,7 +776,7 @@ export default function Participants() {
               <div className="field">
                 <label>Depot</label>
                 <select value={leaderForm.depotId} onChange={(e) => handleDepotChange(e.target.value)}>
-                  <option value="">Select depotâ€¦</option>
+                  <option value="">Select depot…</option>
                   {depots.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
@@ -801,7 +784,7 @@ export default function Participants() {
               <div className="field">
                 <label>Commander</label>
                 <select value={leaderForm.companyId} onChange={(e) => setLeaderForm(s => ({ ...s, companyId: e.target.value }))}>
-                  <option value="">Select commanderâ€¦</option>
+                  <option value="">Select commander…</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
@@ -809,7 +792,7 @@ export default function Participants() {
               <div className="field">
                 <label>Company</label>
                 <select value={leaderForm.platoonId} onChange={(e) => setLeaderForm(s => ({ ...s, platoonId: e.target.value }))}>
-                  <option value="">Select companyâ€¦</option>
+                  <option value="">Select company…</option>
                   {platoons.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
@@ -822,7 +805,7 @@ export default function Participants() {
                   disabled={availableUplineLeaders.length === 0}
                 >
                   <option value="">
-                    {availableUplineLeaders.length === 0 ? "No leaders available" : "Select uplineâ€¦"}
+                    {availableUplineLeaders.length === 0 ? "No leaders available" : "Select upline…"}
                   </option>
                   {availableUplineLeaders.map(l => (
                     <option key={l.id} value={l.id}>
@@ -917,7 +900,7 @@ export default function Participants() {
 
                 <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
                 {leaderPhotoError && <div className="photo-error">{leaderPhotoError}</div>}
-                {leaderUploading && <div className="hint">Uploadingâ€¦</div>}
+                {leaderUploading && <div className="hint">Uploading…</div>}
               </div>
             </div>
 
@@ -1037,7 +1020,7 @@ export default function Participants() {
 
                     <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
                     {simplePhotoError && <div className="photo-error">{simplePhotoError}</div>}
-                    {simpleUploading && <div className="hint">Uploadingƒ?I</div>}
+                    {simpleUploading && <div className="hint">Uploading�?I</div>}
                   </div>
                 </div>
 
@@ -1138,7 +1121,7 @@ export default function Participants() {
 
                     <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
                     {platoonPhotoError && <div className="photo-error">{platoonPhotoError}</div>}
-                    {platoonUploading && <div className="hint">Uploadingƒ?I</div>}
+                    {platoonUploading && <div className="hint">Uploading�?I</div>}
                   </div>
                 </div>
 
@@ -1259,6 +1242,7 @@ export default function Participants() {
     </div>
   );
 }
+
 
 
 
