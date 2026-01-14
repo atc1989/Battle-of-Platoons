@@ -605,25 +605,11 @@ export default function Participants() {
 
   useEffect(() => {
     if (!isFormOpen) return undefined;
-    const adminMain = document.querySelector(".admin-main");
-    const prevMainOverflow = adminMain ? adminMain.style.overflow : "";
-    const prevMainOverflowY = adminMain ? adminMain.style.overflowY : "";
-    const prevBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    if (adminMain) {
-      adminMain.style.overflow = "hidden";
-      adminMain.style.overflowY = "hidden";
-    }
     const handleKeyDown = (event) => {
       if (event.key === "Escape") setIsFormOpen(false);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.body.style.overflow = prevBodyOverflow;
-      if (adminMain) {
-        adminMain.style.overflow = prevMainOverflow;
-        adminMain.style.overflowY = prevMainOverflowY;
-      }
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isFormOpen]);
