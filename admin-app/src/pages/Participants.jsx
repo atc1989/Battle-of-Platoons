@@ -605,21 +605,11 @@ export default function Participants() {
 
   useEffect(() => {
     if (!isFormOpen) return undefined;
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-    const adminMain = document.querySelector(".admin-main");
-    const prevMainOverflow = adminMain ? adminMain.style.overflow : "";
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    if (adminMain) adminMain.style.overflow = "hidden";
     const handleKeyDown = (event) => {
       if (event.key === "Escape") setIsFormOpen(false);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.body.style.overflow = prevBodyOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      if (adminMain) adminMain.style.overflow = prevMainOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isFormOpen]);
