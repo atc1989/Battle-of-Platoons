@@ -79,6 +79,7 @@ export default function Participants() {
   const [leaderUploading, setLeaderUploading] = useState(false);
   const [simpleUploading, setSimpleUploading] = useState(false);
   const [platoonUploading, setPlatoonUploading] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   const leaderFilePreview = useFilePreview(leaderPhotoFile);
   const simpleFilePreview = useFilePreview(simplePhotoFile);
@@ -250,6 +251,11 @@ export default function Participants() {
     setStatus({ type: "", msg: "" });
   }
 
+  function handleLeaderClear() {
+    clearLeader();
+    setIsFormOpen(false);
+  }
+
   async function saveLeader(e) {
     e.preventDefault();
     setStatus({ type: "", msg: "" });
@@ -342,6 +348,7 @@ export default function Participants() {
     setLeaderPhotoUrlInput(a.photoURL || "");
     setLeaderPhotoError("");
     setStatus({ type: "", msg: "" });
+    setIsFormOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -588,8 +595,27 @@ export default function Participants() {
       setTab(nextTab);
       setIsAnimating(false);
       setPendingTab("");
+      if (nextTab !== "leaders") setIsFormOpen(false);
     }, 100);
   }
+
+  function handleOverlayClose(e) {
+    if (e.target === e.currentTarget) setIsFormOpen(false);
+  }
+
+  useEffect(() => {
+    if (!isFormOpen) return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setIsFormOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFormOpen]);
 
   // ---- UI
   return (
@@ -627,7 +653,11 @@ export default function Participants() {
           <button
             className="btn-primary"
             onClick={() => {
-              if (tab === "leaders") clearLeader();
+              if (tab === "leaders") {
+                clearLeader();
+                setIsFormOpen(true);
+                return;
+              }
               if (tab === "companies" || tab === "depots") clearSimple();
               if (tab === "platoons") clearPlatoon();
             }}
@@ -651,9 +681,17 @@ export default function Participants() {
       >
       {/* FORM AREA */}
       {tab === "leaders" && (
-        <div className="card">
-          <div className="card-title">{leaderForm.id ? "Edit Leader" : "Add Leader"}</div>
+        <>
+          {isFormOpen && (
+            <div className="modal-overlay" onMouseDown={handleOverlayClose}>
+              <div className="modal-card" onMouseDown={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h2>{leaderForm.id ? "Edit Leader" : "Add Leader"}</h2>
+                  <button type="button" className="modal-close" onClick={() => setIsFormOpen(false)}>X</button>
+                </div>
 
+                <div className="modal-body">
+                  <div className="card">
           <form className="form" onSubmit={saveLeader}>
             <div className="grid">
               <div className="field">
@@ -810,10 +848,15 @@ export default function Participants() {
 
             <div className="actions">
               <button className="btn-primary" type="submit" disabled={leaderUploading || leaderIdConflict}>{isEditingLeader ? "Save Changes" : "Save"}</button>
-              <button className="btn" type="button" onClick={clearLeader}>Clear</button>
+              <button className="btn" type="button" onClick={handleLeaderClear}>Clear</button>
             </div>
           </form>
-        </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {(tab === "companies" || tab === "depots") && (
