@@ -344,7 +344,7 @@ export async function parseRawDataWorkbook(
 
   progressCb(0, 0, "reading");
   const buf = await file.arrayBuffer();
-  const workbook = XLSX.read(buf, { type: "array", cellDates: true });
+  const workbook = XLSX.read(buf, { type: "array" });
 
   const sheetName = workbook.SheetNames.includes("Daily Data")
     ? "Daily Data"
