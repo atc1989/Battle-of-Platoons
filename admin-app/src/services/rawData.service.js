@@ -80,9 +80,9 @@ function parseDateCell(value) {
   }
 
   if (value instanceof Date) {
-    const y = value.getFullYear();
-    const m = value.getMonth() + 1;
-    const d = value.getDate();
+    const y = value.getUTCFullYear();
+    const m = value.getUTCMonth() + 1;
+    const d = value.getUTCDate();
     return { dateReal: formatDateParts(y, m, d), originalValue: value };
   }
 
