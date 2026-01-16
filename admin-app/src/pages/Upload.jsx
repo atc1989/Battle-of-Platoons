@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { parseRawDataWorkbook, saveRawDataRows } from "../services/rawData.service";
+import { ModalForm } from "../components/ModalForm";
+import {
+  mergeRawDataRowsByIdentity,
+  normalizeRawDataRows,
+  parseRawDataWorkbook,
+  saveRawDataRows,
+} from "../services/rawData.service";
+import { listAgents } from "../services/agents.service";
+import { listDepots } from "../services/depots.service";
 import { getMyProfile } from "../services/profile.service";
 
 export default function Upload() {
@@ -18,6 +26,25 @@ export default function Upload() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [source, setSource] = useState("company");
   const [parsedFile, setParsedFile] = useState(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    date_real: "",
+    agent_id: "",
+    leader_name_input: "",
+    leads: 0,
+    payins: 0,
+    sales: 0,
+    leads_depot_id: "",
+    sales_depot_id: "",
+  });
+  const [manualDepotInputs, setManualDepotInputs] = useState({
+    leads_depot_input: "",
+    sales_depot_input: "",
+  });
+  const [agentsOptions, setAgentsOptions] = useState([]);
+  const [depotsOptions, setDepotsOptions] = useState([]);
+  const [manualError, setManualError] = useState("");
+  const [manualLoading, setManualLoading] = useState(false);
   const forcedSource = profile?.role === "depot_admin" ? "depot" : profile?.role === "company_admin" ? "company" : null;
   const canSelectSource = profile?.role === "super_admin";
   const sourceLabel = source === "depot" ? "Depot" : "Company";
@@ -139,6 +166,29 @@ export default function Upload() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    if (profileLoading) return () => {};
+    setManualLoading(true);
+    Promise.all([listAgents(), listDepots()])
+      .then(([agents, depots]) => {
+        if (!mounted) return;
+        setAgentsOptions(agents ?? []);
+        setDepotsOptions(depots ?? []);
+      })
+      .catch(err => {
+        if (!mounted) return;
+        setManualError(err.message || "Failed to load dropdown options");
+      })
+      .finally(() => {
+        if (mounted) setManualLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [profileLoading]);
+
   async function processFileWithSource(file, selectedSource) {
     setLoading(true);
     setError("");
@@ -222,6 +272,22 @@ export default function Upload() {
     setIsDragging(false);
     setImportMode("warn");
     setParsedFile(null);
+    setManualOpen(false);
+    setManualError("");
+    setManualForm({
+      date_real: "",
+      agent_id: "",
+      leader_name_input: "",
+      leads: 0,
+      payins: 0,
+      sales: 0,
+      leads_depot_id: "",
+      sales_depot_id: "",
+    });
+    setManualDepotInputs({
+      leads_depot_input: "",
+      sales_depot_input: "",
+    });
     if (profile?.role === "depot_admin") setSource("depot");
     else if (profile?.role === "company_admin") setSource("company");
     if (inputRef.current) inputRef.current.value = "";
@@ -269,10 +335,137 @@ export default function Upload() {
     }
   }
 
+  function parseLookupValue(value) {
+    const cleaned = value?.toString().trim() ?? "";
+    if (!cleaned) return { label: "", id: "" };
+    const parts = cleaned.split(" — ");
+    if (parts.length >= 2) {
+      const id = parts[parts.length - 1]?.trim() ?? "";
+      const label = parts.slice(0, -1).join(" — ").trim();
+      return { label, id };
+    }
+    return { label: cleaned, id: "" };
+  }
+
+  function findAgentByName(name) {
+    const normalized = name.trim().toLowerCase();
+    const matches = agentsOptions.filter(agent => agent.name?.toLowerCase() === normalized);
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  function findDepotByName(name) {
+    const normalized = name.trim().toLowerCase();
+    const matches = depotsOptions.filter(depot => depot.name?.toLowerCase() === normalized);
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  function handleManualLeaderChange(value) {
+    const parsed = parseLookupValue(value);
+    let agentId = parsed.id;
+    if (!agentId && parsed.label) {
+      const match = findAgentByName(parsed.label);
+      agentId = match?.id ?? "";
+    }
+    setManualForm(prev => ({
+      ...prev,
+      leader_name_input: value,
+      agent_id: agentId,
+    }));
+  }
+
+  function handleManualDepotChange(field, value) {
+    const parsed = parseLookupValue(value);
+    let depotId = parsed.id;
+    if (!depotId && parsed.label) {
+      const match = findDepotByName(parsed.label);
+      depotId = match?.id ?? "";
+    }
+    setManualDepotInputs(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+    setManualForm(prev => ({
+      ...prev,
+      [field === "leads_depot_input" ? "leads_depot_id" : "sales_depot_id"]: depotId,
+    }));
+  }
+
+  async function handleManualSubmit(e) {
+    e.preventDefault();
+    setManualError("");
+    setSaveResult(null);
+
+    const errors = [];
+    if (!manualForm.date_real) errors.push("Date is required.");
+    if (!manualForm.agent_id) errors.push("Leader name is required.");
+    if (!manualForm.leads_depot_id) errors.push("Leads depot is required.");
+    if (!manualForm.sales_depot_id) errors.push("Sales depot is required.");
+    if (errors.length) {
+      setManualError(errors.join(" "));
+      return;
+    }
+
+    const agent = agentsOptions.find(option => option.id === manualForm.agent_id);
+    const leaderName = agent?.name ?? manualForm.leader_name_input?.split(" — ")[0]?.trim() ?? "";
+    const timestampKey = `manual-${Date.now()}`;
+    const manualRow = {
+      sourceRowIndex: timestampKey,
+      excelRowNumber: "manual",
+      date_real: manualForm.date_real,
+      date_original: manualForm.date_real,
+      leader_name_input: leaderName,
+      agent_id: manualForm.agent_id,
+      leads: Number(manualForm.leads) || 0,
+      payins: Number(manualForm.payins) || 0,
+      sales: Number(manualForm.sales) || 0,
+      leads_depot_id: manualForm.leads_depot_id,
+      sales_depot_id: manualForm.sales_depot_id,
+    };
+
+    try {
+      setManualLoading(true);
+      const { rows: normalizedRows } = await normalizeRawDataRows([manualRow], { source });
+      setRows(prev => mergeRawDataRowsByIdentity([...prev, ...normalizedRows]));
+      setManualOpen(false);
+      setManualForm({
+        date_real: "",
+        agent_id: "",
+        leader_name_input: "",
+        leads: 0,
+        payins: 0,
+        sales: 0,
+        leads_depot_id: "",
+        sales_depot_id: "",
+      });
+      setManualDepotInputs({
+        leads_depot_input: "",
+        sales_depot_input: "",
+      });
+    } catch (submitError) {
+      setManualError(submitError.message || "Failed to add manual row");
+    } finally {
+      setManualLoading(false);
+    }
+  }
+
   return (
     <div className="card">
       <div className="card-title">Upload Raw Data</div>
       <div className="muted">Import the Daily Data template (.xlsx) and review rows before saving.</div>
+
+      <div className="upload-actions-row" style={{ marginTop: 12 }}>
+        <button
+          type="button"
+          className="button secondary"
+          onClick={() => {
+            setManualError("");
+            setManualOpen(true);
+          }}
+          disabled={profileLoading || manualLoading}
+        >
+          Manual Input
+        </button>
+      </div>
 
       <div
         className={`dropzone ${isDragging ? "dropzone--dragging" : ""}`}
@@ -510,6 +703,114 @@ export default function Upload() {
           ) : null}
         </div>
       ) : null}
+
+      <ModalForm
+        isOpen={manualOpen}
+        title="Manual Input (Daily Data)"
+        onClose={() => setManualOpen(false)}
+        onOverlayClose={() => setManualOpen(false)}
+        onSubmit={handleManualSubmit}
+        footer={(
+          <>
+            <button type="button" className="button secondary" onClick={() => setManualOpen(false)}>
+              Cancel
+            </button>
+            <button type="submit" className="button primary" disabled={manualLoading}>
+              Add Row
+            </button>
+          </>
+        )}
+      >
+        {manualError ? (
+          <div className="error-box" role="alert">
+            {manualError}
+          </div>
+        ) : null}
+        <div className="form-grid">
+          <label className="form-field">
+            <span>Date</span>
+            <input
+              type="date"
+              value={manualForm.date_real}
+              onChange={e => setManualForm(prev => ({ ...prev, date_real: e.target.value }))}
+              required
+            />
+          </label>
+          <label className="form-field">
+            <span>Leader Name</span>
+            <input
+              type="text"
+              list="manual-agents"
+              value={manualForm.leader_name_input}
+              onChange={e => handleManualLeaderChange(e.target.value)}
+              placeholder="Select leader"
+              required
+            />
+          </label>
+          <label className="form-field">
+            <span>Leads Depot</span>
+            <input
+              type="text"
+              list="manual-depots"
+              value={manualDepotInputs.leads_depot_input}
+              onChange={e => handleManualDepotChange("leads_depot_input", e.target.value)}
+              placeholder="Select leads depot"
+              required
+            />
+          </label>
+          <label className="form-field">
+            <span>Sales Depot</span>
+            <input
+              type="text"
+              list="manual-depots"
+              value={manualDepotInputs.sales_depot_input}
+              onChange={e => handleManualDepotChange("sales_depot_input", e.target.value)}
+              placeholder="Select sales depot"
+              required
+            />
+          </label>
+          <label className="form-field">
+            <span>Leads</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={manualForm.leads}
+              onChange={e => setManualForm(prev => ({ ...prev, leads: e.target.value }))}
+            />
+          </label>
+          <label className="form-field">
+            <span>Payins</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={manualForm.payins}
+              onChange={e => setManualForm(prev => ({ ...prev, payins: e.target.value }))}
+            />
+          </label>
+          <label className="form-field">
+            <span>Sales</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={manualForm.sales}
+              onChange={e => setManualForm(prev => ({ ...prev, sales: e.target.value }))}
+            />
+          </label>
+        </div>
+        <datalist id="manual-agents">
+          {agentsOptions.map(agent => (
+            <option key={agent.id} value={`${agent.name} — ${agent.id}`} />
+          ))}
+        </datalist>
+        <datalist id="manual-depots">
+          {depotsOptions.map(depot => (
+            <option key={depot.id} value={`${depot.name} — ${depot.id}`} />
+          ))}
+        </datalist>
+      </ModalForm>
     </div>
   );
 }
