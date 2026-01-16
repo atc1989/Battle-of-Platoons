@@ -163,20 +163,29 @@ function parseMergeNumber(value) {
   return Number.isFinite(num) ? num : 0;
 }
 
-function mergeRowsByIdentity(rows) {
+export function mergeRawDataRowsByIdentity(rows) {
   const merged = [];
   const map = new Map();
 
   rows.forEach(row => {
     const key = buildMergeKey(row);
     if (!key) {
-      merged.push({ ...row, merge_count: 1, merge_notes: [] });
+      merged.push({
+        ...row,
+        merge_count: row.merge_count ?? 1,
+        merge_notes: Array.isArray(row.merge_notes) ? [...row.merge_notes] : [],
+      });
       return;
     }
 
     const existing = map.get(key);
     if (!existing) {
-      const base = { ...row, merge_count: 1, merge_notes: [] };
+      const base = {
+        ...row,
+        merge_count: row.merge_count ?? 1,
+        merge_notes: Array.isArray(row.merge_notes) ? [...row.merge_notes] : [],
+        dup_base_row: Boolean(row.dup_base_row),
+      };
       map.set(key, base);
       merged.push(base);
       return;
@@ -191,18 +200,199 @@ function mergeRowsByIdentity(rows) {
     existing.suggestions = Array.from(
       new Set([...(existing.suggestions ?? []), ...(row.suggestions ?? [])])
     );
-    existing.merge_count += 1;
+    existing.merge_notes = Array.from(
+      new Set([...(existing.merge_notes ?? []), ...(row.merge_notes ?? [])])
+    );
+    existing.merge_count += row.merge_count ?? 1;
+    existing.dup_base_row = Boolean(existing.dup_base_row || row.dup_base_row);
   });
 
   map.forEach(row => {
     if (row.merge_count > 1) {
-      row.merge_notes.push(
-        "Merged duplicate rows for same leader/date/source/lead depot/sales depot"
+      row.merge_notes = Array.from(
+        new Set([
+          ...(row.merge_notes ?? []),
+          "Merged duplicate rows for same leader/date/source/lead depot/sales depot",
+        ])
       );
     }
   });
 
   return merged;
+}
+
+export async function normalizeRawDataRows(
+  inputRows = [],
+  { source = "company" } = {},
+  onProgress = () => {}
+) {
+  const normalizedSource = source === "depot" ? "depot" : "company";
+  const progressCb = typeof onProgress === "function" ? onProgress : () => {};
+  const parseStart = Date.now();
+  const [lookups, depots, companies, platoons] = await Promise.all([
+    buildAgentLookups(),
+    listDepots(),
+    listCompanies(),
+    listPlatoons(),
+  ]);
+  const depotMaps = buildDepotMaps(depots);
+  const lookupMaps = {
+    depotNames: Object.fromEntries((depots ?? []).map(d => [d.id, d.name])),
+    companyNames: Object.fromEntries((companies ?? []).map(c => [c.id, c.name])),
+    platoonNames: Object.fromEntries((platoons ?? []).map(p => [p.id, p.name])),
+  };
+
+  const rows = [];
+  const totalRows = inputRows.length;
+  progressCb(0, totalRows, "processing");
+
+  for (let idx = 0; idx < inputRows.length; idx++) {
+    const rawRow = inputRows[idx] ?? {};
+    const errors = [];
+
+    const dateInput = rawRow.date_original ?? rawRow.date_real ?? rawRow.date ?? "";
+    const { dateReal, originalValue: originalDate, error: dateError } = parseDateCell(dateInput);
+    if (dateError) errors.push(dateError);
+
+    const leads = parseNumber(rawRow.leads, "Leads", errors);
+    const payins = parseNumber(rawRow.payins, "Payins", errors);
+    const sales = parseNumber(rawRow.sales, "Sales", errors);
+
+    const inputAgentId = rawRow.agent_id ?? rawRow.resolved_agent_id ?? "";
+    let leader_name_input = rawRow.leader_name_input?.toString().trim() ?? "";
+    let resolved_agent_id = "";
+    let suggestions = [];
+
+    if (inputAgentId) {
+      const agent = lookups.byId.get(inputAgentId);
+      if (agent) {
+        resolved_agent_id = agent.id;
+        if (!leader_name_input) leader_name_input = agent.name ?? "";
+      } else {
+        errors.push("Leader not found");
+      }
+    } else {
+      const resolved = resolveLeaderName(leader_name_input, lookups, lookupMaps, errors);
+      resolved_agent_id = resolved.resolvedId;
+      suggestions = resolved.suggestions;
+    }
+
+    const leadsDepotIdInput = rawRow.leads_depot_id ?? rawRow.leads_depotId ?? null;
+    const salesDepotIdInput = rawRow.sales_depot_id ?? rawRow.sales_depotId ?? null;
+    const leadsDepotLabel =
+      rawRow.leads_depot_input ?? rawRow.leads_depot_name ?? rawRow.leads_depot ?? "";
+    const salesDepotLabel =
+      rawRow.sales_depot_input ?? rawRow.sales_depot_name ?? rawRow.sales_depot ?? "";
+
+    const leadsDepotResult = leadsDepotIdInput
+      ? { depot_id: leadsDepotIdInput, error: null }
+      : resolveDepotId(leadsDepotLabel, depotMaps);
+    const salesDepotResult = salesDepotIdInput
+      ? { depot_id: salesDepotIdInput, error: null }
+      : resolveDepotId(salesDepotLabel, depotMaps);
+
+    if (!leadsDepotResult.depot_id || leadsDepotResult.error) {
+      errors.push("Invalid leads depot");
+    }
+
+    if (!salesDepotResult.depot_id || salesDepotResult.error) {
+      errors.push("Invalid sales depot");
+    }
+
+    const date_real = dateReal ?? "";
+    const computedId = computeRawDataId({
+      date_real,
+      agent_id: resolved_agent_id,
+      source: normalizedSource,
+      leads_depot_id: leadsDepotResult.depot_id,
+      sales_depot_id: salesDepotResult.depot_id,
+    });
+
+    rows.push({
+      sourceRowIndex: rawRow.sourceRowIndex ?? idx,
+      excelRowNumber: rawRow.excelRowNumber ?? idx + 2,
+      date_real,
+      date_original: originalDate,
+      leader_name_input,
+      resolved_agent_id,
+      computedId,
+      leads_depot_id: leadsDepotResult.depot_id,
+      sales_depot_id: salesDepotResult.depot_id,
+      leads_depot_name: lookupMaps.depotNames?.[leadsDepotResult.depot_id] ?? "",
+      sales_depot_name: lookupMaps.depotNames?.[salesDepotResult.depot_id] ?? "",
+      leads,
+      payins,
+      sales,
+      status: errors.length ? "invalid" : "valid",
+      errors,
+      suggestions,
+      source: normalizedSource,
+      merge_count: rawRow.merge_count,
+      merge_notes: rawRow.merge_notes,
+      dup_base_row: rawRow.dup_base_row,
+    });
+
+    if ((idx + 1) % 50 === 0) {
+      progressCb(idx + 1, totalRows, "processing");
+      // yield to event loop to keep UI responsive
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
+
+  if (totalRows) {
+    progressCb(totalRows, totalRows, "processing");
+  }
+
+  const mergedRows = mergeRawDataRowsByIdentity(rows);
+
+  const duplicateStart = Date.now();
+  const computedIds = Array.from(
+    new Set(mergedRows.filter(row => row.computedId).map(row => row.computedId))
+  );
+
+  const existingRows = new Set();
+  const chunkSize = 400;
+  if (!computedIds.length) {
+    progressCb(totalRows, totalRows, "checking_duplicates");
+  } else {
+    for (let i = 0; i < computedIds.length; i += chunkSize) {
+      const chunk = computedIds.slice(i, i + chunkSize);
+      const progressDone = Math.min(
+        totalRows,
+        Math.round(((i + chunk.length) / computedIds.length) * totalRows)
+      );
+      progressCb(progressDone, totalRows, "checking_duplicates");
+      // eslint-disable-next-line no-await-in-loop
+      const { data, error } = await supabase.from("raw_data").select("id").in("id", chunk);
+      if (error) throw error;
+      (data ?? []).forEach(item => {
+        existingRows.add(item.id);
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    progressCb(totalRows, totalRows, "checking_duplicates");
+  }
+
+  const rowsWithDuplicates = mergedRows.map(row => {
+    const dup_base_row = Boolean(row.computedId && existingRows.has(row.computedId));
+    return {
+      ...row,
+      dup_base_row: Boolean(row.dup_base_row || dup_base_row),
+    };
+  });
+
+  const parseEnd = Date.now();
+
+  return {
+    rows: rowsWithDuplicates,
+    meta: {
+      totalRows: rowsWithDuplicates.length,
+      parseMs: duplicateStart - parseStart,
+      duplicateCheckMs: parseEnd - duplicateStart,
+    },
+  };
 }
 
 export function isPublishable(companyRow, depotRow) {
@@ -396,20 +586,6 @@ export async function parseRawDataWorkbook(
   const normalizedSource = source === "depot" ? "depot" : "company";
   const progressCb = typeof onProgress === "function" ? onProgress : () => {};
 
-  const parseStart = Date.now();
-  const [lookups, depots, companies, platoons] = await Promise.all([
-    buildAgentLookups(),
-    listDepots(),
-    listCompanies(),
-    listPlatoons(),
-  ]);
-  const depotMaps = buildDepotMaps(depots);
-  const lookupMaps = {
-    depotNames: Object.fromEntries((depots ?? []).map(d => [d.id, d.name])),
-    companyNames: Object.fromEntries((companies ?? []).map(c => [c.id, c.name])),
-    platoonNames: Object.fromEntries((platoons ?? []).map(p => [p.id, p.name])),
-  };
-
   progressCb(0, 0, "reading");
   const buf = await file.arrayBuffer();
   const workbook = XLSX.read(buf, { type: "array" });
@@ -439,139 +615,31 @@ export async function parseRawDataWorkbook(
     throw new Error(`Missing required columns: ${missingRequired.join(", ")}`);
   }
 
-  const rows = [];
-  const totalRows = rawRows.length;
-  progressCb(0, totalRows, "processing");
-  for (let idx = 0; idx < rawRows.length; idx++) {
-    const rawRow = rawRows[idx];
-    const errors = [];
+  const inputRows = rawRows.map((rawRow, idx) => ({
+    sourceRowIndex: idx,
+    excelRowNumber: idx + 2,
+    date_original: rawRow[headerMap.date],
+    leader_name_input: headerMap.leader_name !== undefined ? rawRow[headerMap.leader_name] : "",
+    leads: rawRow[headerMap.leads],
+    payins: rawRow[headerMap.payins],
+    sales: rawRow[headerMap.sales],
+    leads_depot_input: headerMap.leads_depot !== undefined ? rawRow[headerMap.leads_depot] : "",
+    sales_depot_input: headerMap.sales_depot !== undefined ? rawRow[headerMap.sales_depot] : "",
+  }));
 
-    const dateCell = rawRow[headerMap.date];
-    const { dateReal, originalValue: originalDate, error: dateError } = parseDateCell(dateCell);
-    if (dateError) errors.push(dateError);
-
-    const leads = parseNumber(rawRow[headerMap.leads], "Leads", errors);
-    const payins = parseNumber(rawRow[headerMap.payins], "Payins", errors);
-    const sales = parseNumber(rawRow[headerMap.sales], "Sales", errors);
-
-    const leader_name_input =
-      headerMap.leader_name !== undefined ? rawRow[headerMap.leader_name] : "";
-    const { resolvedId: resolved_agent_id, suggestions } = resolveLeaderName(
-      leader_name_input,
-      lookups,
-      lookupMaps,
-      errors
-    );
-
-    const leadsDepotInput =
-      headerMap.leads_depot !== undefined ? rawRow[headerMap.leads_depot] : "";
-    const salesDepotInput =
-      headerMap.sales_depot !== undefined ? rawRow[headerMap.sales_depot] : "";
-
-    const leadsDepotLabel = leadsDepotInput?.toString().trim() ?? "";
-    const salesDepotLabel = salesDepotInput?.toString().trim() ?? "";
-
-    const leadsDepotResult = resolveDepotId(leadsDepotLabel, depotMaps);
-    const salesDepotResult = resolveDepotId(salesDepotLabel, depotMaps);
-
-    if (!leadsDepotLabel || leadsDepotResult.error) {
-      errors.push("Invalid leads depot");
-    }
-
-    if (!salesDepotLabel || salesDepotResult.error) {
-      errors.push("Invalid sales depot");
-    }
-
-    const date_real = dateReal ?? "";
-    const computedId = computeRawDataId({
-      date_real,
-      agent_id: resolved_agent_id,
-      source: normalizedSource,
-      leads_depot_id: leadsDepotResult.depot_id,
-      sales_depot_id: salesDepotResult.depot_id,
-    });
-
-    rows.push({
-      sourceRowIndex: idx,
-      excelRowNumber: idx + 2, // +2 to account for header row and 1-indexing
-      date_real,
-      date_original: originalDate,
-      leader_name_input: leader_name_input?.toString().trim() ?? "",
-      resolved_agent_id,
-      computedId,
-      leads_depot_id: leadsDepotResult.depot_id,
-      sales_depot_id: salesDepotResult.depot_id,
-      leads_depot_name: lookupMaps.depotNames?.[leadsDepotResult.depot_id] ?? "",
-      sales_depot_name: lookupMaps.depotNames?.[salesDepotResult.depot_id] ?? "",
-      leads,
-      payins,
-      sales,
-      status: errors.length ? "invalid" : "valid",
-      errors,
-      suggestions,
-      source: normalizedSource,
-    });
-
-    if ((idx + 1) % 50 === 0) {
-      progressCb(idx + 1, totalRows, "processing");
-      // yield to event loop to keep UI responsive
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise(resolve => setTimeout(resolve, 0));
-    }
-  }
-
-  if (totalRows) {
-    progressCb(totalRows, totalRows, "processing");
-  }
-
-  const mergedRows = mergeRowsByIdentity(rows);
-
-  const duplicateStart = Date.now();
-  const computedIds = Array.from(
-    new Set(mergedRows.filter(row => row.computedId).map(row => row.computedId))
+  const { rows: rowsWithDuplicates, meta } = await normalizeRawDataRows(
+    inputRows,
+    { source: normalizedSource },
+    progressCb
   );
-
-  const existingRows = new Set();
-  const chunkSize = 400;
-  if (!computedIds.length) {
-    progressCb(totalRows, totalRows, "checking_duplicates");
-  } else {
-    for (let i = 0; i < computedIds.length; i += chunkSize) {
-      const chunk = computedIds.slice(i, i + chunkSize);
-      const progressDone = Math.min(
-        totalRows,
-        Math.round(((i + chunk.length) / computedIds.length) * totalRows)
-      );
-      progressCb(progressDone, totalRows, "checking_duplicates");
-      // eslint-disable-next-line no-await-in-loop
-      const { data, error } = await supabase.from("raw_data").select("id").in("id", chunk);
-      if (error) throw error;
-      (data ?? []).forEach(item => {
-        existingRows.add(item.id);
-      });
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise(resolve => setTimeout(resolve, 0));
-    }
-    progressCb(totalRows, totalRows, "checking_duplicates");
-  }
-
-  const rowsWithDuplicates = mergedRows.map(row => {
-    const dup_base_row = Boolean(row.computedId && existingRows.has(row.computedId));
-    return {
-      ...row,
-      dup_base_row,
-    };
-  });
-
-  const parseEnd = Date.now();
 
   return {
     rows: rowsWithDuplicates,
     meta: {
       sheetName,
-      totalRows: rowsWithDuplicates.length,
-      parseMs: duplicateStart - parseStart,
-      duplicateCheckMs: parseEnd - duplicateStart,
+      totalRows: meta.totalRows,
+      parseMs: meta.parseMs,
+      duplicateCheckMs: meta.duplicateCheckMs,
     },
   };
 }
