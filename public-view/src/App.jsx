@@ -1089,10 +1089,10 @@ function Podium({ top3, view }) {
 
         // CSS didn’t apply because podium-card class wasn’t rendered.
         const cardClass = mergeClassNames(
-          "podium-card",
-          rank === 1 && "podium-card--winner",
-          rank === 1 && "podium-card--gold",
-          rank === 3 && "podium-card--orange"
+          "podium-rank-number",
+          rank === 1 && "podium-rank-number--winner",
+          rank === 2 && "podium-rank-number--silver",
+          rank === 3 && "podium-rank-number--orange"
         );
 
         return (
