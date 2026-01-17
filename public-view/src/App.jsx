@@ -1092,7 +1092,8 @@ function Podium({ top3, view }) {
           "podium-card",
           rank === 1 && "podium-card--winner",
           rank === 2 && "podium-card--silver",
-          rank === 3 && "podium-card--orange"
+          rank === 3 && "podium-card--orange",
+          "podium-rank-number"
         );
 
         return (
