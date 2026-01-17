@@ -1087,12 +1087,18 @@ function Podium({ top3, view }) {
             ? formatCurrencyPHPCompact(item.sales, "700")
             : formatCurrencyPHP(item.sales);
 
+        // CSS didn’t apply because podium-card class wasn’t rendered.
         const cardClass = mergeClassNames(
           "podium-card",
           rank === 1 && "podium-card--winner",
           rank === 2 && "podium-card--silver",
-          rank === 3 && "podium-card--orange",
-          "podium-rank-number"
+          rank === 3 && "podium-card--orange"
+        );
+        const rankNumberClass = mergeClassNames(
+          "podium-rank-number",
+          rank === 1 && "podium-rank-number--winner",
+          rank === 2 && "podium-rank-number--silver",
+          rank === 3 && "podium-rank-number--orange"
         );
 
         return (
@@ -1100,15 +1106,7 @@ function Podium({ top3, view }) {
             key={item.key || item.id}
             className={mergeClassNames("podium-item", `podium-item--rank-${rank}`)}
           >
-            <div
-              className={mergeClassNames(
-                "podium-rank-number",
-                rank === 1 && "podium-rank-number--winner",
-                rank === 2 && "podium-rank-number--silver",
-                rank === 3 && "podium-rank-number--orange"
-              )}
-              aria-hidden="true"
-            >
+            <div className={rankNumberClass} aria-hidden="true">
               {rank}
             </div>
             <div className="podium-avatar-chip" aria-hidden="true">
