@@ -1100,7 +1100,15 @@ function Podium({ top3, view }) {
             key={item.key || item.id}
             className={mergeClassNames("podium-item", `podium-item--rank-${rank}`)}
           >
-            <div className="podium-rank-number" aria-hidden="true">
+            <div
+              className={mergeClassNames(
+                "podium-rank-number",
+                rank === 1 && "podium-rank-number--winner",
+                rank === 2 && "podium-rank-number--silver",
+                rank === 3 && "podium-rank-number--orange"
+              )}
+              aria-hidden="true"
+            >
               {rank}
             </div>
             <div className="podium-avatar-chip" aria-hidden="true">
