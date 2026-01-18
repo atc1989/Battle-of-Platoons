@@ -1362,7 +1362,7 @@ button {
   }
 
   .topbar-metrics{ 
-    min-height: 6vh; 
+    min-height: 7vh; 
   }
 
   .topbar-segment--metric {
@@ -1409,6 +1409,13 @@ button {
   }
 }
 
+@media (max-width: 450px) {
+  .view-pill,
+  .view-pill--active {
+    font-size: clamp(12px, 2vw, 15px);
+  }
+}
+
 @media (max-width: 400px) {
   .topbar-metrics {
     width: 100%;
@@ -1421,36 +1428,19 @@ button {
     width: auto;
   }
 
-  /* ✅ FIX: Make week tabs a stable 2x2 grid on phones */
-  .week-tabs{
-    display: flex;
-    flex-wrap: nowrap;         /* no wrapping */
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    min-height: 6vw;
-    overflow: hidden;          /* no scroll bar */
-  }
-
   .week-tab,
-  .week-tab--active{
-    flex: 1 1 0;               /* equal widths, shrinkable */
-    min-width: 0;              /* IMPORTANT: allows shrinking */
-    max-width: none;
-    font-size: clamp(7px, 2.6vw, 12px);
-    padding: 6px 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;   /* last resort if too tight */
+  .week-tab--active {
+    font-size: clamp(9px, 2.4vw, 12px);
+    padding: 8px 6px;
+    white-space: normal;
+    line-height: 1.25;
     text-align: center;
-  }
-
-  .week-tab {
-    padding: 6px 9px;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .week-tab--active {
-    padding: 6px 9px;
+    padding: 8px 6px;
   }
 
   .topbar {
@@ -1513,13 +1503,29 @@ button {
   .view-pill--active {
     flex: 1 1 0;
     min-width: 0;
-    font-size: clamp(6px, 2.5vw, 10px);
+    font-size: clamp(8px, 2.5vw, 12px);
     padding: 6px 6px;
     line-height: 1.1;
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 12px;
+  }
+}
+
+@media (max-width: 320px) {
+  .week-tab,
+  .week-tab--active {
+    font-size: clamp(8px, 2.8vw, 10px);
+    padding: 6px 4px;
+  }
+}
+
+@media (max-width: 295px) {
+  .week-tab,
+  .week-tab--active {
+    font-size: clamp(6px, 3.2vw, 8px);
+    padding: 5px 3px;
+    gap: 1.5px;
   }
 }
