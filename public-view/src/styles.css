@@ -939,12 +939,12 @@ button {
 
 .podium-name {
   font-weight: 700;
+  margin-bottom: 6px;
 }
 
 .podium-points {
   font-size: 26px;
   font-weight: 800;
-  margin-top: 6px;
 }
 
 .podium-points-label {
@@ -962,7 +962,6 @@ button {
 }
 
 .podium-stat {
-  padding: 6px 6px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1123,7 +1122,7 @@ button {
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 600px) {
   .podium-card {
     overflow: hidden;
     border-radius: 25px 25px 0px 0px;
@@ -1165,6 +1164,7 @@ button {
     line-height: 1.2;
     word-break: break-word;
     max-width: 100%;
+    font-size: 10px;
   }
 }
 
