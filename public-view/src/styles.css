@@ -755,7 +755,8 @@ button {
 
 .podium {
   display: grid;
-  grid-template-columns: repeat(auto-fit, max-content);
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
   justify-content: center;   /* centers the cards as a group */
   justify-items: center;
   align-items: flex-end;
@@ -1048,7 +1049,7 @@ button {
     width: 100%;
     max-width: none;
     padding: 34px 10px 14px;
-    border-radius: 20px 20px 10px 10px;
+    border-radius: 20px 20px 0px 0px;
     gap: 6px;
   }
 
@@ -1147,7 +1148,7 @@ button {
 
   .podium-card {
     padding: 30px 8px 12px;
-    border-radius: 18px 18px 10px 10px;
+    border-radius: 18px 18px 0px 0px;
     gap: 5px;
   }
 
