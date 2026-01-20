@@ -941,7 +941,7 @@ button {
   width: 100%;
   margin-top: 16px;
   display: grid;
-  grid-template-columns: repeat(1fr, 1fr);
+  grid-template-columns: repeat(3fr, 1fr);
   align-items: center;
 }
 
@@ -1113,7 +1113,7 @@ button {
   .podium-item--rank-3 .podium-card { height: clamp(200px, 34vh, 260px); }
 
   .podium-stats-row {
-    grid-template-columns: 3fr 1fr;
+    grid-template-columns: 1fr 1fr;
     row-gap: 8px;
   }
 
