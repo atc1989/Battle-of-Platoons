@@ -1033,15 +1033,15 @@ button {
     height: 48px;
   }
 
-  .podium-points {
-    font-size: 18px;
-  }
-
   .podium-stat__value {
     font-size: 13px;
   }
 
   .podium-stat__label {
+    font-size: 10px;
+  }
+
+  .podium-points {
     font-size: 10px;
   }
 }
