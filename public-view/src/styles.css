@@ -940,7 +940,7 @@ button {
 .rank-list__items {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
 
 .rank-card {
@@ -950,7 +950,7 @@ button {
   border-radius: 8px;
   background: #ffffff;
   color: #0b1770;
-  box-shadow: 0 12px 24px rgba(11, 23, 112, 0.12);
+  box-shadow: 0 12px 24px rgba(11, 23, 112, 0.08);
 }
 
 .rank-card__rank {
