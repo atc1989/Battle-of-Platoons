@@ -1194,7 +1194,7 @@ function LeaderboardRows({ rows, view, page, pageCount, onPageChange, total }) {
       : "Commander";
 
   const showPlatoon = view === "leaders";
-  const PAGE_SIZE = 15;
+  const PAGE_SIZE = 10;
   const hasRows = rows.length > 0;
   const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(total, (page - 1) * PAGE_SIZE + rows.length);
