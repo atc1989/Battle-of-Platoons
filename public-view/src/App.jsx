@@ -1244,7 +1244,6 @@ function LeaderboardRows({ rows, view, page, pageCount, onPageChange, total }) {
           return (
             <div className="rank-card" key={`${view}-${rankValue}-${r.key}`}>
               <div className="rank-card__rank">#{rankValue}</div>
-              <div className="rank-card__main">
                 <div className="row-name">
                   <div className="row-avatar">
                     {r.avatarUrl ? (
@@ -1258,8 +1257,6 @@ function LeaderboardRows({ rows, view, page, pageCount, onPageChange, total }) {
                     {showPlatoon && r.platoon && <div className="row-sub">{r.platoon}</div>}
                   </div>
                 </div>
-                <div className="rank-card__meta">{labelHeader}</div>
-              </div>
               <div className="rank-card__metrics">
                 <div className="leader-row-stat">
                   <span className="leader-row-stat__label">Leads</span>
