@@ -380,8 +380,8 @@ export default function Publishing() {
                           type="button"
                           className="button primary"
                           onClick={() => openAction("approve", row)}
-                          disabled={!row.company}
-                          title={row.company ? "" : "Cannot approve because Company row is missing. Company must upload or create a mirrored Company entry (future feature)."}
+                          disabled={false}
+                          title="Approve this row for publishing"
                         >
                           Approve
                         </button>
