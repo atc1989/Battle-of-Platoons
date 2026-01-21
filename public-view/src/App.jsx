@@ -294,6 +294,11 @@ function App() {
   const faqWeekKey = activeWeekTab?.range?.end ? toIsoWeekKey(activeWeekTab.range.end) : null;
   const [activeView, setActiveView] = useState("depots");
   const [leaderRoleFilter, setLeaderRoleFilter] = useState(LEADER_ROLE_TABS[0].key);
+  // Pagination plan:
+  // - paginate ranks 4+ (rows list) at 15 per page
+  // - reset page on view/week/filter changes
+  // - keep ranks absolute via r.rank from full dataset
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState(null);
@@ -410,7 +415,14 @@ function App() {
   const depotRowsFetched = debug.depotRowsFetched ?? 0;
   const activeFormula = data?.formula?.data || null;
   const selectedWeekKey = data?.formula?.weekKey || null;
-  const top3 = rows.slice(0, 3);
+  const PAGE_SIZE = 15;
+  const podiumRows = rows.slice(0, 3);
+  const listRows = rows.slice(3);
+  const total = listRows.length;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const pageEnd = pageStart + PAGE_SIZE;
+  const pageRows = listRows.slice(pageStart, pageEnd);
   const entitiesLabel =
     displayView === "commanders"
       ? "Commanders"
@@ -449,6 +461,16 @@ function App() {
       console.warn("Active formula week mismatch", { selectedWeekKey, activeFormula });
     }
   }, [activeFormula, selectedWeekKey]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeWeek, activeView, leaderRoleFilter]);
+
+  useEffect(() => {
+    if (page > pageCount) {
+      setPage(pageCount);
+    }
+  }, [page, pageCount]);
 
   const resolvedFormulas = {
     depots: { formula: formulasByType.depots, fallbackLabel: null },
@@ -853,8 +875,14 @@ function App() {
               </div>
             ) : (
               <>
-                <Podium top3={top3} view={displayView} roleFilter={leaderRoleFilter} />
-                <LeaderboardTable rows={rows} view={displayView} roleFilter={leaderRoleFilter} />
+                <Podium top3={podiumRows} view={displayView} roleFilter={leaderRoleFilter} />
+                <LeaderboardRows
+                  rows={pageRows}
+                  view={displayView}
+                  page={page}
+                  pageCount={pageCount}
+                  onPageChange={setPage}
+                />
               </>
             )}
           </>
@@ -1150,7 +1178,7 @@ function Podium({ top3, view }) {
   );
 }
 
-function LeaderboardTable({ rows, view, roleFilter }) {
+function LeaderboardRows({ rows, view, page, pageCount, onPageChange }) {
   if (!rows.length) return null;
 
   const labelHeader =
@@ -1164,57 +1192,74 @@ function LeaderboardTable({ rows, view, roleFilter }) {
       ? "Company"
       : "Commander";
 
-  const showUpline = false;
+  const showPlatoon = view === "leaders";
 
   return (
-    <div className="table-wrapper">
-      <table className="leader-table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>{labelHeader}</th>
-            {showUpline && <th>Upline</th>}
-            <th>Leads</th>
-            <th>Payins</th>
-            <th>Sales</th>
-            <th className="th-right">Points</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={`${view}-${r.rank}-${r.key}`}>
-              <td className="cell-rank">{r.rank}</td>
-              <td className="cell-name">
-                <div className="row-name">
-                  <div className="row-avatar">
-                    {r.avatarUrl ? (
-                      <img src={r.avatarUrl} alt={r.name} />
-                    ) : (
-                      <span className="row-initials">
-                        {getInitials(r.name)}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="row-labels">
-                    <div className="row-title">{r.name}</div>
-
-                    {/* show platoon only for leaders */}
-                    {view === "leaders" && r.platoon && (
-                      <div className="row-sub">{r.platoon}</div>
-                    )}
-                  </div>
+    <div className="leaderboard-rows">
+      <div className="leaderboard-rows__list">
+        {rows.map((r) => (
+          <div className="leader-row-card" key={`${view}-${r.rank}-${r.key}`}>
+            <div className="leader-row-card__rank">#{r.rank}</div>
+            <div className="leader-row-card__main">
+              <div className="row-name">
+                <div className="row-avatar">
+                  {r.avatarUrl ? (
+                    <img src={r.avatarUrl} alt={r.name} />
+                  ) : (
+                    <span className="row-initials">{getInitials(r.name)}</span>
+                  )}
                 </div>
-              </td>
-              {showUpline && <td>{r.uplineName || "-"}</td>}
-              <td>{r.leads}</td>
-              <td>{r.payins}</td>
-              <td>{formatCurrencyPHP(r.sales)}</td>
-              <td className="cell-right">{r.points.toFixed(1)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <div className="row-labels">
+                  <div className="row-title">{r.name}</div>
+                  {showPlatoon && r.platoon && <div className="row-sub">{r.platoon}</div>}
+                </div>
+              </div>
+              <div className="leader-row-card__meta">{labelHeader}</div>
+            </div>
+            <div className="leader-row-card__stats">
+              <div className="leader-row-stat">
+                <span className="leader-row-stat__label">Leads</span>
+                <span className="leader-row-stat__value">{r.leads}</span>
+              </div>
+              <div className="leader-row-stat">
+                <span className="leader-row-stat__label">Payins</span>
+                <span className="leader-row-stat__value">{r.payins}</span>
+              </div>
+              <div className="leader-row-stat">
+                <span className="leader-row-stat__label">Sales</span>
+                <span className="leader-row-stat__value">{formatCurrencyPHP(r.sales)}</span>
+              </div>
+            </div>
+            <div className="leader-row-card__points">
+              <div className="leader-row-card__points-value">{r.points.toFixed(1)}</div>
+              <div className="leader-row-card__points-label">points</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {pageCount > 1 && (
+        <div className="leaderboard-pagination">
+          <button
+            className="leaderboard-pagination__button"
+            type="button"
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+            disabled={page === 1}
+          >
+            Prev
+          </button>
+          <div className="leaderboard-pagination__status">
+            Page {page} of {pageCount}
+          </div>
+          <button
+            className="leaderboard-pagination__button"
+            type="button"
+            onClick={() => onPageChange(Math.min(pageCount, page + 1))}
+            disabled={page === pageCount}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
