@@ -296,9 +296,9 @@ function App() {
   const [leaderRoleFilter, setLeaderRoleFilter] = useState(LEADER_ROLE_TABS[0].key);
   // Pagination plan:
   // - paginate ranks 4+ (rows list) at 15 per page
-  // - reset current page on view/week/filter changes
+  // - reset page on view/week/filter changes
   // - keep ranks absolute via r.rank from full dataset
-  const [currentPage, setCurrentPage] = useState(1);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState(null);
@@ -415,14 +415,14 @@ function App() {
   const depotRowsFetched = debug.depotRowsFetched ?? 0;
   const activeFormula = data?.formula?.data || null;
   const selectedWeekKey = data?.formula?.weekKey || null;
-  const top3 = rows.slice(0, 3);
-  const rowsAfterPodium = rows.slice(3);
-  const pageSize = 15;
-  const totalPages = Math.max(1, Math.ceil(rowsAfterPodium.length / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-  const pageStart = (safePage - 1) * pageSize;
-  const pageEnd = pageStart + pageSize;
-  const pagedRows = rowsAfterPodium.slice(pageStart, pageEnd);
+  const PAGE_SIZE = 15;
+  const podiumRows = rows.slice(0, 3);
+  const listRows = rows.slice(3);
+  const total = listRows.length;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const pageEnd = pageStart + PAGE_SIZE;
+  const pageRows = listRows.slice(pageStart, pageEnd);
   const entitiesLabel =
     displayView === "commanders"
       ? "Commanders"
@@ -463,14 +463,14 @@ function App() {
   }, [activeFormula, selectedWeekKey]);
 
   useEffect(() => {
-    setCurrentPage(1);
+    setPage(1);
   }, [activeWeek, activeView, leaderRoleFilter]);
 
   useEffect(() => {
-    if (currentPage !== safePage) {
-      setCurrentPage(safePage);
+    if (page > pageCount) {
+      setPage(pageCount);
     }
-  }, [currentPage, safePage]);
+  }, [page, pageCount]);
 
   const resolvedFormulas = {
     depots: { formula: formulasByType.depots, fallbackLabel: null },
@@ -875,13 +875,13 @@ function App() {
               </div>
             ) : (
               <>
-                <Podium top3={top3} view={displayView} roleFilter={leaderRoleFilter} />
+                <Podium top3={podiumRows} view={displayView} roleFilter={leaderRoleFilter} />
                 <LeaderboardRows
-                  rows={pagedRows}
+                  rows={pageRows}
                   view={displayView}
-                  currentPage={safePage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
+                  page={page}
+                  pageCount={pageCount}
+                  onPageChange={setPage}
                 />
               </>
             )}
@@ -1178,7 +1178,7 @@ function Podium({ top3, view }) {
   );
 }
 
-function LeaderboardRows({ rows, view, currentPage, totalPages, onPageChange }) {
+function LeaderboardRows({ rows, view, page, pageCount, onPageChange }) {
   if (!rows.length) return null;
 
   const labelHeader =
@@ -1237,24 +1237,24 @@ function LeaderboardRows({ rows, view, currentPage, totalPages, onPageChange }) 
           </div>
         ))}
       </div>
-      {totalPages > 1 && (
+      {pageCount > 1 && (
         <div className="leaderboard-pagination">
           <button
             className="leaderboard-pagination__button"
             type="button"
-            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+            disabled={page === 1}
           >
             Prev
           </button>
           <div className="leaderboard-pagination__status">
-            Page {currentPage} of {totalPages}
+            Page {page} of {pageCount}
           </div>
           <button
             className="leaderboard-pagination__button"
             type="button"
-            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
+            onClick={() => onPageChange(Math.min(pageCount, page + 1))}
+            disabled={page === pageCount}
           >
             Next
           </button>
