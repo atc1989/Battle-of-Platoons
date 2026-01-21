@@ -1165,7 +1165,7 @@ function LeaderboardTable({ rows, view, roleFilter }) {
       : "Commander";
 
   const showUpline = false;
-
+// table
   return (
     <div className="table-wrapper">
       <table className="leader-table">
