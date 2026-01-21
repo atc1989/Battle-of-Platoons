@@ -1045,7 +1045,7 @@ button {
 
 @media (max-width: 750px) {
   .podium-stat__value {
-    font-size: 11px;
+    font-size: 10px;
   }
 }
 
@@ -1116,7 +1116,7 @@ button {
   }
 
   .podium-stat__value {
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .podium-stat__label {
