@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { listAgents } from "../services/agents.service";
 import { listPublishingRows, setPublished, setVoided } from "../services/rawData.service";
 import { getMyProfile } from "../services/profile.service";
+import { Navigate } from "react-router-dom";
 
 function formatDateInput(date) {
   const year = date.getFullYear();
@@ -46,7 +47,7 @@ export default function Publishing() {
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
 
-  const isSuperAdmin = profile?.role === "super_admin";
+  const canViewAudit = ADMIN_ROLES.has(profile?.role ?? "");
   const canVoid = ADMIN_ROLES.has(profile?.role ?? "");
   const [actionRowId, setActionRowId] = useState("");
 
@@ -142,7 +143,7 @@ export default function Publishing() {
   }
 
   async function handleTogglePublished(row) {
-    if (!isSuperAdmin || !row?.id) return;
+    if (!canViewAudit || !row?.id) return;
     const nextValue = !row.published;
     setActionRowId(row.id);
     try {
@@ -159,27 +160,47 @@ export default function Publishing() {
     }
   }
 
-  async function handleToggleVoided(row) {
-    if (!canVoid || !row?.id) return;
-    const nextValue = !row.voided;
-    let reason = null;
-    if (nextValue) {
-      reason = window.prompt("Please provide a void reason (required):", "");
-      if (!reason || !reason.trim()) return;
+  function openVoidModal(row) {
+    setVoidModalRowId(row.id);
+    setVoidReason("");
+    setVoidModalOpen(true);
+  }
+
+  function closeVoidModal() {
+    setVoidModalOpen(false);
+    setVoidModalRowId(null);
+    setVoidReason("");
+    setVoidSubmitting(false);
+  }
+
+  async function handleConfirmVoid() {
+    if (!canVoid || !voidModalRowId) return;
+    const trimmedReason = voidReason.trim();
+    if (!trimmedReason) {
+      setError("Reason for void is required.");
+      return;
     }
-    setActionRowId(row.id);
+
+    setVoidSubmitting(true);
+    setError("");
+
     try {
-      await setVoided(row.id, nextValue, reason);
+      await setVoided(voidModalRowId, true, trimmedReason);
       setRows(prev =>
-        prev.map(item => (item.id === row.id ? { ...item, voided: nextValue } : item))
+        prev.map(item => (item.id === voidModalRowId ? { ...item, voided: true } : item))
       );
       setAppliedFilters(prev => ({ ...prev }));
+      closeVoidModal();
     } catch (e) {
       console.error(e);
-      setError(normalizeSchemaErrorMessage(e, "Failed to update void status"));
+      setError(normalizeSchemaErrorMessage(e, "Failed to void row"));
     } finally {
-      setActionRowId("");
+      setVoidSubmitting(false);
     }
+  }
+
+  if (!profileLoading && !canViewAudit) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
@@ -189,7 +210,7 @@ export default function Publishing() {
         Only rows published by a Super Admin appear on the public leaderboard.
       </div>
 
-      {!profileLoading && !isSuperAdmin ? (
+      {!profileLoading && !canViewAudit ? (
         <div className="error-box" role="alert">
           Only Super Admins can publish or unpublish rows. You can still view the current publish state.
         </div>
@@ -287,62 +308,98 @@ export default function Publishing() {
         <table className="data-table">
           <thead>
             <tr>
+              <th>#</th>
               <th>Date</th>
               <th>Leader</th>
               <th>Leads Depot</th>
-              <th>Leads</th>
               <th>Sales Depot</th>
+              <th>Leads</th>
               <th>Payins</th>
               <th>Sales</th>
-              <th>Published</th>
-              <th>Voided</th>
+              <th>Status</th>
+              <th>Void Reason</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(row => (
-              <tr key={row.id}>
-                <td>{row.date_real}</td>
-                <td>
-                  <div>{row.leaderName || "(Restricted)"}</div>
-                </td>
-                <td>{row.leadsDepotName || "—"}</td>
-                <td>{row.leads ?? "—"}</td>
-                <td>{row.salesDepotName || "—"}</td>
-                <td>{row.payins ?? "—"}</td>
-                <td>{row.sales ?? "—"}</td>
-                <td>
-                  {isSuperAdmin ? (
-                    <input
-                      type="checkbox"
-                      checked={Boolean(row.published)}
-                      onChange={() => handleTogglePublished(row)}
-                      disabled={actionRowId === row.id}
-                    />
-                  ) : (
-                    <span className={`status-pill ${row.published ? "valid" : "muted"}`}>
-                      {row.published ? "Published" : "Unpublished"}
-                    </span>
-                  )}
-                </td>
-                <td>
-                  {canVoid ? (
-                    <input
-                      type="checkbox"
-                      checked={Boolean(row.voided)}
-                      onChange={() => handleToggleVoided(row)}
-                      disabled={actionRowId === row.id}
-                    />
-                  ) : (
-                    <span className={`status-pill ${row.voided ? "invalid" : "muted"}`}>
-                      {row.voided ? "Voided" : "Active"}
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {rows.map((row, index) => {
+              const agent = agentMap[row.agent_id];
+              const canModify = canEditRow(row, profile, agent) && ADMIN_ROLES.has(currentRole);
+              const isEditDisabled = savingId === row.id || row.voided || !canModify;
+
+              return (
+                <tr key={row.id}>
+                  <td>
+                    <div className="muted" style={{ fontSize: 12 }}>{index + 1}</div>
+                  </td>
+                  <td>{row.date_real}</td>
+                  <td>{renderIdentityCell(row)}</td>
+
+                  <td>{row.leadsDepotName || depotMap[row.leads_depot_id]?.name || "—"}</td>
+                  <td>{row.salesDepotName || depotMap[row.sales_depot_id]?.name || "—"}</td>
+                  <td>{formatNumber(row.leads)}</td>
+                  <td>{formatNumber(row.payins)}</td>
+                  <td>{formatCurrency(row.sales)}</td>
+
+                  <td>
+                    {row.voided ? (
+                      <span style={{
+                        display: "inline-block",
+                        padding: "2px 8px",
+                        background: "#ffe8e8",
+                        color: "#b00020",
+                        borderRadius: 12,
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}>
+                        Voided
+                      </span>
+                    ) : (
+                      <span style={{
+                        display: "inline-block",
+                        padding: "2px 8px",
+                        background: row.published ? "#e6f5e6" : "#f5f5f5",
+                        color: row.published ? "#1b6b1b" : "#666",
+                        borderRadius: 12,
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}>
+                        {row.published ? "Published" : "Unpublished"}
+                      </span>
+                    )}
+                  </td>
+
+                  <td>
+                    {row.voided && row.void_reason ? (
+                      <div className="muted" style={{ fontSize: 12, maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }} title={row.void_reason}>
+                        {row.void_reason}
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+
+                  <td>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {canModify ? (
+                        <button
+                          type="button"
+                          className="button secondary"
+                          onClick={() => startEdit(row)}
+                          disabled={isEditDisabled}
+                          style={isEditDisabled ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+                        >
+                          Edit
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {!rows.length && !loading ? (
               <tr>
-                <td colSpan={9} className="muted" style={{ textAlign: "center" }}>
+                <td colSpan={11} className="muted" style={{ textAlign: "center" }}>
                   No rows found for the selected filters.
                 </td>
               </tr>
@@ -350,7 +407,6 @@ export default function Publishing() {
           </tbody>
         </table>
       </div>
-
     </div>
   );
 }

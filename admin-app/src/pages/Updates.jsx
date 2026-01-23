@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ModalForm } from "../components/ModalForm";
 import { listAgents } from "../services/agents.service";
 import { listDepots } from "../services/depots.service";
-import { canEditRow, listRawData, setPublished, setVoided, updateRow } from "../services/rawData.service";
+import { canEditRow, listRawData, updateRow } from "../services/rawData.service";
 import { getMyProfile } from "../services/profile.service";
 
 // ----------------------
@@ -83,7 +83,6 @@ export default function Updates() {
   // Two-state filtering: input vs applied
   const [filtersInput, setFiltersInput] = useState(initialFilters);
   const [filtersApplied, setFiltersApplied] = useState(initialFilters);
-  const [showVoided, setShowVoided] = useState(false);
 
   // Editing
   const [editingRow, setEditingRow] = useState(null);
@@ -99,6 +98,16 @@ export default function Updates() {
   const [profile, setProfile] = useState(null);
   const currentRole = profile?.role || "";
   const isSuperAdmin = currentRole === "super_admin";
+
+  // CHANGE 1: Line 32 - Add selected state for batch operations
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [batchLoading, setBatchLoading] = useState(false);
+
+  // CHANGE 1: Line 50 - Add modal state
+  const [voidModalOpen, setVoidModalOpen] = useState(false);
+  const [voidModalRowId, setVoidModalRowId] = useState(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [voidSubmitting, setVoidSubmitting] = useState(false);
 
   const agentMap = useMemo(() => {
     const map = {};
@@ -159,12 +168,10 @@ export default function Updates() {
   // ----------------------
   // Apply/Clear filters
   // ----------------------
-  async function applyFilters(customFilters = filtersInput, includeVoidedOverride) {
+  async function applyFilters(customFilters = filtersInput) {
     const normalized = { ...initialFilters, ...(customFilters || {}) };
     normalized.dateFrom = normalizeToYmd(normalized.dateFrom);
     normalized.dateTo = normalizeToYmd(normalized.dateTo);
-
-    const includeVoided = includeVoidedOverride ?? showVoided;
 
     setFiltersApplied(normalized);
     setLoading(true);
@@ -174,7 +181,7 @@ export default function Updates() {
     try {
       // IMPORTANT: fetch without relying on server-side string date filtering
       // We will always filter client-side correctly.
-      const data = await listRawData({ limit: 500, includeVoided });
+      const data = await listRawData({ limit: 500, includeVoided: false });
       setRows(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
@@ -189,12 +196,6 @@ export default function Updates() {
     setFiltersApplied(initialFilters);
     cancelEdit();
     await applyFilters(initialFilters);
-  }
-
-  function toggleShowVoided() {
-    const next = !showVoided;
-    setShowVoided(next);
-    void applyFilters(filtersInput, next);
   }
 
   // ----------------------
@@ -365,7 +366,7 @@ export default function Updates() {
   return (
     <div className="card">
       <div className="card-title">Updates History</div>
-      <div className="muted">Review, edit, or void uploaded daily performance data.</div>
+      <div className="muted">Review and edit uploaded daily performance data.</div>
 
       {/* Filters */}
       <div
@@ -459,11 +460,6 @@ export default function Updates() {
           <button type="button" className="button secondary" onClick={clearFilters} disabled={loading}>
             Clear
           </button>
-
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14 }}>
-            <input type="checkbox" checked={showVoided} onChange={toggleShowVoided} disabled={loading} />
-            Show voided
-          </label>
         </div>
       </div>
 
@@ -490,112 +486,84 @@ export default function Updates() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>#</th>
+              <th style={{ width: "40px" }}>
+                {isSuperAdmin ? (
+                  <input
+                    type="checkbox"
+                    checked={rows.length > 0 && selectedIds.size === rows.length}
+                    indeterminate={selectedIds.size > 0 && selectedIds.size < rows.length}
+                    onChange={e => handleSelectAll(e.target.checked)}
+                  />
+                ) : null}
+              </th>
               <th>Date</th>
               <th>Leader</th>
               <th>Leads Depot</th>
-              <th>Sales Depot</th>
               <th>Leads</th>
+              <th>Sales Depot</th>
               <th>Payins</th>
               <th>Sales</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th>Published</th>
+              <th>Voided</th>
             </tr>
           </thead>
 
           <tbody>
-            {visibleRows.map((row, index) => {
-              const agent = agentMap[row.agent_id];
-              const canModify = canEditRow(row, profile, agent) && ADMIN_ROLES.has(currentRole);
-              const canModifyVoid = canModify;
-              const isEditDisabled = savingId === row.id || row.voided || !canModify;
-              const isVoidDisabled = actionLoadingId === row.id || !canModifyVoid;
-              const isPublishDisabled = actionLoadingId === row.id || !isSuperAdmin;
-
-              return (
-                <tr key={row.id}>
-                  <td>
-                    <div className="muted" style={{ fontSize: 12 }}>{index + 1}</div>
-                  </td>
-                  <td>{row.date_real}</td>
-                  <td>{renderIdentityCell(row)}</td>
-
-                  <td>{row.leadsDepotName || depotMap[row.leads_depot_id]?.name || "—"}</td>
-                  <td>{row.salesDepotName || depotMap[row.sales_depot_id]?.name || "—"}</td>
-                  <td>{formatNumber(row.leads)}</td>
-                  <td>{formatNumber(row.payins)}</td>
-                  <td>{formatCurrency(row.sales)}</td>
-
-                  <td>{renderStatus(row)}</td>
-
-                  <td>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {isSuperAdmin ? (
+            {rows.map(row => (
+              <tr key={row.id}>
+                <td style={{ width: "40px", textAlign: "center" }}>
+                  {isSuperAdmin ? (
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(row.id)}
+                      onChange={e => handleSelectRow(row.id, e.target.checked)}
+                      disabled={batchLoading}
+                    />
+                  ) : null}
+                </td>
+                <td>{row.date_real}</td>
+                <td>
+                  <div>{row.leaderName || "(Restricted)"}</div>
+                </td>
+                <td>{row.leadsDepotName || "—"}</td>
+                <td>{row.leads ?? "—"}</td>
+                <td>{row.salesDepotName || "—"}</td>
+                <td>{row.payins ?? "—"}</td>
+                <td>{row.sales ?? "—"}</td>
+                <td>
+                  <span className={`status-pill ${row.published ? "valid" : "muted"}`}>
+                    {row.published ? "Published" : "Unpublished"}
+                  </span>
+                </td>
+                <td>
+                  {canVoid ? (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {!row.voided ? (
                         <button
                           type="button"
                           className="button secondary"
-                          onClick={() => {
-                            setActionLoadingId(row.id);
-                            setPublished(row.id, !row.published)
-                              .then(updated => setRows(prev => prev.map(r => (r.id === row.id ? updated : r))))
-                              .catch(e => setError(e?.message || "Failed to update publish status"))
-                              .finally(() => setActionLoadingId(""));
-                          }}
-                          disabled={isPublishDisabled}
-                          style={row.published ? { background: "#e6f5e6", color: "#1b6b1b" } : undefined}
+                          onClick={() => openVoidModal(row)}
+                          disabled={voidSubmitting}
+                          style={{ fontSize: 12, padding: "4px 8px" }}
                         >
-                          {row.published ? "Unpublish" : "Publish"}
+                          Void
                         </button>
-                      ) : null}
-
-                      {canModifyVoid ? (
-                        <button
-                          type="button"
-                          className="button secondary"
-                          onClick={() => {
-                            setActionLoadingId(row.id);
-                            setVoided(row.id, !row.voided)
-                              .then(updated => {
-                                setRows(prev => {
-                                  if (!showVoided && updated.voided) {
-                                    return prev.filter(r => r.id !== row.id);
-                                  }
-                                  return prev.map(r => (r.id === row.id ? updated : r));
-                                });
-                              })
-                              .catch(e => setError(e?.message || "Failed to update void status"))
-                              .finally(() => setActionLoadingId(""));
-                          }}
-                          disabled={isVoidDisabled}
-                          style={{
-                            background: row.voided ? "#e6f5e6" : "#ffe8e8",
-                            color: row.voided ? "#1b6b1b" : "#b00020",
-                          }}
-                        >
-                          {row.voided ? "Unvoid" : "Void"}
-                        </button>
-                      ) : null}
-
-                      {canModify ? (
-                        <button
-                          type="button"
-                          className="button secondary"
-                          onClick={() => startEdit(row)}
-                          disabled={isEditDisabled}
-                          style={isEditDisabled ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
-                        >
-                          Edit
-                        </button>
-                      ) : null}
+                      ) : (
+                        <span className="status-pill invalid">Voided</span>
+                      )}
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
+                  ) : (
+                    <span className={`status-pill ${row.voided ? "invalid" : "muted"}`}>
+                      {row.voided ? "Voided" : "Active"}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
 
             {!visibleRows.length && !loading ? (
               <tr>
-                <td colSpan={tableColumnCount} className="muted" style={{ textAlign: "center", padding: 16 }}>
+                <td colSpan={10} className="muted" style={{ textAlign: "center", padding: 16 }}>
                   No data to display.
                 </td>
               </tr>
@@ -681,6 +649,103 @@ export default function Updates() {
           </label>
         </div>
       </ModalForm>
+
+      {isSuperAdmin && (selectedIds.size > 0) ? (
+        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="button primary"
+            onClick={handlePublishSelected}
+            disabled={batchLoading || loading}
+          >
+            Publish Selected ({selectedIds.size})
+          </button>
+          <button
+            type="button"
+            className="button secondary"
+            onClick={handleUnpublishSelected}
+            disabled={batchLoading || loading}
+          >
+            Unpublish Selected ({selectedIds.size})
+          </button>
+        </div>
+      ) : null}
+
+      {voidModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={closeVoidModal}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              borderRadius: 8,
+              padding: 24,
+              maxWidth: 400,
+              width: "90%",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 style={{ marginTop: 0, marginBottom: 12 }}>Void Row</h2>
+            <p className="muted" style={{ marginBottom: 16 }}>
+              This action marks the row as voided and cannot be undone without approval.
+            </p>
+            
+            <label style={{ display: "block", marginBottom: 12 }}>
+              <span style={{ display: "block", marginBottom: 6, fontWeight: 500 }}>
+                Reason for void (required)
+              </span>
+              <textarea
+                value={voidReason}
+                onChange={e => setVoidReason(e.target.value)}
+                placeholder="Enter reason for voiding this row..."
+                style={{
+                  width: "100%",
+                  minHeight: 100,
+                  padding: 8,
+                  border: "1px solid #ccc",
+                  borderRadius: 4,
+                  fontFamily: "inherit",
+                  fontSize: "inherit",
+                }}
+                disabled={voidSubmitting}
+              />
+            </label>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20 }}>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={closeVoidModal}
+                disabled={voidSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="button"
+                onClick={handleConfirmVoid}
+                disabled={voidSubmitting || !voidReason.trim()}
+                style={{ backgroundColor: "#b00020", color: "white" }}
+              >
+                {voidSubmitting ? "Voiding..." : "Void Row"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
