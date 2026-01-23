@@ -723,6 +723,33 @@ export async function listRawData({ dateFrom, dateTo, agentId, limit = 200, incl
   }
 }
 
+export async function listPublishingRows({ dateFrom, dateTo, agentId, status, limit = 200 } = {}) {
+  const baseSelect =
+    "id,date_real,agent_id,leads,payins,sales,leads_depot_id,sales_depot_id,voided,void_reason,voided_at,voided_by,published,agents:agents(id,name,photo_url,depot_id,company_id,platoon_id)";
+
+  let query = supabase.from("raw_data").select(baseSelect);
+
+  if (dateFrom) query = query.gte("date_real", dateFrom);
+  if (dateTo) query = query.lte("date_real", dateTo);
+  if (agentId) query = query.eq("agent_id", agentId);
+
+  if (status === "published") {
+    query = query.eq("published", true).eq("voided", false);
+  }
+  if (status === "unpublished") {
+    query = query.eq("published", false).eq("voided", false);
+  }
+  if (status === "voided") {
+    query = query.eq("voided", true);
+  }
+
+  query = query.order("date_real", { ascending: false }).limit(Number(limit) || 200);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return enrichRawDataRows(data ?? []);
+}
+
 const FORBIDDEN_UPDATE_FIELDS = new Set([
   "source",
   "approved",
