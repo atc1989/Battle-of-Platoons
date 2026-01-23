@@ -49,7 +49,7 @@ export async function getLeaderboard({
 
   // 1) Fetch publishable rows + agents (basic fields only) - rely on RLS for visibility
   const { data: publishableRows, error: publishableError } = await supabase
-    .from("public.publishable_raw_data")
+    .from("publishable_raw_data")
     .select(
       `
       id,
@@ -59,7 +59,6 @@ export async function getLeaderboard({
       leads_depot_id,
       sales_depot_id,
       date_real,
-      date,
       agent_id,
       agents:agents (
         id,
@@ -192,7 +191,7 @@ export async function probeRawDataVisibility() {
   }
 
   const { count, error } = await supabase
-    .from("public.publishable_raw_data")
+    .from("publishable_raw_data")
     .select("id", { count: "exact", head: true });
 
   if (error) {
