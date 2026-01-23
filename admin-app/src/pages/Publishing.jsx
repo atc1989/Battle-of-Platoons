@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { listAgents } from "../services/agents.service";
-import { listCompareRows } from "../services/compare.service";
-import { approvePair, unapprovePair } from "../services/rawData.service";
+import { listPublishingRows, setPublished, setVoided } from "../services/rawData.service";
 import { getMyProfile } from "../services/profile.service";
 
 function formatDateInput(date) {
@@ -21,30 +20,8 @@ function getDefaultDateRange() {
   };
 }
 
-const STATUS_LABELS = {
-  matched: "Matched",
-  mismatch: "Mismatch",
-  missing_company: "Missing Company",
-  missing_depot: "Missing Depot",
-};
-
-const STATUS_CLASS = {
-  matched: "valid",
-  mismatch: "duplicate",
-  missing_company: "muted",
-  missing_depot: "invalid",
-};
-
 const SCHEMA_MIGRATION_HINT = "Run SQL migration and reload schema.";
-
-function formatDepotMismatchFlags(delta) {
-  if (!delta) return "—";
-  const flags = [
-    delta.leadsDepotMismatch ? "LD!" : null,
-    delta.salesDepotMismatch ? "SD!" : null,
-  ].filter(Boolean);
-  return flags.length ? flags.join(" ") : "—";
-}
+const ADMIN_ROLES = new Set(["company_admin", "depot_admin", "super_admin"]);
 
 export default function Publishing() {
   const defaults = useMemo(() => getDefaultDateRange(), []);
@@ -69,16 +46,14 @@ export default function Publishing() {
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
 
-  const [actionDialog, setActionDialog] = useState({ mode: "", row: null, reason: "" });
-  const [actionLoading, setActionLoading] = useState(false);
-  const [actionError, setActionError] = useState("");
-
   const isSuperAdmin = profile?.role === "super_admin";
+  const canVoid = ADMIN_ROLES.has(profile?.role ?? "");
+  const [actionRowId, setActionRowId] = useState("");
 
   function normalizeSchemaErrorMessage(err, fallback) {
     const msg = err?.message || fallback || "";
     const lowered = msg.toLowerCase();
-    if (lowered.includes("schema cache") || lowered.includes("approve_reason")) {
+    if (lowered.includes("schema cache") || lowered.includes("approve_reason") || lowered.includes("publish_reason")) {
       return SCHEMA_MIGRATION_HINT;
     }
     return msg || fallback || "Unexpected error";
@@ -128,14 +103,14 @@ export default function Publishing() {
     let mounted = true;
     setLoading(true);
     setError("");
-    listCompareRows(appliedFilters)
-      .then(({ rows: dataRows }) => {
+    listPublishingRows(appliedFilters)
+      .then((dataRows) => {
         if (!mounted) return;
         setRows(dataRows ?? []);
       })
       .catch(err => {
         if (!mounted) return;
-        setError(normalizeSchemaErrorMessage(err, "Failed to load comparison data"));
+        setError(normalizeSchemaErrorMessage(err, "Failed to load publishing data"));
         setRows([]);
       })
       .finally(() => {
@@ -149,10 +124,10 @@ export default function Publishing() {
 
   const counters = useMemo(() => {
     const total = rows.length;
-    const publishable = rows.filter(row => row.publishable).length;
-    const approved = rows.filter(row => row.approved).length;
-    const matched = rows.filter(row => row.status === "matched").length;
-    return { total, publishable, approved, matched };
+    const published = rows.filter(row => row.published && !row.voided).length;
+    const voided = rows.filter(row => row.voided).length;
+    const unpublished = rows.filter(row => !row.published && !row.voided).length;
+    return { total, published, unpublished, voided };
   }, [rows]);
 
   function handleApplyFilters() {
@@ -166,45 +141,44 @@ export default function Publishing() {
     setAppliedFilters({ dateFrom: defaults.dateFrom, dateTo: defaults.dateTo, agentId: "", status: "" });
   }
 
-  function openAction(mode, row) {
-    setActionDialog({ mode, row, reason: "" });
-    setActionError("");
-  }
-
-  function closeAction() {
-    setActionDialog({ mode: "", row: null, reason: "" });
-    setActionLoading(false);
-    setActionError("");
-  }
-
-  const actionReasonValid = actionDialog.reason.trim().length >= 5;
-
-  async function submitAction() {
-    if (!actionDialog.row || !actionDialog.mode) return;
-    if (!actionReasonValid) return;
-
-    setActionLoading(true);
-    setActionError("");
-
-    const payload = {
-      date_real: actionDialog.row.date_real,
-      agent_id: actionDialog.row.agent_id,
-      reason: actionDialog.reason.trim(),
-    };
-
+  async function handleTogglePublished(row) {
+    if (!isSuperAdmin || !row?.id) return;
+    const nextValue = !row.published;
+    setActionRowId(row.id);
     try {
-      if (actionDialog.mode === "approve") {
-        await approvePair(payload);
-      } else {
-        await unapprovePair(payload);
-      }
-      closeAction();
+      await setPublished(row.id, nextValue);
+      setRows(prev =>
+        prev.map(item => (item.id === row.id ? { ...item, published: nextValue } : item))
+      );
       setAppliedFilters(prev => ({ ...prev }));
     } catch (e) {
       console.error(e);
-      setActionError(normalizeSchemaErrorMessage(e, "Failed to update approval"));
+      setError(normalizeSchemaErrorMessage(e, "Failed to update publish status"));
     } finally {
-      setActionLoading(false);
+      setActionRowId("");
+    }
+  }
+
+  async function handleToggleVoided(row) {
+    if (!canVoid || !row?.id) return;
+    const nextValue = !row.voided;
+    let reason = null;
+    if (nextValue) {
+      reason = window.prompt("Please provide a void reason (required):", "");
+      if (!reason || !reason.trim()) return;
+    }
+    setActionRowId(row.id);
+    try {
+      await setVoided(row.id, nextValue, reason);
+      setRows(prev =>
+        prev.map(item => (item.id === row.id ? { ...item, voided: nextValue } : item))
+      );
+      setAppliedFilters(prev => ({ ...prev }));
+    } catch (e) {
+      console.error(e);
+      setError(normalizeSchemaErrorMessage(e, "Failed to update void status"));
+    } finally {
+      setActionRowId("");
     }
   }
 
@@ -212,12 +186,12 @@ export default function Publishing() {
     <div className="card">
       <div className="card-title">Publishing</div>
       <div className="muted" style={{ marginBottom: 12 }}>
-        Only matched pairs or company rows approved by a Super Admin will be shown on the public leaderboard. Missing Company rows cannot be published.
+        Only rows published by a Super Admin appear on the public leaderboard.
       </div>
 
       {!profileLoading && !isSuperAdmin ? (
         <div className="error-box" role="alert">
-          Only Super Admins can approve or unapprove rows. You can still view the current publish state.
+          Only Super Admins can publish or unpublish rows. You can still view the current publish state.
         </div>
       ) : null}
 
@@ -267,10 +241,9 @@ export default function Publishing() {
             onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
           >
             <option value="">All</option>
-            <option value="matched">Matched</option>
-            <option value="mismatch">Mismatch</option>
-            <option value="missing_company">Missing Company</option>
-            <option value="missing_depot">Missing Depot</option>
+            <option value="published">Published</option>
+            <option value="unpublished">Unpublished</option>
+            <option value="voided">Voided</option>
           </select>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
@@ -289,16 +262,16 @@ export default function Publishing() {
           <div className="summary-value">{counters.total}</div>
         </div>
         <div className="summary-pill">
-          <div className="summary-label">Publishable</div>
-          <div className="summary-value valid">{counters.publishable}</div>
+          <div className="summary-label">Published</div>
+          <div className="summary-value valid">{counters.published}</div>
         </div>
         <div className="summary-pill">
-          <div className="summary-label">Approved</div>
-          <div className="summary-value">{counters.approved}</div>
+          <div className="summary-label">Unpublished</div>
+          <div className="summary-value">{counters.unpublished}</div>
         </div>
         <div className="summary-pill">
-          <div className="summary-label">Matched</div>
-          <div className="summary-value">{counters.matched}</div>
+          <div className="summary-label">Voided</div>
+          <div className="summary-value">{counters.voided}</div>
         </div>
       </div>
 
@@ -316,88 +289,60 @@ export default function Publishing() {
             <tr>
               <th>Date</th>
               <th>Leader</th>
-              <th>Company Leads Depot</th>
-              <th>Company Sales Depot</th>
-              <th>Company Leads</th>
-              <th>Company Payins</th>
-              <th>Company Sales</th>
-              <th>Depot Leads Depot</th>
-              <th>Depot Sales Depot</th>
-              <th>Depot Leads</th>
-              <th>Depot Payins</th>
-              <th>Depot Sales</th>
-              <th>Depot Mismatch</th>
-              <th>Status</th>
-              <th>Publishable</th>
-              <th>Approved</th>
-              <th>Actions</th>
+              <th>Leads Depot</th>
+              <th>Leads</th>
+              <th>Sales Depot</th>
+              <th>Payins</th>
+              <th>Sales</th>
+              <th>Published</th>
+              <th>Voided</th>
             </tr>
           </thead>
           <tbody>
             {rows.map(row => (
-              <tr key={row.key}>
+              <tr key={row.id}>
                 <td>{row.date_real}</td>
                 <td>
-                  <div>{row.leader_name}</div>
-                  {row.restricted ? (
-                    <div className="muted" style={{ fontSize: 12 }}>{row.restricted_agent_id}</div>
-                  ) : null}
+                  <div>{row.leaderName || "(Restricted)"}</div>
                 </td>
-                <td>{row.company ? row.company.leadsDepotName || "—" : "—"}</td>
-                <td>{row.company ? row.company.salesDepotName || "—" : "—"}</td>
-                <td>{row.company ? row.company.leads : "—"}</td>
-                <td>{row.company ? row.company.payins : "—"}</td>
-                <td>{row.company ? row.company.sales : "—"}</td>
-                <td>{row.depot ? row.depot.leadsDepotName || "—" : "—"}</td>
-                <td>{row.depot ? row.depot.salesDepotName || "—" : "—"}</td>
-                <td>{row.depot ? row.depot.leads : "—"}</td>
-                <td>{row.depot ? row.depot.payins : "—"}</td>
-                <td>{row.depot ? row.depot.sales : "—"}</td>
-                <td>{formatDepotMismatchFlags(row.delta)}</td>
+                <td>{row.leadsDepotName || "—"}</td>
+                <td>{row.leads ?? "—"}</td>
+                <td>{row.salesDepotName || "—"}</td>
+                <td>{row.payins ?? "—"}</td>
+                <td>{row.sales ?? "—"}</td>
                 <td>
-                  <span className={`status-pill ${STATUS_CLASS[row.status] || ""}`}>
-                    {STATUS_LABELS[row.status] || row.status}
-                  </span>
-                </td>
-                <td>
-                  <span className={`status-pill ${row.publishable ? "valid" : "invalid"}`}>
-                    {row.publishable ? "Yes" : "No"}
-                  </span>
-                </td>
-                <td>
-                  {row.approved ? (
-                    <span className="status-pill duplicate">Approved</span>
+                  {isSuperAdmin ? (
+                    <input
+                      type="checkbox"
+                      checked={Boolean(row.published)}
+                      onChange={() => handleTogglePublished(row)}
+                      disabled={actionRowId === row.id}
+                    />
                   ) : (
-                    <span className="status-pill muted">Not Approved</span>
+                    <span className={`status-pill ${row.published ? "valid" : "muted"}`}>
+                      {row.published ? "Published" : "Unpublished"}
+                    </span>
                   )}
                 </td>
                 <td>
-                  {isSuperAdmin ? (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {!row.approved ? (
-                        <button
-                          type="button"
-                          className="button primary"
-                          onClick={() => openAction("approve", row)}
-                        >
-                          Approve
-                        </button>
-                      ) : null}
-                      {row.approved ? (
-                        <button type="button" className="button secondary" onClick={() => openAction("unapprove", row)}>
-                          Unapprove
-                        </button>
-                      ) : null}
-                    </div>
+                  {canVoid ? (
+                    <input
+                      type="checkbox"
+                      checked={Boolean(row.voided)}
+                      onChange={() => handleToggleVoided(row)}
+                      disabled={actionRowId === row.id}
+                    />
                   ) : (
-                    <span className="muted" style={{ fontSize: 12 }}>View only</span>
+                    <span className={`status-pill ${row.voided ? "invalid" : "muted"}`}>
+                      {row.voided ? "Voided" : "Active"}
+                    </span>
                   )}
                 </td>
               </tr>
             ))}
             {!rows.length && !loading ? (
               <tr>
-                <td colSpan={16} className="muted" style={{ textAlign: "center" }}>
+                <td colSpan={9} className="muted" style={{ textAlign: "center" }}>
                   No rows found for the selected filters.
                 </td>
               </tr>
@@ -406,59 +351,6 @@ export default function Publishing() {
         </table>
       </div>
 
-      {actionDialog.mode && actionDialog.row ? (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <div style={{ fontSize: 18, fontWeight: 700 }}>
-                {actionDialog.mode === "approve" ? "Approve pair" : "Unapprove pair"}
-              </div>
-              <button type="button" className="button secondary" onClick={closeAction} disabled={actionLoading}>
-                Close
-              </button>
-            </div>
-
-            <div className="muted" style={{ marginTop: 6 }}>
-              {actionDialog.mode === "approve"
-                ? "Mark the company row for this leader/day as approved. Depot rows are unaffected."
-                : "Remove approval on the company row so the pair will only publish if matched."}
-            </div>
-
-            <div style={{ marginTop: 12 }}>
-              <textarea
-                className="input"
-                rows={3}
-                placeholder="Approval reason (required)"
-                value={actionDialog.reason}
-                onChange={e => setActionDialog(prev => ({ ...prev, reason: e.target.value }))}
-              />
-              <div className="muted" style={{ fontSize: 12 }}>
-                Minimum 5 characters.
-              </div>
-            </div>
-
-            {actionError ? (
-              <div className="error-box" role="alert" style={{ marginTop: 10 }}>
-                {actionError}
-              </div>
-            ) : null}
-
-            <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                className="button primary"
-                onClick={submitAction}
-                disabled={!actionReasonValid || actionLoading}
-              >
-                {actionLoading ? "Working…" : actionDialog.mode === "approve" ? "Approve" : "Unapprove"}
-              </button>
-              <button type="button" className="button secondary" onClick={closeAction} disabled={actionLoading}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
