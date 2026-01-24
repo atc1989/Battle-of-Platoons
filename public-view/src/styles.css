@@ -925,7 +925,12 @@ button {
   align-items:center;
   gap: 10px;
   padding: 5px 10px 5px 0px;
-  border-right: 1px solid #C2C0C0;
+  border-right: 1px solid #C2C0C0;  .rank-card {
+    display: grid;
+    grid-template-columns: 52px clamp(120px, 1.2fr, 300px) minmax(220px, 1fr) minmax(90px, 120px);
+    gap: 14px;
+    /* ... rest of styles */
+  }
 }
 
 .row-title{ font-weight: 800; }
@@ -988,14 +993,6 @@ button {
   width: 100%;
 }
 
-.rank-card__points {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  text-align: right;
-  min-width: 90px;
-  width: 100%;
-}
 
 .rank-card__metrics-wrap {
   display: grid;
@@ -1011,6 +1008,7 @@ button {
   align-items: center;
   text-align: right;
   min-width: 90px;
+  padding: 5px 8px 5px 0px;
 }
 
 .leader-row-stat {
@@ -1137,6 +1135,22 @@ button {
 
   .rank-card__metrics .leader-row-stat:nth-child(3) {
     grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1024px) {
+  .rank-card {
+    grid-template-columns: 52px clamp(100px, 1fr, 250px) minmax(200px, 0.8fr) minmax(80px, 100px);
+  }
+}
+
+@media (max-width: 640px) {
+  .rank-card {
+    grid-template-columns: 40px minmax(80px, 1fr) auto;
+  }
+  
+  .row-name {
+    min-width: 80px;
   }
 }
 
