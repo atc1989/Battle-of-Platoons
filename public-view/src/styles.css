@@ -924,7 +924,7 @@ button {
   display:flex;
   align-items:center;
   gap: 10px;
-  padding: 5px 0px 5px 0px;
+  padding: 5px 10px 5px 0px;
   border-right: 1px solid #C2C0C0;
 }
 
@@ -946,8 +946,9 @@ button {
 
 .rank-card {
   display: grid;
-  grid-template-columns: auto 1.5fr 1fr;
-  gap: 16px;
+  grid-template-columns: 52px minmax(180px, 1.2fr) minmax(220px, 1fr) minmax(90px, 120px);
+  gap: 14px;
+  align-items: center;
   border-radius: 8px;
   background: #ffffff;
   color: #0b1770;
@@ -979,10 +980,21 @@ button {
 
 .rank-card__metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+  justify-items: center;
   align-items: center;
   padding: 5px 0px 5px 0px;
+  width: 100%;
+}
+
+.rank-card__points {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  text-align: right;
+  min-width: 90px;
+  width: 100%;
 }
 
 .leader-row-stat {
@@ -1061,10 +1073,10 @@ button {
 
 @media (max-width: 980px) {
   .rank-card {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: 52px 1fr 110px;
     grid-template-areas:
-      "rank main"
-      "metrics metrics";
+      "rank name points"
+      "metrics metrics metrics";
     align-items: flex-start;
   }
 
@@ -1072,8 +1084,19 @@ button {
     grid-area: rank;
   }
 
+  .row-name {
+    grid-area: name;
+    border-right: none;
+    padding-right: 0;
+  }
+
+  .rank-card__points {
+    grid-area: points;
+  }
+
   .rank-card__metrics {
     grid-area: metrics;
+    margin-top: 10px;
   }
 }
 
@@ -1085,6 +1108,11 @@ button {
   .rank-card__metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     font-size: 12px;
+    row-gap: 8px;
+  }
+
+  .rank-card__metrics .leader-row-stat:nth-child(3) {
+    grid-column: 1 / -1;
   }
 }
 
