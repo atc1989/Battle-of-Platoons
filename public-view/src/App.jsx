@@ -1271,10 +1271,12 @@ function LeaderboardRows({ rows, view, page, pageCount, onPageChange, total }) {
                     <span className="leader-row-stat__value">{formatCurrencyPHP(r.sales)}</span>
                   </div>
                 </div>
-                <div className="rank-card__points">
-                  <div className="leader-row-stat leader-row-stat--points">
-                    <span className="leader-row-stat__label">Points</span>
-                    <span className="leader-row-stat__value">{r.points.toFixed(1)}</span>
+              </div>
+              <div className="rank-card__points">
+                <div className="leader-row-stat leader-row-stat--points">
+                  <div className="leader-row-stat__label">Points</div>
+                  <div className="leader-row-stat__value">
+                    {Number(r.points ?? 0).toFixed(1)}
                   </div>
                 </div>
               </div>
