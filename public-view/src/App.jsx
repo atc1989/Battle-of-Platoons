@@ -1180,6 +1180,7 @@ function Podium({ top3, view }) {
 
 function LeaderboardRows({ rows, view, page, pageCount, onPageChange, total }) {
   const listRef = useRef(null);
+  const width = useWindowWidth();
 
   const labelHeader =
     view === "leaders"
@@ -1197,6 +1198,7 @@ function LeaderboardRows({ rows, view, page, pageCount, onPageChange, total }) {
   const hasRows = rows.length > 0;
   const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(total, (page - 1) * PAGE_SIZE + rows.length);
+  const useCompactSales = width <= 400;
 
   const pageNumbers = () => {
     if (pageCount <= 7) {
@@ -1237,44 +1239,54 @@ function LeaderboardRows({ rows, view, page, pageCount, onPageChange, total }) {
   return (
     <div className="rank-list">
       <div className="rank-list__items" ref={listRef}>
+        <div className="rank-header">
+          <div className="rank-header__rank">Rank</div>
+          <div className="rank-header__name">{labelHeader}</div>
+          <div className="rank-header__metrics">
+            <span>Leads</span>
+            <span>Payins</span>
+            <span>Sales</span>
+          </div>
+          <div className="rank-header__points">Points</div>
+        </div>
         {rows.map((r, index) => {
           const computedRank = 4 + (page - 1) * PAGE_SIZE + index;
           const rankValue = r?.rank ?? computedRank;
           return (
             <div className="rank-card" key={`${view}-${rankValue}-${r.key}`}>
               <div className="rank-card__rank">#{rankValue}</div>
-                <div className="row-name">
-                  <div className="row-avatar">
-                    {r.avatarUrl ? (
-                      <img src={r.avatarUrl} alt={r.name} />
-                    ) : (
-                      <span className="row-initials">{getInitials(r.name)}</span>
-                    )}
-                  </div>
-                  <div className="row-labels">
-                    <div className="row-title">{r.name}</div>
-                    {showPlatoon && r.platoon && <div className="row-sub">{r.platoon}</div>}
-                  </div>
+              <div className="row-name">
+                <div className="row-avatar">
+                  {r.avatarUrl ? (
+                    <img src={r.avatarUrl} alt={r.name} />
+                  ) : (
+                    <span className="row-initials">{getInitials(r.name)}</span>
+                  )}
                 </div>
+                <div className="row-labels">
+                  <div className="row-title">{r.name}</div>
+                  {showPlatoon && r.platoon && <div className="row-sub">{r.platoon}</div>}
+                </div>
+              </div>
               <div className="rank-card__metrics-wrap">
                 <div className="rank-card__metrics">
                   <div className="leader-row-stat">
-                    <span className="leader-row-stat__label">Leads</span>
                     <span className="leader-row-stat__value">{r.leads}</span>
                   </div>
                   <div className="leader-row-stat">
-                    <span className="leader-row-stat__label">Payins</span>
                     <span className="leader-row-stat__value">{r.payins}</span>
                   </div>
                   <div className="leader-row-stat">
-                    <span className="leader-row-stat__label">Sales</span>
-                    <span className="leader-row-stat__value">{formatCurrencyPHP(r.sales)}</span>
+                    <span className="leader-row-stat__value">
+                      {useCompactSales
+                        ? formatCurrencyPHPCompact(r.sales, "600")
+                        : formatCurrencyPHP(r.sales)}
+                    </span>
                   </div>
                 </div>
               </div>
               <div className="rank-card__points">
                 <div className="leader-row-stat leader-row-stat--points">
-                  <div className="leader-row-stat__label">Points</div>
                   <div className="leader-row-stat__value">
                     {Number(r.points ?? 0).toFixed(1)}
                   </div>
