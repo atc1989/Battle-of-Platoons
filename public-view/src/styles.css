@@ -1116,7 +1116,7 @@ button {
 
   /* keep points pinned right */
   .rank-card__points {
-    min-width: 80px;
+    min-width: fit-content;
     justify-content: flex-end;
     text-align: right;
   }
@@ -1124,35 +1124,48 @@ button {
 
 
 @media (max-width: 520px) {
+  .rank-header {
+    grid-template-columns: 40px minmax(80px, 1fr) minmax(150px, 1fr) minmax(44px, auto);
+    gap: 8px;
+    font-size: 10px;
+  }
+
+  .rank-header__metrics {
+    gap: 6px;
+  }
+
   .rank-card {
-    padding: 14px;
+    padding: 12px;
+    grid-template-columns: 40px minmax(80px, 1fr) minmax(150px, 1fr) minmax(44px, auto);
+    gap: 8px;
+  }
+
+  .rank-card__rank {
+    width: 40px;
+    font-size: 16px;
   }
 
   .rank-card__metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     font-size: 12px;
-    row-gap: 8px;
+    gap: 6px;
   }
 
-  .rank-card__metrics .leader-row-stat:nth-child(3) {
-    grid-column: 1 / -1;
-  }
-
-  .rank-card__metrics-wrap {
-    grid-template-columns: 1fr auto;
-  }
-
-  .rank-card__metrics .leader-row-stat:nth-child(3) {
-    grid-column: 1 / -1;
+  .leader-row-stat__value {
+    font-size: 12px;
   }
 }
 
 @media (max-width: 1024px) {
+  .rank-header {
+    grid-template-columns: 44px clamp(100px, 1fr, 250px) minmax(200px, 0.8fr) minmax(60px, auto);
+  }
+
   .rank-card {
-    grid-template-columns: 52px clamp(100px, 1fr, 250px) minmax(200px, 0.8fr) minmax(80px, 100px);
+    grid-template-columns: 44px clamp(100px, 1fr, 250px) minmax(200px, 0.8fr) minmax(60px, auto);
   }
 }
 
+<<<<<<< HEAD
 @media (max-width: 640px) {
   .rank-card{
     /* keep 4 columns: rank | name | metrics | points */
@@ -1197,6 +1210,24 @@ button {
   .leader-row-stat__value{
     font-size: 12px;
     white-space: nowrap;
+=======
+@media (max-width: 400px) {
+  .rank-header {
+    gap: 6px;
+    font-size: 9px;
+  }
+
+  .rank-card {
+    gap: 6px;
+  }
+
+  .rank-card__metrics {
+    font-size: 11px;
+  }
+
+  .leader-row-stat__value {
+    font-size: 11px;
+>>>>>>> 2dbec369efcaac33d212f6ca4c9683500df3ef4e
   }
 }
 
