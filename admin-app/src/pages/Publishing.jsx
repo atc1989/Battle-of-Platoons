@@ -548,16 +548,6 @@ export default function Publishing() {
                         Void
                       </button>
                     ) : null}
-                    {!row.voided && isSuperAdmin && row.published ? (
-                      <button
-                        type="button"
-                        className="button secondary"
-                        onClick={() => openAuditModal(AuditAction.UNPUBLISH, [row.id])}
-                        disabled={auditSubmitting}
-                      >
-                        Unpublish
-                      </button>
-                    ) : null}
                     {row.voided && isSuperAdmin ? (
                       <button
                         type="button"

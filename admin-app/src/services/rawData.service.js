@@ -927,11 +927,13 @@ export async function applyRawDataAuditAction({ action, reason, rowIds }) {
       } else if (action === AuditAction.UNPUBLISH) {
         updatePayload = {
           published: false,
+          publish_reason: trimmedReason,
           updatedAt,
         };
       } else if (action === AuditAction.PUBLISH) {
         updatePayload = {
           published: true,
+          publish_reason: trimmedReason,
           updatedAt,
         };
       } else {
