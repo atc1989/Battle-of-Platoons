@@ -1001,6 +1001,10 @@ button {
   text-align: right;
 }
 
+.rank-label__short {
+  display: none;
+}
+
 .rank-card {
   display: grid;
   grid-template-columns: var(--rank-cols);
@@ -1268,6 +1272,11 @@ button {
    Goal: reduce header + row text ~10–20%
    ================================ */
 @media (max-width: 400px) {
+  .rank-list {
+    --rank-cols: 32px minmax(90px, 1fr) minmax(110px, 1fr) minmax(40px, auto);
+    --rank-gap: 6px;
+    --rank-header-pad: 4px 0;
+  }
 
   .rank-header__cell {
     font-size: clamp(7px, 2.2vw, 9px);
@@ -1318,11 +1327,33 @@ button {
   /* optional: reduce left rank number a bit */
   .rank-card__rank {
     font-size: clamp(14px, 4vw, 16px);
+    width: 32px;
   }
 
   /* optional: tighten gaps so text has more room */
   .rank-card {
-    gap: 10px;
+    gap: 8px;
+  }
+
+  .row-name {
+    gap: 6px;
+    padding: 4px 6px 4px 0px;
+  }
+
+  .rank-card__metrics {
+    gap: 4px;
+  }
+
+  .rank-card__points {
+    padding: 4px 4px 4px 0px;
+  }
+
+  .rank-label__full {
+    display: none;
+  }
+
+  .rank-label__short {
+    display: inline;
   }
 }
 

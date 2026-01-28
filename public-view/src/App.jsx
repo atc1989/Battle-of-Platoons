@@ -1136,11 +1136,25 @@ function LeaderboardRows({ rows, view, page, pageCount, onPageChange, total }) {
           <div className="rank-header__rank">Rank</div>
           <div className="rank-header__name">{labelHeader}</div>
           <div className="rank-header__metrics">
-            <span>Leads</span>
-            <span>Payins</span>
-            <span>Sales</span>
+            <span className="rank-label">
+              <span className="rank-label__full">Leads</span>
+              <span className="rank-label__short">LD</span>
+            </span>
+            <span className="rank-label">
+              <span className="rank-label__full">Payins</span>
+              <span className="rank-label__short">PAY</span>
+            </span>
+            <span className="rank-label">
+              <span className="rank-label__full">Sales</span>
+              <span className="rank-label__short">SAL</span>
+            </span>
           </div>
-          <div className="rank-header__points">Points</div>
+          <div className="rank-header__points">
+            <span className="rank-label">
+              <span className="rank-label__full">Points</span>
+              <span className="rank-label__short">PTS</span>
+            </span>
+          </div>
         </div>
         {rows.map((r, index) => {
           const computedRank = 4 + (page - 1) * PAGE_SIZE + index;
