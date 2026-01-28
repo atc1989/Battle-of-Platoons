@@ -1263,24 +1263,73 @@ button {
   }
 }
 
+/* ================================
+   Rank list typography tighten @400
+   Goal: reduce header + row text ~10–20%
+   ================================ */
 @media (max-width: 400px) {
-  .rank-list {
-    --rank-gap: 6px;
-    --rank-header-pad: 6px 0;
-  }
-
+  /* HEADER */
   .rank-header {
-    font-size: 9px;
+    padding: 6px 8px; /* tighter */
   }
 
-  .rank-card__metrics {
-    font-size: 11px;
+  .rank-header__cell {
+    font-size: 9px;          /* down from 10–11 */
+    letter-spacing: 0.05em;  /* slightly tighter */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ROW: name/title */
+  .row-title {
+    font-size: 12.5px;   /* ~15% smaller than 14–15 */
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .row-sub {
+    font-size: 10px;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ROW: metric labels/values */
+  .leader-row-stat__label {
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
   }
 
   .leader-row-stat__value {
-    font-size: 11px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* points cell (rightmost) */
+  .rank-card__points .leader-row-stat__label {
+    font-size: 9px;
+  }
+
+  .rank-card__points .leader-row-stat__value {
+    font-size: 12px;
+  }
+
+  /* optional: reduce left rank number a bit */
+  .rank-card__rank {
+    font-size: 16px;
+  }
+
+  /* optional: tighten gaps so text has more room */
+  .rank-card {
+    gap: 10px;
   }
 }
+
 
 
 .podium-avatar-placeholder {
