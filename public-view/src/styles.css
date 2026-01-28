@@ -992,8 +992,7 @@ button {
   background: #ffffff;
   color: #0b1770;
   box-shadow: 0 12px 24px rgba(11, 23, 112, 0.08);
-  border-top: 1px solid #C2C0C0;
-  border-bottom: 1px solid #C2C0C0;
+  border: 1px solid #C2C0C0;
 }
 
 .rank-card__rank {
@@ -1008,7 +1007,6 @@ button {
   font-size: 18px;
   border-top-left-radius: 8px;
   border-bottom-left-radius: 8px;
-  border: 1px solid #C2C0C0;
 }
 
 .rank-card__meta {
@@ -1045,8 +1043,6 @@ button {
   min-width: fit-content;
   justify-self: end;
   padding: 5px 8px 5px 0px;
-  border-right: 1px solid #C2C0C0;
-  border-left: 1px solid #C2C0C0;
 }
 
 .leader-row-stat {
