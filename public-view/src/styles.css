@@ -1268,13 +1268,9 @@ button {
    Goal: reduce header + row text ~10–20%
    ================================ */
 @media (max-width: 400px) {
-  /* HEADER */
-  .rank-header {
-    padding: 6px 8px; /* tighter */
-  }
 
   .rank-header__cell {
-    font-size: 9px;          /* down from 10–11 */
+    font-size: clamp(7px, 2.2vw, 9px);
     letter-spacing: 0.05em;  /* slightly tighter */
     white-space: nowrap;
     overflow: hidden;
@@ -1283,7 +1279,7 @@ button {
 
   /* ROW: name/title */
   .row-title {
-    font-size: 12.5px;   /* ~15% smaller than 14–15 */
+    font-size: clamp(10px, 3.2vw, 12.5px);
     line-height: 1.1;
     white-space: nowrap;
     overflow: hidden;
@@ -1291,7 +1287,7 @@ button {
   }
 
   .row-sub {
-    font-size: 10px;
+    font-size: clamp(9px, 2.8vw, 10px);
     line-height: 1.1;
     white-space: nowrap;
     overflow: hidden;
@@ -1300,28 +1296,28 @@ button {
 
   /* ROW: metric labels/values */
   .leader-row-stat__label {
-    font-size: 9px;
+    font-size: clamp(8px, 2.4vw, 9px);
     letter-spacing: 0.04em;
     white-space: nowrap;
   }
 
   .leader-row-stat__value {
-    font-size: 12px;
+    font-size: clamp(10px, 3.2vw, 12px);
     white-space: nowrap;
   }
 
   /* points cell (rightmost) */
   .rank-card__points .leader-row-stat__label {
-    font-size: 9px;
+    font-size: clamp(8px, 2.4vw, 9px);
   }
 
   .rank-card__points .leader-row-stat__value {
-    font-size: 12px;
+    font-size: clamp(10px, 3.2vw, 12px);
   }
 
   /* optional: reduce left rank number a bit */
   .rank-card__rank {
-    font-size: 16px;
+    font-size: clamp(14px, 4vw, 16px);
   }
 
   /* optional: tighten gaps so text has more room */
