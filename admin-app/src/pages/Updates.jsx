@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import "../styles/pages/updates.css";
 import { ModalForm } from "../components/ModalForm";
 import { listAgents } from "../services/agents.service";
 import { listDepots } from "../services/depots.service";
@@ -358,105 +359,101 @@ export default function Updates() {
     );
   }
 
-  const tableColumnCount = 8;
+  const tableColumnCount = 9;
 
   return (
-    <div className="card">
+    <div className="card updates-page">
       <div className="card-title">Updates History</div>
       <div className="muted">Review and edit uploaded daily performance data.</div>
 
       {/* Filters */}
-      <div
-        style={{
-          marginTop: 14,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-          gap: 12,
-          alignItems: "end",
-        }}
-      >
-        <div>
-          <label className="input-label">Date From</label>
-          <input
-            type="date"
-            className="input"
-            value={filtersInput.dateFrom}
-            onChange={e => setFiltersInput(p => ({ ...p, dateFrom: e.target.value }))}
-          />
+      <div className="updates-filters">
+        <div className="updates-filter-row">
+          <div>
+            <label className="input-label">Date From</label>
+            <input
+              type="date"
+              className="input"
+              value={filtersInput.dateFrom}
+              onChange={e => setFiltersInput(p => ({ ...p, dateFrom: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <label className="input-label">Date To</label>
+            <input
+              type="date"
+              className="input"
+              value={filtersInput.dateTo}
+              onChange={e => setFiltersInput(p => ({ ...p, dateTo: e.target.value }))}
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="input-label">Date To</label>
-          <input
-            type="date"
-            className="input"
-            value={filtersInput.dateTo}
-            onChange={e => setFiltersInput(p => ({ ...p, dateTo: e.target.value }))}
-          />
-        </div>
+        <div className="updates-filter-row">
+          <div>
+            <label className="input-label">Leader</label>
+            <select
+              className="input"
+              value={filtersInput.leaderId}
+              onChange={e => setFiltersInput(p => ({ ...p, leaderId: e.target.value }))}
+            >
+              <option value="">All leaders</option>
+              {agents.map(agent => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name} ({agent.id})
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div>
-          <label className="input-label">Leader</label>
-          <select
-            className="input"
-            value={filtersInput.leaderId}
-            onChange={e => setFiltersInput(p => ({ ...p, leaderId: e.target.value }))}
-          >
-            <option value="">All leaders</option>
-            {agents.map(agent => (
-              <option key={agent.id} value={agent.id}>
-                {agent.name} ({agent.id})
-              </option>
-            ))}
-          </select>
-        </div>
+          <div>
+            <label className="input-label">Leads Depot</label>
+            <select
+              className="input"
+              value={filtersInput.leadsDepotId}
+              onChange={e => setFiltersInput(p => ({ ...p, leadsDepotId: e.target.value }))}
+            >
+              <option value="">All depots</option>
+              {depots.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div>
-          <label className="input-label">Leads Depot</label>
-          <select
-            className="input"
-            value={filtersInput.leadsDepotId}
-            onChange={e => setFiltersInput(p => ({ ...p, leadsDepotId: e.target.value }))}
-          >
-            <option value="">All depots</option>
-            {depots.map(d => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div>
+            <label className="input-label">Sales Depot</label>
+            <select
+              className="input"
+              value={filtersInput.salesDepotId}
+              onChange={e => setFiltersInput(p => ({ ...p, salesDepotId: e.target.value }))}
+            >
+              <option value="">All depots</option>
+              {depots.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div>
-          <label className="input-label">Sales Depot</label>
-          <select
-            className="input"
-            value={filtersInput.salesDepotId}
-            onChange={e => setFiltersInput(p => ({ ...p, salesDepotId: e.target.value }))}
-          >
-            <option value="">All depots</option>
-            {depots.map(d => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className="updates-filter-actions">
+            {/* IMPORTANT: do NOT pass applyFilters directly (it would receive click event) */}
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => applyFilters(filtersInput)}
+              disabled={loading}
+            >
+              Apply Filters
+            </button>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {/* IMPORTANT: do NOT pass applyFilters directly (it would receive click event) */}
-          <button
-            type="button"
-            className="button primary"
-            onClick={() => applyFilters(filtersInput)}
-            disabled={loading}
-          >
-            Apply Filters
-          </button>
-
-          <button type="button" className="button secondary" onClick={clearFilters} disabled={loading}>
-            Clear
-          </button>
+            <button type="button" className="button secondary" onClick={clearFilters} disabled={loading}>
+              Clear
+            </button>
+          </div>
         </div>
       </div>
 
@@ -479,19 +476,19 @@ export default function Updates() {
       ) : null}
 
       {/* Table */}
-      <div className="table-scroll" style={{ marginTop: 14 }}>
-        <table className="data-table">
+      <div className="table-scroll updates-table-wrap">
+        <table className="updates-table">
           <thead>
             <tr>
               <th>Date</th>
               <th>Leader</th>
               <th>Leads Depot</th>
-              <th>Leads</th>
+              <th className="num">Leads</th>
               <th>Sales Depot</th>
-              <th>Payins</th>
-              <th>Sales</th>
-              <th>Published</th>
-              <th>Status</th>
+              <th className="num">Payins</th>
+              <th className="num">Sales</th>
+              <th className="center">Published</th>
+              <th className="center">Status</th>
             </tr>
           </thead>
 
@@ -503,16 +500,16 @@ export default function Updates() {
                   <div>{row.leaderName || "(Restricted)"}</div>
                 </td>
                 <td>{row.leadsDepotName || "—"}</td>
-                <td>{row.leads ?? "—"}</td>
+                <td className="num">{row.leads ?? "—"}</td>
                 <td>{row.salesDepotName || "—"}</td>
-                <td>{row.payins ?? "—"}</td>
-                <td>{row.sales ?? "—"}</td>
-                <td>
+                <td className="num">{row.payins ?? "—"}</td>
+                <td className="num">{row.sales ?? "—"}</td>
+                <td className="center">
                   <span className={`status-pill ${row.published ? "valid" : "muted"}`}>
                     {row.published ? "Published" : "Unpublished"}
                   </span>
                 </td>
-                <td>
+                <td className="center">
                   <span className={`status-pill ${row.voided ? "invalid" : "muted"}`}>
                     {row.voided ? "Voided" : "Active"}
                   </span>

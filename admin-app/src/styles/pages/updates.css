@@ -1,0 +1,77 @@
+.updates-page .card-title{
+  font-weight: 900;
+}
+
+.updates-filters{
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.updates-filter-row{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.updates-filter-actions{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.updates-table-wrap{
+  margin-top: 14px;
+}
+
+.updates-table{
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.updates-table thead th{
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  z-index: 1;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  text-align: left;
+  padding: 10px 10px;
+  border-bottom: 1px solid #eef1ff;
+}
+
+.updates-table td{
+  padding: 10px 10px;
+  border-bottom: 1px solid #f0f2ff;
+  font-size: 13px;
+}
+
+.updates-table .num{
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.updates-table .center{
+  text-align: center;
+}
+
+.updates-page .status-pill{
+  font-weight: 600;
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+@media (max-width: 900px){
+  .updates-filter-row{
+    grid-template-columns: 1fr;
+  }
+
+  .updates-table thead th{
+    position: static;
+  }
+}
