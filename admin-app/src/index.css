@@ -92,6 +92,7 @@ body{
   padding: 12px 14px;
   border-radius: 14px;
   transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+  position: relative;
 }
 
 .sb-link:hover{ background:#f4f5ff; }
@@ -100,6 +101,17 @@ body{
   background: var(--blue);
   color: #fff;
   box-shadow: 0 12px 26px rgba(5,15,90,0.22);
+}
+
+.sb-link.active::before{
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  border-radius: 999px;
+  background: var(--blue2);
 }
 
 .sb-ico{
@@ -168,7 +180,7 @@ body{
 
 .topbar-title{
   text-align:center;
-  font-family: Oswald, system-ui;
+  font-family: Montserrat, system-ui;
   font-size: clamp(1.35rem, 3.2vw, 2.4rem);
   letter-spacing: .04em;
   font-weight: 900;
@@ -633,7 +645,7 @@ textarea.input:focus{
 }
 
 .login-title{
-  font-family: Oswald, system-ui;
+  font-family: Montserrat, system-ui;
   font-size: 26px;
   color: var(--blue);
   text-align:center;
