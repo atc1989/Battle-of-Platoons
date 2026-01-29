@@ -1105,8 +1105,9 @@ button {
 }
 
 .pagination__meta {
-  font-weight: 600;
-  opacity: 0.8;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.75;
   text-align: left;
 }
 
@@ -1122,7 +1123,7 @@ button {
   background: #ffffff;
   color: #0b1770;
   border: 1px solid rgba(11, 26, 165, 0.28);
-  border-radius: 999px;
+  border-radius: 12px;
   padding: 10px 18px;
   font-weight: 700;
   cursor: pointer;
@@ -1142,7 +1143,7 @@ button {
   justify-content: center;
   background: #ffffff;
   border: 1px solid rgba(11, 26, 165, 0.25);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 4px;
   box-shadow: 0 8px 18px rgba(11, 26, 165, 0.08);
 }
@@ -1168,9 +1169,9 @@ button {
 }
 
 .pagination__btn--nav:disabled {
-  background: #d6d9f5;
-  border-color: #d6d9f5;
-  color: #6d74aa;
+  background: #eceeff;
+  border-color: #c8cff7;
+  color: #7c84b4;
 }
 
 .pagination__btn:not(:disabled):hover {
