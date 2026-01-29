@@ -530,16 +530,17 @@ textarea.input:focus{
 .p-page{ display:flex; flex-direction:column; gap: 14px; }
 .p-head{
   background:#fff;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 14px;
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(11, 26, 165, 0.08);
+  padding: 14px 16px;
 }
 
 .p-tabs{
   display:inline-flex;
   border-radius: 12px;
   overflow:hidden;
-  background: #f4f5ff;
+  background: #f4f6ff;
+  box-shadow: inset 0 0 0 1px #e6eaf5;
 }
 
 .p-tab{
@@ -547,13 +548,14 @@ textarea.input:focus{
   background:transparent;
   padding: 10px 16px;
   cursor:pointer;
-  color: var(--muted);
+  color: #5c64a8;
   font-weight:700;
 }
 
 .p-tab.active{
   background: var(--blue);
   color:#fff;
+  box-shadow: 0 10px 20px rgba(11, 26, 165, 0.22);
 }
 
 .p-title-row{
@@ -563,7 +565,7 @@ textarea.input:focus{
   margin-top: 12px;
 }
 
-.p-title{ margin:0; font-size: 18px; }
+.p-title{ margin:0; font-size: 18px; font-weight: 800; color: var(--blue); }
 
 .p-status{ 
   margin-top: 10px;
@@ -626,6 +628,56 @@ textarea.input:focus{
 
 .t-name{ font-weight:800; }
 .t-right{ text-align:right; }
+
+/* Participants page table styling to match target UI */
+.p-page .card{
+  border-radius: 16px;
+  box-shadow: 0 12px 26px rgba(11, 26, 165, 0.08);
+  border: 1px solid #eef1ff;
+}
+
+.p-page .card-title{
+  color: var(--blue);
+}
+
+.p-page .table{
+  gap: 12px;
+}
+
+.p-page .t-head{
+  color: #5c64a8;
+  font-weight: 800;
+  border-bottom: 1px solid #e9ecff;
+  padding: 0 8px 10px;
+}
+
+.p-page .t-row{
+  background: #ffffff;
+  border: 1px solid #e6eaf5;
+  border-radius: 12px;
+  padding: 10px 6px;
+  box-shadow: 0 8px 18px rgba(11, 26, 165, 0.06);
+}
+
+.p-page .t-row > div{
+  padding: 6px 12px;
+}
+
+.p-page .t-row > div:not(:last-child){
+  border-right: 1px solid #e6eaf5;
+}
+
+.p-page .t-leader{
+  gap: 12px;
+}
+
+.p-page .t-name{
+  color: var(--blue);
+}
+
+.p-page .btn-link{
+  color: var(--blue);
+}
 
 /* Login */
 .login-wrap{
