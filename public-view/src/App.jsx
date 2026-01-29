@@ -1204,53 +1204,55 @@ function LeaderboardRows({ rows, view, page, pageCount, onPageChange, total }) {
         })}
       </div>
       <div className="pagination">
-        <div className="pagination__meta">
-          Showing {rangeStart}–{rangeEnd} of {total}
-        </div>
-        {pageCount > 1 && (
-          <div className="pagination__controls">
-            <button
-              className="pagination__btn pagination__btn--nav"
-              type="button"
-              onClick={() => handlePageChange(Math.max(1, page - 1))}
-              disabled={page === 1}
-            >
-              Prev
-            </button>
-            <div className="pagination__pages">
-              {pageNumbers().map((value) => {
-                if (typeof value !== "number") {
-                  return (
-                    <span className="pagination__ellipsis" key={value}>
-                      …
-                    </span>
-                  );
-                }
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    className={mergeClassNames(
-                      "pagination__btn",
-                      value === page && "pagination__btn--active"
-                    )}
-                    onClick={() => handlePageChange(value)}
-                  >
-                    {value}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              className="pagination__btn pagination__btn--nav"
-              type="button"
-              onClick={() => handlePageChange(Math.min(pageCount, page + 1))}
-              disabled={page === pageCount}
-            >
-              Next
-            </button>
+        <div className="pagination__row">
+          <div className="pagination__meta">
+            Showing {rangeStart}?{rangeEnd} of {total}
           </div>
-        )}
+          {pageCount > 1 && (
+            <div className="pagination__controls">
+              <button
+                className="pagination__btn pagination__btn--nav"
+                type="button"
+                onClick={() => handlePageChange(Math.max(1, page - 1))}
+                disabled={page === 1}
+              >
+                Prev
+              </button>
+              <div className="pagination__pages">
+                {pageNumbers().map((value) => {
+                  if (typeof value !== "number") {
+                    return (
+                      <span className="pagination__ellipsis" key={value}>
+                        ?
+                      </span>
+                    );
+                  }
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      className={mergeClassNames(
+                        "pagination__btn",
+                        value === page && "pagination__btn--active"
+                      )}
+                      onClick={() => handlePageChange(value)}
+                    >
+                      {value}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                className="pagination__btn pagination__btn--nav"
+                type="button"
+                onClick={() => handlePageChange(Math.min(pageCount, page + 1))}
+                disabled={page === pageCount}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
