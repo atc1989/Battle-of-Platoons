@@ -704,7 +704,8 @@ export default function Participants() {
   // ---- UI
   return (
     <div className="p-page">
-      <div className="p-head">
+      <div className="card p-shell">
+        <div className="p-head">
         <div className="tabs">
           <button
             className={`tab-button${tab === "leaders" ? " active" : ""}`}
@@ -774,14 +775,14 @@ export default function Participants() {
             {status.msg}
           </div>
         )}
-      </div>
+        </div>
 
-      <div
-        className="tab-panel"
-        data-state={isAnimating ? "out" : "in"}
-        ref={panelRef}
-        style={panelMinHeight ? { minHeight: panelMinHeight } : undefined}
-      >
+        <div
+          className="tab-panel"
+          data-state={isAnimating ? "out" : "in"}
+          ref={panelRef}
+          style={panelMinHeight ? { minHeight: panelMinHeight } : undefined}
+        >
       {/* FORM AREA */}
       <ModalForm
         isOpen={isModalOpen}
@@ -1173,8 +1174,7 @@ export default function Participants() {
       </ModalForm>
       {/* LIST AREA */}
       {tab === "leaders" && (
-        <div className="card">
-          <div className="card-title">Leaders List</div>
+        <div className="p-list">
           <div className="table-scroll-y">
             <div className="table">
               <div className="t-head">
@@ -1205,8 +1205,7 @@ export default function Participants() {
       )}
 
       {tab === "depots" && (
-        <div className="card">
-          <div className="card-title">Depots List</div>
+        <div className="p-list">
           <div className="table">
             <div className="t-head">
               <div>Depot</div><div>Photo</div><div></div><div></div><div className="t-right">Actions</div>
@@ -1234,8 +1233,7 @@ export default function Participants() {
       )}
 
       {tab === "companies" && (
-        <div className="card">
-          <div className="card-title">Commanders List</div>
+        <div className="p-list">
           <div className="table">
             <div className="t-head">
               <div>Commander</div><div>Photo</div><div></div><div></div><div className="t-right">Actions</div>
@@ -1263,8 +1261,7 @@ export default function Participants() {
       )}
 
       {tab === "platoons" && (
-        <div className="card">
-          <div className="card-title">Companies List</div>
+        <div className="p-list">
           <div className="table">
             <div className="t-head">
               <div>Company</div><div></div><div></div><div></div><div className="t-right">Actions</div>
@@ -1289,6 +1286,7 @@ export default function Participants() {
           </div>
         </div>
       )}
+        </div>
       </div>
     </div>
   );
