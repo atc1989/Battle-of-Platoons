@@ -6,11 +6,13 @@ import TopBar from "../components/TopBar";
 export default function AppShell() {
   return (
     <div className="admin-shell">
-      <Sidebar />
-      <div className="admin-main">
-        <TopBar />
-        <div className="admin-content">
-          <Outlet />
+      <TopBar />
+      <div className="admin-body">
+        <Sidebar />
+        <div className="admin-main">
+          <div className="admin-content">
+            <Outlet />
+          </div>
         </div>
       </div>
     </div>

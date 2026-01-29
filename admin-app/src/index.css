@@ -20,16 +20,24 @@ body{
 
 /* ----- Admin Shell (Sidebar + Topbar) ----- */
 .admin-shell{
-  display:block;
+  display:flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 
+.admin-body{
+  display:flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .admin-main{
-  margin-left: 260px;
-  height: 100vh;
+  flex: 1 1 auto;
+  height: auto;
   overflow-y: auto;
   display:flex;
   flex-direction:column;
+  min-height: 0;
 }
 
 .admin-content{
@@ -37,16 +45,15 @@ body{
 }
 
 .sidebar{
-  position: fixed;
-  top: 0;
-  left: 0;
+  position: relative;
   width: 260px;
-  height: 100vh;
+  height: auto;
   overflow-y: auto;
   background:#fff;
   border-right: 1px solid #eef1ff;
   padding: 16px 14px;
   z-index: 50;
+  flex: 0 0 260px;
 }
 
 .sb-header{
@@ -712,11 +719,14 @@ textarea.input:focus{
     height: auto;
     border-right:none;
     border-bottom: 1px solid #eef1ff;
+    flex: 0 0 auto;
   }
   .admin-main{
-    margin-left: 0;
     height: auto;
     overflow: visible;
+  }
+  .admin-body{
+    flex-direction: column;
   }
   .topbar{ grid-template-columns: 1fr; }
   .topbar-brand{ justify-self: start; }
