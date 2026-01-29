@@ -47,21 +47,21 @@ body{
 
 .sidebar{
   position: relative;
-  width: 260px;
+  width: 280px;
   height: auto;
   overflow-y: auto;
   background:#fff;
   border-right: 1px solid #eef1ff;
-  padding: 16px 14px;
+  padding: 16px 18px;
   z-index: 50;
-  flex: 0 0 260px;
+  flex: 0 0 280px;
 }
 
 .sb-header{
   display:flex;
   align-items:center;
   gap:10px;
-  padding: 6px 8px 18px;
+  padding: 6px 8px 16px;
 }
 
 .sb-logo{
@@ -79,7 +79,7 @@ body{
 .sb-nav{
   display:flex;
   flex-direction:column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .sb-link{
@@ -88,9 +88,9 @@ body{
   gap: 12px;
   text-decoration:none;
   color: var(--text);
-  font-weight:700;
-  padding: 12px 14px;
-  border-radius: 14px;
+  font-weight:600;
+  padding: 11px 14px;
+  border-radius: 12px;
   transition: background .15s ease, color .15s ease, box-shadow .15s ease;
   position: relative;
 }
@@ -100,16 +100,16 @@ body{
 .sb-link.active{
   background: var(--blue);
   color: #fff;
-  box-shadow: 0 12px 26px rgba(5,15,90,0.22);
+  box-shadow: 0 14px 30px rgba(5,15,90,0.28);
 }
 
 .sb-link.active::before{
   content: "";
   position: absolute;
-  left: -12px;
-  top: 6px;
-  bottom: 6px;
-  width: 4px;
+  left: -14px;
+  top: 8px;
+  bottom: 8px;
+  width: 5px;
   border-radius: 999px;
   background: var(--blue2);
 }
@@ -117,7 +117,7 @@ body{
 .sb-ico{
   width: 18px;
   height: 18px;
-  opacity: .9;
+  opacity: .85;
   flex: 0 0 auto;
   filter: grayscale(100%) brightness(.7);
 }
@@ -129,17 +129,18 @@ body{
 
 .sb-divider{
   height: 1px;
-  background: #eef1ff;
-  margin: 12px 10px 6px;
+  background: #f0f2ff;
+  margin: 12px 12px 10px;
+  width: 70%;
 }
 
 .sb-section{
-  margin-top: 6px;
+  margin-top: 2px;
   font-size: 12px;
   letter-spacing: .08em;
   color: var(--muted);
   font-weight: 900;
-  padding: 10px 12px 8px;
+  padding: 12px 12px 8px;
 }
 
 .topbar{
