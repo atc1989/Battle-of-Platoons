@@ -1092,7 +1092,6 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding: 10px 0 20px;
   text-align: center;
 }
 
@@ -1102,6 +1101,8 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  max-width: 980px;
+  margin: 0 auto;
 }
 
 .pagination__meta {
@@ -1202,6 +1203,32 @@ button {
 
   .rank-header__metrics {
     gap: 6px;
+  }
+
+  .pagination {
+    gap: 10px;
+    padding: 8px 0 16px;
+  }
+
+  .pagination__btn {
+    padding: 7px 12px;
+    font-size: 12px;
+    border-radius: 10px;
+  }
+
+  .pagination__pages {
+    padding: 3px;
+    border-radius: 9px;
+  }
+
+  .pagination__pages .pagination__btn {
+    padding: 6px 8px;
+    min-width: 28px;
+    border-radius: 7px;
+  }
+
+  .pagination__meta {
+    font-size: 11px;
   }
 
   .rank-card {
