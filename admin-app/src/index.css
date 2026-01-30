@@ -523,6 +523,12 @@ textarea.input:focus{
 .summary-value.invalid{ color: #d73a49; }
 
 .table-scroll{ overflow-x:auto; }
+.table-scroll th,
+th{
+  color: var(--blue);
+  font-weight: 700;
+  font-size: 12px;
+}
 .data-table{ width:100%; border-collapse:collapse; }
 .data-table th{
   position: sticky;
@@ -530,8 +536,9 @@ textarea.input:focus{
   background: #ffffff;
   z-index: 1;
   font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--muted);
+  color: var(--blue);
   text-align:left;
   padding: 10px 10px;
   border-bottom: 1px solid #eef1ff;
