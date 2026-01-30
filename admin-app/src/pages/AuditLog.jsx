@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import "../styles/pages/audit-log.css";
 import { Navigate } from "react-router-dom";
 import {
   getProfilesByIds,
@@ -284,6 +285,7 @@ export default function AuditLog() {
   const [exportProgress, setExportProgress] = useState("");
   const [emailById, setEmailById] = useState({});
   const [emailMissingById, setEmailMissingById] = useState({});
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [filters, setFilters] = useState({
     dateFrom: "",
@@ -528,6 +530,72 @@ export default function AuditLog() {
     setPage(0);
   }
 
+  function applyPreset(preset) {
+    const now = new Date();
+    if (preset === "today") {
+      const today = formatDateInput(now);
+      setFilters(prev => ({ ...prev, dateFrom: today, dateTo: today }));
+      return;
+    }
+    if (preset === "last7") {
+      const from = new Date(now);
+      from.setDate(now.getDate() - 6);
+      setFilters(prev => ({
+        ...prev,
+        dateFrom: formatDateInput(from),
+        dateTo: formatDateInput(now),
+      }));
+      return;
+    }
+    if (preset === "month") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      setFilters(prev => ({
+        ...prev,
+        dateFrom: formatDateInput(start),
+        dateTo: formatDateInput(end),
+      }));
+    }
+  }
+
+  const filterChips = useMemo(() => {
+    const chips = [];
+    if (appliedFilters.dateFrom || appliedFilters.dateTo) {
+      const from = appliedFilters.dateFrom || "Any";
+      const to = appliedFilters.dateTo || "Any";
+      chips.push({ key: "date", label: `Date: ${from} → ${to}` });
+    }
+    if (appliedFilters.entityType && appliedFilters.entityType !== "all") {
+      chips.push({ key: "entityType", label: `Entity: ${appliedFilters.entityType}` });
+    }
+    if (appliedFilters.action) {
+      chips.push({ key: "action", label: `Action: ${appliedFilters.action}` });
+    }
+    if (appliedFilters.actorId) {
+      chips.push({ key: "actorId", label: `User: ${appliedFilters.actorId}` });
+    }
+    if (appliedFilters.leaderId) {
+      chips.push({ key: "leaderId", label: `Leader ID: ${appliedFilters.leaderId}` });
+    }
+    if (appliedFilters.search) {
+      chips.push({ key: "search", label: `Search: ${appliedFilters.search}` });
+    }
+    return chips;
+  }, [appliedFilters]);
+
+  function clearChip(key) {
+    const next = { ...appliedFilters };
+    if (key === "date") {
+      next.dateFrom = "";
+      next.dateTo = "";
+    } else {
+      next[key] = "";
+    }
+    setAppliedFilters(next);
+    setFilters(prev => ({ ...prev, ...next }));
+    setPage(0);
+  }
+
   async function exportCsv() {
     setExporting(true);
     setExportProgress("Preparing export…");
@@ -640,15 +708,15 @@ export default function AuditLog() {
   }
 
   return (
-    <div className="card">
+    <div className="card audit-page">
       <div className="card-title">Audit Log</div>
       <div className="muted" style={{ marginBottom: 12 }}>
         Unified audit visibility across raw data edits, scoring formula changes, and week finalizations. Backend RLS
         remains authoritative.
       </div>
 
-      <div className="filter-panel" style={{ marginBottom: 12 }}>
-        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+      <div className="filter-panel">
+        <div className="filter-row">
           <div>
             <label className="form-label">From</label>
             <input
@@ -694,38 +762,54 @@ export default function AuditLog() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="form-label">User (email or UUID)</label>
-            <input
-              type="text"
-              className="input"
-              placeholder="Email or UUID"
-              value={filters.actorId}
-              onChange={e => setFilters(prev => ({ ...prev, actorId: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="form-label">Leader ID</label>
-            <input
-              type="text"
-              className="input"
-              placeholder="agent_id"
-              value={filters.leaderId}
-              onChange={e => setFilters(prev => ({ ...prev, leaderId: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="form-label">Search</label>
-            <input
-              type="text"
-              className="input"
-              placeholder="Reason, actor, leader"
-              value={filters.search}
-              onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            />
-          </div>
+          {showAdvanced ? (
+            <>
+              <div>
+                <label className="form-label">User (email or UUID)</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Email or UUID"
+                  value={filters.actorId}
+                  onChange={e => setFilters(prev => ({ ...prev, actorId: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label">Leader ID</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="agent_id"
+                  value={filters.leaderId}
+                  onChange={e => setFilters(prev => ({ ...prev, leaderId: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label">Search</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Reason, actor, leader"
+                  value={filters.search}
+                  onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                />
+              </div>
+            </>
+          ) : null}
         </div>
-        <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+        <div className="filter-actions">
+          <div className="filter-presets">
+            <button type="button" className="button ghost" onClick={() => applyPreset("today")}>
+              Today
+            </button>
+            <button type="button" className="button ghost" onClick={() => applyPreset("last7")}>
+              Last 7 Days
+            </button>
+            <button type="button" className="button ghost" onClick={() => applyPreset("month")}>
+              This Month
+            </button>
+          </div>
+          <div className="filter-actions__main">
           <button type="button" className="button primary" onClick={handleApply} disabled={loading}>
             Apply
           </button>
@@ -735,9 +819,33 @@ export default function AuditLog() {
           <button type="button" className="button secondary" onClick={exportCsv} disabled={exporting || loading}>
             {exporting ? "Exporting…" : "Export CSV"}
           </button>
+          </div>
+          <button
+            type="button"
+            className="button ghost"
+            onClick={() => setShowAdvanced(prev => !prev)}
+          >
+            {showAdvanced ? "Hide Advanced" : "Advanced Filters"}
+          </button>
           {exportProgress ? <div className="muted" style={{ alignSelf: "center" }}>{exportProgress}</div> : null}
         </div>
       </div>
+
+      {filterChips.length ? (
+        <div className="filter-chips">
+          {filterChips.map(chip => (
+            <button
+              type="button"
+              key={chip.key}
+              className="filter-chip"
+              onClick={() => clearChip(chip.key)}
+              title="Remove filter"
+            >
+              {chip.label} <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {error ? (
         <div className="error-box" role="alert" style={{ marginBottom: 12 }}>

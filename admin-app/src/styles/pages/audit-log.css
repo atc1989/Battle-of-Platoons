@@ -1,0 +1,65 @@
+.audit-page .filter-panel{
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #ffffff;
+  padding: 12px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #eef1ff;
+}
+
+.filter-row{
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.filter-actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.filter-presets{
+  display:flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-actions__main{
+  display:flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-chips{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-chip{
+  border: 1px solid #e6eaf5;
+  background: #f7f8ff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #1b1f2d;
+  cursor: pointer;
+}
+
+.filter-chip span{
+  margin-left: 6px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+@media (max-width: 900px){
+  .filter-actions{
+    justify-content:flex-start;
+  }
+}
