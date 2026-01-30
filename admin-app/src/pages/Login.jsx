@@ -5,7 +5,7 @@ import { useAuth } from "../auth/AuthProvider";
 
 export default function Login() {
   const nav = useNavigate();
-  const { login } = useAuth();
+  const { login, sessionError, clearSessionError } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,6 +14,7 @@ export default function Login() {
   async function onSubmit(e) {
     e.preventDefault();
     setMsg("");
+    clearSessionError();
     try {
       await login(email.trim(), password);
       nav("/dashboard");
@@ -28,6 +29,12 @@ export default function Login() {
       <div className="login-card">
         <div className="login-title">Battle of Platoons</div>
         <div className="login-sub">Admin Login</div>
+
+        {sessionError && (
+          <div className="p-status error" style={{ marginBottom: 10 }}>
+            {sessionError}
+          </div>
+        )}
 
         <form className="form" onSubmit={onSubmit}>
           <div className="field">
