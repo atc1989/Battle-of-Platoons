@@ -420,95 +420,82 @@ export default function Upload() {
         >
           Manual Input
         </button>
+        <button type="button" className="button ghost" onClick={downloadTemplate}>
+          Download Template
+        </button>
       </div>
 
-      <div className="upload-steps">
-        <div className="upload-step">
-          <div className="upload-step__title">1. Download Template</div>
-          <div className="upload-step__body">
-            <button type="button" className="button secondary" onClick={downloadTemplate}>
-              Download Template
-            </button>
-            <div className="muted upload-step__hint">
-              Use the Daily Data template (.xlsx) to avoid errors.
-            </div>
-          </div>
-        </div>
-
-        <div className="upload-step">
-          <div className="upload-step__title">2. Upload File</div>
-          <div
-            className={`dropzone ${isDragging ? "dropzone--dragging" : ""}`}
-            onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={onDrop}
-            onClick={() => inputRef.current?.click()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inputRef.current?.click(); } }}
+      <div
+        className={`dropzone ${isDragging ? "dropzone--dragging" : ""}`}
+        onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={onDrop}
+        onClick={() => inputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inputRef.current?.click(); } }}
+      >
+        <div className="upload-icon" aria-hidden>📤</div>
+        <div className="dropzone__content">
+          <div className="dropzone__title">Select or drop an .xlsx file</div>
+          <div className="dropzone__sub">.xlsx only. Sheet name "Daily Data" or first sheet.</div>
+          <button
+            type="button"
+            className="button primary dropzone__cta"
+            onClick={e => { e.stopPropagation(); inputRef.current?.click(); }}
           >
-            <div className="upload-icon" aria-hidden>📤</div>
-            <div className="dropzone__content">
-              <div className="dropzone__title">Select or drop an .xlsx file</div>
-              <div className="dropzone__sub">.xlsx only. Sheet name "Daily Data" or first sheet.</div>
-              <button
-                type="button"
-                className="button primary dropzone__cta"
-                onClick={e => { e.stopPropagation(); inputRef.current?.click(); }}
-              >
-                Browse files
-              </button>
-            </div>
-            <input
-              ref={inputRef}
-              id="file-input"
-              type="file"
-              accept=".xlsx"
-              onChange={onInputChange}
-              style={{ display: "none" }}
-            />
-          </div>
-
-          {(fileName || rows.length > 0) ? (
-            <div className="upload-file-meta">
-              <div className="upload-file-meta__label">File:</div>
-              <div className="upload-file-meta__value">
-                {fileName} {meta ? `(Sheet: ${meta.sheetName}, Rows: ${meta.totalRows})` : ""}
-              </div>
-              <button className="button" type="button" onClick={resetUpload}>
-                Replace file
-              </button>
-            </div>
-          ) : null}
+            Browse files
+          </button>
         </div>
+        <input
+          ref={inputRef}
+          id="file-input"
+          type="file"
+          accept=".xlsx"
+          onChange={onInputChange}
+          style={{ display: "none" }}
+        />
+      </div>
 
-        <div className="upload-step">
-          <div className="upload-step__title">3. Import Mode</div>
-          <div className="summary-grid">
-            <div className="summary-pill">
-              <div className="summary-label">Import Mode</div>
-              <div>
-                <select
-                  value={importMode}
-                  onChange={e => {
-                    setImportMode(e.target.value);
-                    setSaveResult(null);
-                  }}
-                >
-                  <option value="warn">Warn (upsert)</option>
-                  <option value="upsert">Upsert</option>
-                  <option value="insert_only">Insert Only</option>
-                </select>
-              </div>
-              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                {importMode === "insert_only"
-                  ? "Duplicates will be skipped."
-                  : importMode === "upsert"
-                    ? "Duplicates will overwrite existing rows."
-                    : "Duplicates will be flagged but still overwrite."}
-              </div>
-            </div>
+      {(fileName || rows.length > 0) ? (
+        <div className="upload-file-meta">
+          <div className="upload-file-meta__label">File:</div>
+          <div className="upload-file-meta__value">
+            {fileName} {meta ? `(Sheet: ${meta.sheetName}, Rows: ${meta.totalRows})` : ""}
           </div>
+          <button className="button" type="button" onClick={resetUpload}>
+            Replace file
+          </button>
+        </div>
+      ) : null}
+
+      <div className="upload-import">
+        <div className="upload-import__title">Import Mode</div>
+        <div className="upload-import__options">
+          <button
+            type="button"
+            className={`import-option${importMode === "warn" ? " is-active" : ""}`}
+            onClick={() => { setImportMode("warn"); setSaveResult(null); }}
+          >
+            Warn (upsert)
+            <span>Flag duplicates, overwrite existing rows.</span>
+          </button>
+          <button
+            type="button"
+            className={`import-option${importMode === "upsert" ? " is-active" : ""}`}
+            onClick={() => { setImportMode("upsert"); setSaveResult(null); }}
+          >
+            Upsert
+            <span>Update existing rows or insert new ones.</span>
+          </button>
+          <button
+            type="button"
+            className={`import-option${importMode === "insert_only" ? " is-active" : ""}`}
+            onClick={() => { setImportMode("insert_only"); setSaveResult(null); }}
+          >
+            Insert Only
+            <span>Skip duplicates entirely.</span>
+          </button>
         </div>
       </div>
 
