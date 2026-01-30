@@ -58,6 +58,12 @@
   font-weight: 700;
 }
 
+.audit-page .button.ghost{
+  background: #ffffff;
+  border: 1px solid #e6eaf5;
+  color: var(--blue2);
+}
+
 @media (max-width: 900px){
   .filter-actions{
     justify-content:flex-start;
