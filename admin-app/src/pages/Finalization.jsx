@@ -7,6 +7,7 @@ import {
   listRecentWeeks,
   reopenWeek,
 } from "../services/finalization.service";
+import { supabase } from "../services/supabase";
 import { getMyProfile } from "../services/profile.service";
 
 function formatDateInput(date) {
@@ -100,30 +101,17 @@ export default function Finalization() {
   }, []);
 
   const weekOptions = useMemo(() => {
-    const today = new Date();
-    const options = new Map();
-
-    for (let i = 0; i < 8; i += 1) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i * 7);
-      const key = toIsoWeekKey(d);
-      if (!key || options.has(key)) continue;
-      const range = computeWeekRange(formatDateInput(d));
-      options.set(key, {
-        week_key: key,
-        start_date: range.start,
-        end_date: range.end,
-        status: "open",
-      });
-    }
-
-    recentWeeks.forEach(weekRow => {
-      if (!weekRow?.week_key) return;
-      options.set(weekRow.week_key, weekRow);
-    });
-
-    return Array.from(options.values()).sort((a, b) => (b.start_date || "").localeCompare(a.start_date || ""));
+    return [...recentWeeks].sort((a, b) => (a.start_date || "").localeCompare(b.start_date || ""));
   }, [recentWeeks]);
+
+  useEffect(() => {
+    if (!selectedWeekKey && weekOptions.length) {
+      setSelectedWeekKey(weekOptions[0].week_key);
+      if (weekOptions[0].start_date) {
+        setSelectedDate(weekOptions[0].start_date);
+      }
+    }
+  }, [selectedWeekKey, weekOptions]);
 
   async function refreshWeek(dateStr) {
     setLoadingWeek(true);
@@ -146,6 +134,11 @@ export default function Finalization() {
   async function refreshHistory() {
     setLoadingHistory(true);
     try {
+      const today = new Date();
+      const prev = new Date(today);
+      prev.setDate(today.getDate() - 7);
+      await supabase.rpc("ensure_week_row", { d: formatDateInput(today) });
+      await supabase.rpc("ensure_week_row", { d: formatDateInput(prev) });
       const history = await listRecentWeeks(10);
       setRecentWeeks(history ?? []);
     } catch (e) {
