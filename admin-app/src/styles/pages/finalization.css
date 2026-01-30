@@ -10,11 +10,50 @@
   gap: 10px;
 }
 
+.finalization-panel .form-label{
+  font-weight: 700;
+}
+
+.finalization-date{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.finalization-date input{
+  max-width: 220px;
+}
+
 .week-status-card{
   border: 1px solid #eef1ff;
   background: #f9faff;
   border-radius: 14px;
   padding: 12px;
+}
+
+.week-status-card__header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+}
+
+.week-status-card__meta{
+  display:flex;
+  flex-direction:column;
+  gap: 4px;
+}
+
+.week-status-card__label{
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.week-status-card__value{
+  font-weight: 800;
+  font-size: 18px;
 }
 
 .week-status-row{
@@ -56,8 +95,33 @@
   padding: 12px;
 }
 
+.action-card__title{
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.action-card__note{
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.action-card__cta{
+  margin-top: 10px;
+}
+
 .finalization-history{
   margin-top: 18px;
+}
+
+.finalization-history__header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.finalization-history .data-table td{
+  vertical-align: top;
 }
 
 @media (max-width: 900px){

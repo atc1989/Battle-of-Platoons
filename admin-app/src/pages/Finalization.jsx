@@ -179,24 +179,26 @@ export default function Finalization() {
           <label className="form-label" htmlFor="week-date">
             Pick any date within the week
           </label>
-          <input
-            id="week-date"
-            type="date"
-            value={selectedDate}
-            onChange={e => {
-              setSelectedDate(e.target.value);
-              setActionError("");
-            }}
-            style={{ maxWidth: 240 }}
-          />
+          <div className="finalization-date">
+            <input
+              id="week-date"
+              type="date"
+              value={selectedDate}
+              onChange={e => {
+                setSelectedDate(e.target.value);
+                setActionError("");
+              }}
+            />
+            <div className="muted" style={{ fontSize: 12 }}>
+              Use a date inside the target week to load its status.
+            </div>
+          </div>
 
           <div className="week-status-card">
-            <div className="week-status-row">
-              <div>
-                <div className="muted" style={{ fontSize: 12 }}>
-                  Week
-                </div>
-                <div style={{ fontWeight: 800, fontSize: 18 }}>{week?.week_key || "—"}</div>
+            <div className="week-status-card__header">
+              <div className="week-status-card__meta">
+                <div className="week-status-card__label">Week</div>
+                <div className="week-status-card__value">{week?.week_key || "—"}</div>
               </div>
               <StatusBadge status={week?.status} />
             </div>
@@ -248,10 +250,10 @@ export default function Finalization() {
 
         <div className="finalization-actions">
           <div className="action-card">
-            <div style={{ fontWeight: 800, marginBottom: 6 }}>
+            <div className="action-card__title">
               {week?.status === "finalized" ? "Reopen week" : "Finalize week"}
             </div>
-            <div className="muted" style={{ marginBottom: 8 }}>
+            <div className="action-card__note">
               Provide an audit reason (minimum 5 characters).
             </div>
 
@@ -270,10 +272,9 @@ export default function Finalization() {
 
                 <button
                   type="button"
-                  className="button primary"
+                  className="button primary action-card__cta"
                   onClick={handleReopen}
                   disabled={!isSuperAdmin || actionLoading || reopenReason.trim().length < 5}
-                  style={{ marginTop: 10 }}
                 >
                   {actionLoading ? "Working…" : "Reopen"}
                 </button>
@@ -293,10 +294,9 @@ export default function Finalization() {
 
                 <button
                   type="button"
-                  className="button primary"
+                  className="button primary action-card__cta"
                   onClick={handleFinalize}
                   disabled={!isSuperAdmin || actionLoading || finalizeReason.trim().length < 5}
-                  style={{ marginTop: 10 }}
                 >
                   {actionLoading ? "Working…" : "Finalize"}
                 </button>
@@ -313,7 +313,7 @@ export default function Finalization() {
       </div>
 
       <div className="finalization-history">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="finalization-history__header">
           <div style={{ fontWeight: 800 }}>Recent weeks</div>
           {loadingHistory ? <div className="muted">Loading…</div> : null}
         </div>
