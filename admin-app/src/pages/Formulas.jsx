@@ -887,7 +887,7 @@ export default function ScoringFormulas() {
                         })
                       }
                     >
-                      + New {section.title.replace(/s$/, "")} Formula
+                      New {section.title.replace(/s$/, "")} Formula
                     </button>
                   )}
                 </div>
