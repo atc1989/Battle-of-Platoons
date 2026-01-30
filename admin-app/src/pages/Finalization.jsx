@@ -16,6 +16,32 @@ function formatDateInput(date) {
   return `${year}-${month}-${day}`;
 }
 
+function toIsoWeekKey(date) {
+  const ref = new Date(date);
+  if (Number.isNaN(ref.getTime())) return null;
+  const utcDate = new Date(Date.UTC(ref.getFullYear(), ref.getMonth(), ref.getDate()));
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((utcDate - yearStart) / 86400000 + 1) / 7);
+  return `${utcDate.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
+
+function computeWeekRange(dateStr) {
+  const ref = new Date(`${dateStr}T00:00:00Z`);
+  if (Number.isNaN(ref.getTime())) return { start: dateStr, end: dateStr };
+  const day = ref.getUTCDay();
+  const diff = day === 0 ? 6 : day - 1;
+  const start = new Date(ref);
+  start.setUTCDate(ref.getUTCDate() - diff);
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 6);
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  };
+}
+
 function StatusBadge({ status }) {
   const label = status === "finalized" ? "Finalized" : "Open";
   const cls = status === "finalized" ? "valid" : "muted";
@@ -72,6 +98,32 @@ export default function Finalization() {
   useEffect(() => {
     refreshHistory();
   }, []);
+
+  const weekOptions = useMemo(() => {
+    const today = new Date();
+    const options = new Map();
+
+    for (let i = 0; i < 8; i += 1) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i * 7);
+      const key = toIsoWeekKey(d);
+      if (!key || options.has(key)) continue;
+      const range = computeWeekRange(formatDateInput(d));
+      options.set(key, {
+        week_key: key,
+        start_date: range.start,
+        end_date: range.end,
+        status: "open",
+      });
+    }
+
+    recentWeeks.forEach(weekRow => {
+      if (!weekRow?.week_key) return;
+      options.set(weekRow.week_key, weekRow);
+    });
+
+    return Array.from(options.values()).sort((a, b) => (b.start_date || "").localeCompare(a.start_date || ""));
+  }, [recentWeeks]);
 
   async function refreshWeek(dateStr) {
     setLoadingWeek(true);
@@ -191,14 +243,12 @@ export default function Finalization() {
               onChange={e => {
                 const nextKey = e.target.value;
                 setSelectedWeekKey(nextKey);
-                const match = recentWeeks.find(w => w.week_key === nextKey);
-                if (match?.start_date) {
-                  setSelectedDate(match.start_date);
-                }
+                const match = weekOptions.find(w => w.week_key === nextKey);
+                if (match?.start_date) setSelectedDate(match.start_date);
                 setActionError("");
               }}
             >
-              {recentWeeks.map(weekRow => (
+              {weekOptions.map(weekRow => (
                 <option key={weekRow.week_key} value={weekRow.week_key}>
                   {weekRow.week_key} ({weekRow.start_date} → {weekRow.end_date})
                 </option>
