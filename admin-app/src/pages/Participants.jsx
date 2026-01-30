@@ -882,7 +882,7 @@ export default function Participants() {
                   }
                 }}
               >
-                Add +
+                Add
               </button>
             ) : null}
             <ExportButton

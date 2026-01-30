@@ -439,8 +439,8 @@ textarea.input:focus{
   border:none;
   background: var(--blue);
   color:#fff;
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
   font-weight:400;
   cursor:pointer;
   display:inline-flex;
@@ -451,8 +451,8 @@ textarea.input:focus{
 .btn{
   border:none;
   background: #eef1ff;
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
   font-weight:400;
   cursor:pointer;
   display:inline-flex;
@@ -471,8 +471,8 @@ textarea.input:focus{
 .btn-primary::before,
 .btn::before{
   content:"";
-  width:14px;
-  height:14px;
+  width:18px;
+  height:18px;
   background: currentColor;
   display:inline-block;
   -webkit-mask-repeat:no-repeat;
@@ -518,8 +518,8 @@ textarea.input:focus{
 
 .button{
   border:none;
-  padding: 10px 16px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
   font-weight:400;
   cursor:pointer;
   text-decoration:none;
@@ -531,8 +531,8 @@ textarea.input:focus{
 .button.secondary:not(.export-button)::before,
 .button.ghost:not(.export-button)::before{
   content:"";
-  width:14px;
-  height:14px;
+  width:18px;
+  height:18px;
   background: currentColor;
   display:inline-block;
   -webkit-mask-repeat:no-repeat;
@@ -560,7 +560,8 @@ textarea.input:focus{
 }
 
 .export-button{
-  padding: 10px 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
 }
 
 .table-actions{
