@@ -9,7 +9,7 @@ import {
   listScoringFormulaAudit,
 } from "../services/auditLog.service";
 import { getMyProfile } from "../services/profile.service";
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 10;
 const BASE_ACTIONS = [
   "edit",
   "void",

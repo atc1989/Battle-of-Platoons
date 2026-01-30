@@ -4,7 +4,7 @@ import { ModalForm } from "../components/ModalForm";
 import AppPagination from "../components/AppPagination";
 import { listAgents } from "../services/agents.service";
 import { listDepots } from "../services/depots.service";
-import { canEditRow, getRawDataHistory, moveRawDataRow, updateRow } from "../services/rawData.service";
+import { canEditRow, getRawDataHistory, updateRow } from "../services/rawData.service";
 import { getMyProfile } from "../services/profile.service";
 
 // ----------------------
@@ -91,13 +91,9 @@ export default function Updates() {
   // Editing
   const [editingRow, setEditingRow] = useState(null);
   const [editValues, setEditValues] = useState({
-    date_real: "",
     leads: "",
     payins: "",
     sales: "",
-    leads_depot_id: "",
-    sales_depot_id: "",
-    date_reason: "",
   });
 
   // Auth / session
@@ -264,13 +260,9 @@ export default function Updates() {
     }
     setEditingRow(row);
     setEditValues({
-      date_real: row.date_real ?? "",
       leads: row.leads ?? "",
       payins: row.payins ?? "",
       sales: row.sales ?? "",
-      leads_depot_id: row.leads_depot_id ?? "",
-      sales_depot_id: row.sales_depot_id ?? "",
-      date_reason: "",
     });
     setError("");
     setStatus("");
@@ -278,15 +270,7 @@ export default function Updates() {
 
   function cancelEdit() {
     setEditingRow(null);
-    setEditValues({
-      date_real: "",
-      leads: "",
-      payins: "",
-      sales: "",
-      leads_depot_id: "",
-      sales_depot_id: "",
-      date_reason: "",
-    });
+    setEditValues({ leads: "", payins: "", sales: "" });
   }
 
   function onEditChange(field, value) {
@@ -294,33 +278,16 @@ export default function Updates() {
   }
 
   async function saveEdit(rowId) {
-    const targetRow = rows.find(r => r.id === rowId);
-    if (!targetRow) {
-      setError("Row not found.");
-      return;
-    }
-
-    const nextDate = normalizeToYmd(editValues.date_real);
-    if (!nextDate) {
-      setError("Please select a valid date.");
-      return;
-    }
-
     const leadsNum = Number(editValues.leads);
     const payinsNum = Number(editValues.payins);
     const salesNum = Number(editValues.sales);
-    const leadsDepotId = editValues.leads_depot_id;
-    const salesDepotId = editValues.sales_depot_id;
 
     if ([leadsNum, payinsNum, salesNum].some(n => Number.isNaN(n))) {
       setError("Please enter valid numbers for leads, payins, and sales.");
       return;
     }
-    if (!leadsDepotId || !salesDepotId) {
-      setError("Leads depot and sales depot are required.");
-      return;
-    }
 
+    const targetRow = rows.find(r => r.id === rowId);
     const agent = agentMap[targetRow?.agent_id];
     if (!targetRow || !canEditRow(targetRow, profile, agent) || !ADMIN_ROLES.has(currentRole)) {
       setError("You do not have permission to edit this row.");
@@ -332,31 +299,13 @@ export default function Updates() {
     setStatus("");
 
     try {
-      const dateChanged = normalizeToYmd(targetRow.date_real) !== nextDate;
-      let updated;
+      const updated = await updateRow(rowId, {
+        leads: leadsNum,
+        payins: payinsNum,
+        sales: salesNum,
+      });
 
-      if (dateChanged) {
-        updated = await moveRawDataRow({
-          id: rowId,
-          date_real: nextDate,
-          leads: leadsNum,
-          payins: payinsNum,
-          sales: salesNum,
-          leads_depot_id: leadsDepotId,
-          sales_depot_id: salesDepotId,
-          reason: editValues.date_reason,
-        });
-        setRows(prev => [updated, ...prev.filter(r => r.id !== rowId)]);
-      } else {
-        updated = await updateRow(rowId, {
-          leads: leadsNum,
-          payins: payinsNum,
-          sales: salesNum,
-          leads_depot_id: leadsDepotId,
-          sales_depot_id: salesDepotId,
-        });
-        setRows(prev => prev.map(r => (r.id === rowId ? updated : r)));
-      }
+      setRows(prev => prev.map(r => (r.id === rowId ? updated : r)));
       setStatus("Row updated.");
       cancelEdit();
     } catch (e) {
@@ -417,9 +366,6 @@ export default function Updates() {
       </span>
     );
   }
-
-  const dateChanged =
-    editingRow && normalizeToYmd(editValues.date_real) !== normalizeToYmd(editingRow.date_real);
 
   const tableColumnCount = 10;
 
@@ -624,16 +570,9 @@ export default function Updates() {
         )}
       >
         <div className="form-grid">
-          <label className="form-field">
-            <span>Date</span>
-            <input
-              type="date"
-              className="input"
-              value={editValues.date_real}
-              onChange={e => onEditChange("date_real", e.target.value)}
-            />
-            <div className="field-hint">Changing the date creates a new row and removes the old one.</div>
-          </label>
+          <div className="hint" style={{ gridColumn: "1 / -1" }}>
+            Date and depots are locked because they are part of the row ID. Changing them would create a new row.
+          </div>
           <label className="form-field">
             <span>Leads</span>
             <input
@@ -661,48 +600,6 @@ export default function Updates() {
               onChange={e => onEditChange("sales", e.target.value)}
             />
           </label>
-          <label className="form-field">
-            <span>Leads Depot</span>
-            <select
-              className="input"
-              value={editValues.leads_depot_id}
-              onChange={e => onEditChange("leads_depot_id", e.target.value)}
-            >
-              <option value="">Select depot</option>
-              {depots.map(d => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="form-field">
-            <span>Sales Depot</span>
-            <select
-              className="input"
-              value={editValues.sales_depot_id}
-              onChange={e => onEditChange("sales_depot_id", e.target.value)}
-            >
-              <option value="">Select depot</option>
-              {depots.map(d => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {dateChanged ? (
-            <label className="form-field">
-              <span>Reason (optional)</span>
-              <input
-                type="text"
-                className="input"
-                value={editValues.date_reason}
-                onChange={e => onEditChange("date_reason", e.target.value)}
-                placeholder="Optional audit note for date change"
-              />
-            </label>
-          ) : null}
         </div>
       </ModalForm>
 
