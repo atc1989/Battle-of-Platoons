@@ -884,18 +884,6 @@ export default function AuditLog() {
         </table>
       </div>
 
-      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 12 }}>
-        <button type="button" className="button secondary" disabled={!hasPrev || loading} onClick={() => setPage(p => Math.max(p - 1, 0))}>
-          Prev
-        </button>
-        <div className="muted" style={{ alignSelf: "center" }}>
-          Page {page + 1} {totalPages ? `of ${totalPages}` : ""}
-        </div>
-        <button type="button" className="button secondary" disabled={!hasNext || loading} onClick={() => setPage(p => p + 1)}>
-          Next
-        </button>
-      </div>
-
       {detailRow ? (
         <div className="modal-backdrop">
           <div className="modal-card" style={{ maxWidth: 720 }}>
