@@ -1,6 +1,6 @@
 import React from "react";
 
-function ExcelIcon({ size = 16 }) {
+function ExcelIcon({ size = 22 }) {
   return (
     <svg
       aria-hidden="true"
@@ -17,7 +17,7 @@ function ExcelIcon({ size = 16 }) {
 export default function ExportButton({
   onClick,
   loading,
-  label = "Export CSV",
+  label = "Export XLSX",
   loadingLabel = "Exporting...",
   disabled = false,
   className = "",
@@ -28,9 +28,10 @@ export default function ExportButton({
       className={`button secondary export-button ${className}`.trim()}
       onClick={onClick}
       disabled={disabled || loading}
+      aria-label={loading ? loadingLabel : label}
+      title={loading ? loadingLabel : label}
     >
-      <ExcelIcon size={16} />
-      <span>{loading ? loadingLabel : label}</span>
+      <ExcelIcon size={22} />
     </button>
   );
 }

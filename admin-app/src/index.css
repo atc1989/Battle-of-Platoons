@@ -502,6 +502,10 @@ textarea.input:focus{
   display: block;
 }
 
+.export-button{
+  padding: 10px 12px;
+}
+
 .table-actions{
   display: flex;
   justify-content: flex-end;

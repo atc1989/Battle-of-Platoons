@@ -127,7 +127,7 @@ export default function Finalization() {
   }, [historyPage, historyRowsPerPage, recentWeeks]);
 
   function exportHistoryXlsx() {
-    const exportRows = pagedWeeks.map(weekRow => {
+    const exportRows = recentWeeks.map(weekRow => {
       const displayReason =
         weekRow.status === "finalized"
           ? weekRow.finalize_reason
@@ -420,7 +420,7 @@ export default function Finalization() {
           <ExportButton
             onClick={exportHistoryXlsx}
             loading={false}
-            disabled={!pagedWeeks.length || loadingHistory}
+            disabled={!recentWeeks.length || loadingHistory}
             label="Export XLSX"
           />
         </div>

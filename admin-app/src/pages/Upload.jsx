@@ -140,7 +140,7 @@ export default function Upload() {
   const baseIndex = (page - 1) * rowsPerPage;
 
   function exportXlsx() {
-    const exportRows = pagedRows.map((row, idx) => {
+    const exportRows = processed.displayRows.map((row, idx) => {
       const warningText = row.displayWarnings?.length
         ? row.displayWarnings.map(warn => `Warning: ${warn}`)
         : [];
@@ -151,7 +151,7 @@ export default function Upload() {
       ].filter(Boolean);
 
       return {
-        "#": baseIndex + idx + 1,
+        "#": idx + 1,
         Date: row.date_real || "-",
         "Leader Name": row.leader_name_input,
         "Leads Depot": row.leads_depot_name || "-",
@@ -521,6 +521,12 @@ export default function Upload() {
           <button className="button" type="button" onClick={resetUpload}>
             Replace file
           </button>
+          <ExportButton
+            onClick={exportXlsx}
+            loading={false}
+            disabled={!processed.displayRows.length || loading}
+            label="Export XLSX"
+          />
         </div>
       ) : null}
 
@@ -585,15 +591,6 @@ export default function Upload() {
               <div className="summary-label">Invalid</div>
               <div className="summary-value invalid">{processed.summary.invalid}</div>
             </div>
-          </div>
-
-          <div className="table-actions">
-            <ExportButton
-              onClick={exportXlsx}
-              loading={false}
-              disabled={!pagedRows.length || loading}
-              label="Export XLSX"
-            />
           </div>
 
           <div className="table-scroll">

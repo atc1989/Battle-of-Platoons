@@ -546,8 +546,90 @@ export default function AuditLog() {
   async function exportXlsx() {
     setExporting(true);
     setExportProgress("Preparing export…");
+    const { fromTs, toTs } = toIsoRange(appliedFilters.dateFrom, appliedFilters.dateTo);
+    const exportPageSize = 200;
+    const getExportRange = (pageIndex) => {
+      const from = pageIndex * exportPageSize;
+      const to = from + exportPageSize - 1;
+      return { from, to };
+    };
+
     try {
-      const exportRows = visibleRows.map(row => ({
+      const allRows = [];
+
+      async function fetchAllRaw() {
+        let pageIndex = 0;
+        while (true) {
+          const { from, to } = getExportRange(pageIndex);
+          setExportProgress(`Fetching raw data audit (offset ${from})…`);
+          const result = await listRawDataAudit({
+            fromTs,
+            toTs,
+            actorId: appliedFilters.actorId,
+            action: appliedFilters.action,
+            from,
+            to,
+          });
+          if (result.error) throw result.error;
+          const chunk = result.data || [];
+          allRows.push(...chunk.map(normalizeRawDataRow));
+          if (chunk.length < exportPageSize) break;
+          pageIndex += 1;
+        }
+      }
+
+      async function fetchAllScoring() {
+        let pageIndex = 0;
+        while (true) {
+          const { from, to } = getExportRange(pageIndex);
+          setExportProgress(`Fetching scoring formula audit (offset ${from})…`);
+          const result = await listScoringFormulaAudit({
+            fromTs,
+            toTs,
+            actorId: appliedFilters.actorId,
+            action: appliedFilters.action,
+            from,
+            to,
+          });
+          if (result.error) throw result.error;
+          const chunk = result.data || [];
+          allRows.push(...chunk.map(normalizeScoringFormulaRow));
+          if (chunk.length < exportPageSize) break;
+          pageIndex += 1;
+        }
+      }
+
+      async function fetchAllFinalized() {
+        let pageIndex = 0;
+        while (true) {
+          const { from, to } = getExportRange(pageIndex);
+          setExportProgress(`Fetching week finalizations (offset ${from})…`);
+          const result = await listFinalizedWeeks({ from, to });
+          if (result.error) throw result.error;
+          const chunk = result.data || [];
+          allRows.push(...chunk.flatMap(normalizeFinalizedWeek));
+          if (chunk.length < exportPageSize) break;
+          pageIndex += 1;
+        }
+      }
+
+      if (appliedFilters.entityType === "all" || appliedFilters.entityType === "raw_data") {
+        await fetchAllRaw();
+      }
+      if (appliedFilters.entityType === "all" || appliedFilters.entityType === "scoring_formula") {
+        await fetchAllScoring();
+      }
+      if (appliedFilters.entityType === "all" || appliedFilters.entityType === "finalized_week") {
+        await fetchAllFinalized();
+      }
+
+      const filtered = applyClientFilters(allRows, appliedFilters, actorResolver).sort((a, b) => {
+        const aTime = new Date(a.created_at || 0).getTime();
+        const bTime = new Date(b.created_at || 0).getTime();
+        return bTime - aTime;
+      });
+
+      const exportRows = filtered.map(row => ({
         Created: formatDate(row.created_at),
         Entity: row.entity_type,
         Action: row.action || "-",

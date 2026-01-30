@@ -190,8 +190,8 @@ export default function Publishing() {
   const baseIndex = (page - 1) * rowsPerPage;
 
   function exportXlsx() {
-    const exportRows = pagedRows.map((row, index) => ({
-      "#": baseIndex + index + 1,
+    const exportRows = rows.map((row, index) => ({
+      "#": index + 1,
       Date: row.date_real,
       Leader: row.agent_id,
       "Leads Depot": row.leads_depot_id,
@@ -475,7 +475,7 @@ export default function Publishing() {
             <ExportButton
               onClick={exportXlsx}
               loading={false}
-              disabled={loading || !pagedRows.length}
+              disabled={loading || !rows.length}
               label="Export XLSX"
             />
           </div>

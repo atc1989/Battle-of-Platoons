@@ -244,7 +244,7 @@ export default function Participants() {
   }, [platoons, platoonPage, rowsPerPage]);
 
   function exportLeadersXlsx() {
-    const exportRows = pagedAgents.map(a => ({
+    const exportRows = agents.map(a => ({
       "Leader ID": a.id,
       "Leader Name": a.name,
       Commander: companyById[a.companyId]?.name || a.companyId || "-",
@@ -258,7 +258,7 @@ export default function Participants() {
   }
 
   function exportDepotsXlsx() {
-    const exportRows = pagedDepots.map(d => ({
+    const exportRows = depots.map(d => ({
       "Depot ID": d.id,
       Name: d.name,
       "Photo URL": d.photoURL || "",
@@ -268,7 +268,7 @@ export default function Participants() {
   }
 
   function exportCompaniesXlsx() {
-    const exportRows = pagedCompanies.map(c => ({
+    const exportRows = companies.map(c => ({
       "Commander ID": c.id,
       Name: c.name,
       "Photo URL": c.photoURL || "",
@@ -278,7 +278,7 @@ export default function Participants() {
   }
 
   function exportPlatoonsXlsx() {
-    const exportRows = pagedPlatoons.map(p => ({
+    const exportRows = platoons.map(p => ({
       "Company ID": p.id,
       Name: p.name,
       "Photo URL": p.photoURL || "",
@@ -286,6 +286,21 @@ export default function Participants() {
     const filename = `participants-companies-${new Date().toISOString().slice(0, 10)}.xlsx`;
     exportToXlsx({ rows: exportRows, filename, sheetName: "Companies" });
   }
+
+  const exportAction =
+    tab === "leaders"
+      ? exportLeadersXlsx
+      : tab === "depots"
+      ? exportDepotsXlsx
+      : tab === "companies"
+      ? exportCompaniesXlsx
+      : exportPlatoonsXlsx;
+
+  const exportDisabled =
+    (tab === "leaders" && agents.length === 0) ||
+    (tab === "depots" && depots.length === 0) ||
+    (tab === "companies" && companies.length === 0) ||
+    (tab === "platoons" && platoons.length === 0);
 
   function ok(msg) { setStatus({ type: "ok", msg }); }
   function err(msg) { setStatus({ type: "error", msg }); }
@@ -841,34 +856,42 @@ export default function Participants() {
 
         <div className="p-title-row">
           <h2 className="p-title">Participants</h2>
-          {isSuperAdmin ? (
-            <button
-              className="btn-primary"
-              onClick={() => {
-                if (tab === "leaders") {
-                  clearLeader();
-                  setIsFormOpen(true);
-                  return;
-                }
-                if (tab === "companies") {
-                  clearSimple();
-                  setIsAddCommanderOpen(true);
-                  return;
-                }
-                if (tab === "depots") {
-                  clearSimple();
-                  setIsAddDepotOpen(true);
-                  return;
-                }
-                if (tab === "platoons") {
-                  clearPlatoon();
-                  setIsAddCompanyOpen(true);
-                }
-              }}
-            >
-              Add +
-            </button>
-          ) : null}
+          <div className="p-title-actions">
+            {isSuperAdmin ? (
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  if (tab === "leaders") {
+                    clearLeader();
+                    setIsFormOpen(true);
+                    return;
+                  }
+                  if (tab === "companies") {
+                    clearSimple();
+                    setIsAddCommanderOpen(true);
+                    return;
+                  }
+                  if (tab === "depots") {
+                    clearSimple();
+                    setIsAddDepotOpen(true);
+                    return;
+                  }
+                  if (tab === "platoons") {
+                    clearPlatoon();
+                    setIsAddCompanyOpen(true);
+                  }
+                }}
+              >
+                Add +
+              </button>
+            ) : null}
+            <ExportButton
+              onClick={exportAction}
+              loading={false}
+              disabled={exportDisabled}
+              label="Export XLSX"
+            />
+          </div>
         </div>
         {!isSuperAdmin ? (
           <div className="hint" style={{ marginTop: 6 }}>
@@ -1281,14 +1304,6 @@ export default function Participants() {
       {/* LIST AREA */}
       {tab === "leaders" && (
         <div className="p-list">
-          <div className="table-actions">
-            <ExportButton
-              onClick={exportLeadersXlsx}
-              loading={false}
-              disabled={!pagedAgents.length}
-              label="Export XLSX"
-            />
-          </div>
           <div className="table-scroll-y">
             <div className="table">
               <div className="t-head">
@@ -1321,14 +1336,6 @@ export default function Participants() {
 
       {tab === "depots" && (
         <div className="p-list">
-          <div className="table-actions">
-            <ExportButton
-              onClick={exportDepotsXlsx}
-              loading={false}
-              disabled={!pagedDepots.length}
-              label="Export XLSX"
-            />
-          </div>
           <div className="table">
             <div className="t-head">
               <div>Depot</div><div>Photo</div><div></div><div></div><div className="t-right">Actions</div>
@@ -1358,14 +1365,6 @@ export default function Participants() {
 
       {tab === "companies" && (
         <div className="p-list">
-          <div className="table-actions">
-            <ExportButton
-              onClick={exportCompaniesXlsx}
-              loading={false}
-              disabled={!pagedCompanies.length}
-              label="Export XLSX"
-            />
-          </div>
           <div className="table">
             <div className="t-head">
               <div>Commander</div><div>Photo</div><div></div><div></div><div className="t-right">Actions</div>
@@ -1395,14 +1394,6 @@ export default function Participants() {
 
       {tab === "platoons" && (
         <div className="p-list">
-          <div className="table-actions">
-            <ExportButton
-              onClick={exportPlatoonsXlsx}
-              loading={false}
-              disabled={!pagedPlatoons.length}
-              label="Export XLSX"
-            />
-          </div>
           <div className="table">
             <div className="t-head">
               <div>Company</div><div></div><div></div><div></div><div className="t-right">Actions</div>

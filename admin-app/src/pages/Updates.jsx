@@ -251,7 +251,7 @@ export default function Updates() {
   }, [page, rowsPerPage, visibleRows]);
 
   function exportXlsx() {
-    const exportRows = pagedRows.map(row => ({
+    const exportRows = visibleRows.map(row => ({
       Date: row.date_real,
       Leader: row.leaderName || "(Restricted)",
       "Leads Depot": row.leadsDepotName || "-",
@@ -482,7 +482,7 @@ export default function Updates() {
             <ExportButton
               onClick={exportXlsx}
               loading={false}
-              disabled={loading || !pagedRows.length}
+              disabled={loading || !visibleRows.length}
               label="Export XLSX"
             />
           </div>
