@@ -370,7 +370,7 @@ export default function Updates() {
       <div className="updates-filters">
         <div className="updates-filter-row">
           <div>
-            <label className="input-label">Date From</label>
+            <label className="form-label">Date From</label>
             <input
               type="date"
               className="input"
@@ -380,7 +380,7 @@ export default function Updates() {
           </div>
 
           <div>
-            <label className="input-label">Date To</label>
+            <label className="form-label">Date To</label>
             <input
               type="date"
               className="input"
@@ -392,7 +392,7 @@ export default function Updates() {
 
         <div className="updates-filter-row">
           <div>
-            <label className="input-label">Leader</label>
+            <label className="form-label">Leader</label>
             <select
               className="input"
               value={filtersInput.leaderId}
@@ -408,7 +408,7 @@ export default function Updates() {
           </div>
 
           <div>
-            <label className="input-label">Leads Depot</label>
+            <label className="form-label">Leads Depot</label>
             <select
               className="input"
               value={filtersInput.leadsDepotId}
@@ -424,7 +424,7 @@ export default function Updates() {
           </div>
 
           <div>
-            <label className="input-label">Sales Depot</label>
+            <label className="form-label">Sales Depot</label>
             <select
               className="input"
               value={filtersInput.salesDepotId}
