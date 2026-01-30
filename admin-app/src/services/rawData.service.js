@@ -852,6 +852,107 @@ export async function updateRow(id, patch = {}) {
   return enrichSingleRow(data);
 }
 
+export async function moveRawDataRow({
+  id,
+  date_real,
+  leads,
+  payins,
+  sales,
+  leads_depot_id,
+  sales_depot_id,
+  reason,
+} = {}) {
+  if (!id) throw new Error("Row id is required.");
+
+  const { data: before, error: beforeError } = await supabase
+    .from("raw_data")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (beforeError) throw normalizeSupabaseError(beforeError);
+
+  const nextDate = date_real ?? before.date_real;
+  const agentId = before.agent_id;
+  const nextLeadsDepotId = leads_depot_id ?? before.leads_depot_id;
+  const nextSalesDepotId = sales_depot_id ?? before.sales_depot_id;
+
+  if (!nextDate || !agentId || !nextLeadsDepotId || !nextSalesDepotId) {
+    throw new Error("Missing required fields for date change.");
+  }
+
+  const newId = computeRawDataId({
+    date_real: nextDate,
+    agent_id: agentId,
+    leads_depot_id: nextLeadsDepotId,
+    sales_depot_id: nextSalesDepotId,
+  });
+
+  if (!newId) throw new Error("Invalid date change payload.");
+  if (newId === id) throw new Error("Date did not change.");
+
+  const { data: conflict, error: conflictError } = await supabase
+    .from("raw_data")
+    .select("id")
+    .eq("id", newId)
+    .maybeSingle();
+  if (conflictError) throw normalizeSupabaseError(conflictError);
+  if (conflict?.id) {
+    throw new Error("A row already exists for the selected date and depot combination.");
+  }
+
+  const user = await requireSessionUser();
+  const nowIso = new Date().toISOString();
+  const trimmedReason = reason?.trim() || null;
+
+  const payload = {
+    id: newId,
+    agent_id: agentId,
+    date_real: nextDate,
+    date: before.date ?? { source: "edit", original: nextDate },
+    leads: leads ?? before.leads ?? 0,
+    payins: payins ?? before.payins ?? 0,
+    sales: sales ?? before.sales ?? 0,
+    leads_depot_id: nextLeadsDepotId,
+    sales_depot_id: nextSalesDepotId,
+    voided: before.voided ?? false,
+    void_reason: before.void_reason ?? null,
+    voided_at: before.voided_at ?? null,
+    voided_by: before.voided_by ?? null,
+    published: before.published ?? false,
+    publish_reason: before.publish_reason ?? null,
+    updatedAt: { iso: nowIso, reason: trimmedReason, actor: user.email ?? "" },
+  };
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("raw_data")
+    .insert(payload)
+    .select("*")
+    .single();
+  if (insertError) throw normalizeSupabaseError(insertError);
+
+  const { error: deleteError } = await supabase.from("raw_data").delete().eq("id", id);
+  if (deleteError) {
+    await supabase.from("raw_data").delete().eq("id", newId);
+    throw normalizeSupabaseError(deleteError);
+  }
+
+  if (trimmedReason) {
+    const { error: auditError } = await supabase.from("raw_data_audit").insert({
+      raw_data_id: newId,
+      action: "date_change",
+      reason: trimmedReason,
+      actor_id: user.id,
+      actor_email: user.email ?? "",
+      before,
+      after: inserted,
+      created_at: nowIso,
+    });
+    if (auditError) throw normalizeSupabaseError(auditError);
+  }
+
+  return enrichSingleRow(inserted);
+}
+
 export async function setVoided(id, voided, void_reason = null) {
   const payload = {
     voided: Boolean(voided),
