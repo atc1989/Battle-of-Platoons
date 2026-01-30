@@ -11,3 +11,22 @@ export const supabase = createClient(
     },
   }
 );
+
+export async function ensureSession(minValiditySeconds = 60) {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) return { ok: false, error };
+  const session = data?.session;
+  if (!session) return { ok: false, error: new Error("No active session") };
+
+  const expiresAtMs = (session.expires_at ?? 0) * 1000;
+  const remainingMs = expiresAtMs - Date.now();
+  if (remainingMs > minValiditySeconds * 1000) {
+    return { ok: true, session };
+  }
+
+  const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+  if (refreshError || !refreshed?.session) {
+    return { ok: false, error: refreshError || new Error("Session refresh failed") };
+  }
+  return { ok: true, session: refreshed.session };
+}

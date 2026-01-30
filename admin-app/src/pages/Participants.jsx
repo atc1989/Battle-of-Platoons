@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ModalForm } from "../components/ModalForm";
+import AppPagination from "../components/AppPagination";
 import "../styles/pages/participants.css";
 import { listAgents, upsertAgent } from "../services/agents.service";
 import { listDepotsDetailed, upsertDepot } from "../services/depots.service";
@@ -59,6 +60,11 @@ export default function Participants() {
   const [depots, setDepots] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [platoons, setPlatoons] = useState([]);
+  const [leaderPage, setLeaderPage] = useState(1);
+  const [depotPage, setDepotPage] = useState(1);
+  const [companyPage, setCompanyPage] = useState(1);
+  const [platoonPage, setPlatoonPage] = useState(1);
+  const rowsPerPage = 10;
 
   const [leaderPhotoFile, setLeaderPhotoFile] = useState(null);
   const [simplePhotoFile, setSimplePhotoFile] = useState(null);
@@ -180,6 +186,59 @@ export default function Participants() {
   const companyById = useMemo(() => Object.fromEntries(companies.map(c => [c.id, c])), [companies]);
   const platoonById = useMemo(() => Object.fromEntries(platoons.map(p => [p.id, p])), [platoons]);
   const agentById = useMemo(() => Object.fromEntries(agents.map(a => [a.id, a])), [agents]);
+
+  useEffect(() => {
+    if (tab === "leaders") setLeaderPage(1);
+    if (tab === "depots") setDepotPage(1);
+    if (tab === "companies") setCompanyPage(1);
+    if (tab === "platoons") setPlatoonPage(1);
+  }, [tab]);
+
+  useEffect(() => { setLeaderPage(1); }, [agents.length]);
+  useEffect(() => { setDepotPage(1); }, [depots.length]);
+  useEffect(() => { setCompanyPage(1); }, [companies.length]);
+  useEffect(() => { setPlatoonPage(1); }, [platoons.length]);
+
+  const leaderPageCount = Math.max(1, Math.ceil(agents.length / rowsPerPage));
+  const depotPageCount = Math.max(1, Math.ceil(depots.length / rowsPerPage));
+  const companyPageCount = Math.max(1, Math.ceil(companies.length / rowsPerPage));
+  const platoonPageCount = Math.max(1, Math.ceil(platoons.length / rowsPerPage));
+
+  useEffect(() => {
+    if (leaderPage > leaderPageCount) setLeaderPage(leaderPageCount);
+  }, [leaderPage, leaderPageCount]);
+
+  useEffect(() => {
+    if (depotPage > depotPageCount) setDepotPage(depotPageCount);
+  }, [depotPage, depotPageCount]);
+
+  useEffect(() => {
+    if (companyPage > companyPageCount) setCompanyPage(companyPageCount);
+  }, [companyPage, companyPageCount]);
+
+  useEffect(() => {
+    if (platoonPage > platoonPageCount) setPlatoonPage(platoonPageCount);
+  }, [platoonPage, platoonPageCount]);
+
+  const pagedAgents = useMemo(() => {
+    const start = (leaderPage - 1) * rowsPerPage;
+    return agents.slice(start, start + rowsPerPage);
+  }, [agents, leaderPage, rowsPerPage]);
+
+  const pagedDepots = useMemo(() => {
+    const start = (depotPage - 1) * rowsPerPage;
+    return depots.slice(start, start + rowsPerPage);
+  }, [depots, depotPage, rowsPerPage]);
+
+  const pagedCompanies = useMemo(() => {
+    const start = (companyPage - 1) * rowsPerPage;
+    return companies.slice(start, start + rowsPerPage);
+  }, [companies, companyPage, rowsPerPage]);
+
+  const pagedPlatoons = useMemo(() => {
+    const start = (platoonPage - 1) * rowsPerPage;
+    return platoons.slice(start, start + rowsPerPage);
+  }, [platoons, platoonPage, rowsPerPage]);
 
   function ok(msg) { setStatus({ type: "ok", msg }); }
   function err(msg) { setStatus({ type: "error", msg }); }
@@ -1181,7 +1240,7 @@ export default function Participants() {
                 <div>Leader</div><div>Commander</div><div>Company</div><div>Upline</div><div className="t-right">Actions</div>
               </div>
 
-              {agents.map(a => (
+              {pagedAgents.map(a => (
                 <div className="t-row" key={a.id}>
                   <div className="t-leader">
                     <div className="avatar">
@@ -1201,6 +1260,7 @@ export default function Participants() {
               ))}
             </div>
           </div>
+          <AppPagination count={leaderPageCount} page={leaderPage} onChange={setLeaderPage} />
         </div>
       )}
 
@@ -1211,7 +1271,7 @@ export default function Participants() {
               <div>Depot</div><div>Photo</div><div></div><div></div><div className="t-right">Actions</div>
             </div>
 
-            {depots.map(d => (
+            {pagedDepots.map(d => (
               <div className="t-row" key={d.id}>
                 <div className="t-leader">
                   <div className="avatar">
@@ -1229,6 +1289,7 @@ export default function Participants() {
               </div>
             ))}
           </div>
+          <AppPagination count={depotPageCount} page={depotPage} onChange={setDepotPage} />
         </div>
       )}
 
@@ -1239,7 +1300,7 @@ export default function Participants() {
               <div>Commander</div><div>Photo</div><div></div><div></div><div className="t-right">Actions</div>
             </div>
 
-            {companies.map(c => (
+            {pagedCompanies.map(c => (
               <div className="t-row" key={c.id}>
                 <div className="t-leader">
                   <div className="avatar">
@@ -1257,6 +1318,7 @@ export default function Participants() {
               </div>
             ))}
           </div>
+          <AppPagination count={companyPageCount} page={companyPage} onChange={setCompanyPage} />
         </div>
       )}
 
@@ -1267,7 +1329,7 @@ export default function Participants() {
               <div>Company</div><div></div><div></div><div></div><div className="t-right">Actions</div>
             </div>
 
-            {platoons.map(p => (
+            {pagedPlatoons.map(p => (
               <div className="t-row" key={p.id}>
                 <div className="t-leader">
                   <div className="avatar">
@@ -1284,6 +1346,7 @@ export default function Participants() {
               </div>
             ))}
           </div>
+          <AppPagination count={platoonPageCount} page={platoonPage} onChange={setPlatoonPage} />
         </div>
       )}
         </div>

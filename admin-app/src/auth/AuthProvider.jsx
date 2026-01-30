@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "../services/supabase";
  
 const Ctx = createContext(null);
@@ -7,6 +7,11 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(true);
   const [sessionError, setSessionError] = useState("");
+  const lastUserRef = useRef(null);
+
+  useEffect(() => {
+    if (user) lastUserRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     let mounted = true;
@@ -20,9 +25,7 @@ export function AuthProvider({ children }) {
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "TOKEN_REFRESH_FAILED") {
         setSessionError("Session refresh failed or was rate-limited. Please sign in again.");
-        setUser(null);
         setBooting(false);
-        supabase.auth.signOut();
         return;
       }
 
@@ -30,7 +33,11 @@ export function AuthProvider({ children }) {
         setSessionError("");
       }
 
-      setUser(session?.user ?? null);
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+      } else {
+        setUser(session?.user ?? lastUserRef.current);
+      }
       setBooting(false);
     });
 

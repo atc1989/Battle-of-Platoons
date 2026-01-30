@@ -12,6 +12,7 @@ import {
   unpublishRowsWithAudit,
 } from "../services/rawData.service";
 import { getMyProfile } from "../services/profile.service";
+import { ensureSession } from "../services/supabase";
 
 function formatDateInput(date) {
   const year = date.getFullYear();
@@ -73,6 +74,15 @@ export default function Publishing() {
   const canVoid = ADMIN_ROLES.has(role);
 
   const [selectedIds, setSelectedIds] = useState(new Set());
+
+  async function ensureActiveSession() {
+    const result = await ensureSession(120);
+    if (!result.ok) {
+      setError("Session expired. Please sign in again.");
+      return false;
+    }
+    return true;
+  }
 
   function normalizeSchemaErrorMessage(err, fallback) {
     const msg = err?.message || fallback || "";
@@ -231,6 +241,7 @@ export default function Publishing() {
     if (!isSuperAdmin || batchLoading) return;
     const ids = Array.from(selectedIds).filter(id => selectableRowIds.has(id));
     if (!ids.length) return;
+    if (!(await ensureActiveSession())) return;
     setBatchLoading(true);
     setError("");
 
@@ -302,6 +313,7 @@ export default function Publishing() {
 
   async function handleConfirmAuditAction() {
     if (!auditAction || !auditRowIds.length) return;
+    if (!(await ensureActiveSession())) return;
     const trimmedReason = auditReason.trim();
     if (!trimmedReason) {
       setAuditError("Reason is required.");

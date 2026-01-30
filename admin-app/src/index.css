@@ -528,6 +528,22 @@ textarea.input:focus{
   justify-content: flex-end;
   padding: 12px 0 4px;
 }
+.table-pagination .MuiPaginationItem-root{
+  color: var(--blue);
+  border-color: #d6d9e6;
+  font-weight: 700;
+}
+.table-pagination .MuiPaginationItem-root:hover{
+  background: #eef1ff;
+}
+.table-pagination .MuiPaginationItem-root.Mui-selected{
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #ffffff;
+}
+.table-pagination .MuiPaginationItem-root.Mui-selected:hover{
+  background: #0a1898;
+}
 .table-scroll th,
 th{
   color: var(--blue);
