@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import "../styles/pages/publishing.css";
 import { Navigate } from "react-router-dom";
 import { ModalForm } from "../components/ModalForm";
 import { listAgents } from "../services/agents.service";
@@ -348,7 +349,7 @@ export default function Publishing() {
   const trimmedReason = auditReason.trim();
 
   return (
-    <div className="card">
+    <div className="card publishing-page">
       <div className="card-title">Publishing</div>
       <div className="muted" style={{ marginBottom: 12 }}>
         Only rows published by a Super Admin appear on the public leaderboard.
@@ -360,68 +361,69 @@ export default function Publishing() {
         </div>
       ) : null}
 
-      <div
-        className="filters-row"
-        style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 }}
-      >
-        <div>
-          <label htmlFor="date-from" className="form-label">Date From</label>
-          <input
-            id="date-from"
-            type="date"
-            value={filters.dateFrom}
-            onChange={e => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-          />
+      <div className="publishing-filters">
+        <div className="publishing-filter-row">
+          <div>
+            <label htmlFor="date-from" className="form-label">Date From</label>
+            <input
+              id="date-from"
+              type="date"
+              value={filters.dateFrom}
+              onChange={e => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label htmlFor="date-to" className="form-label">Date To</label>
+            <input
+              id="date-to"
+              type="date"
+              value={filters.dateTo}
+              onChange={e => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+            />
+          </div>
         </div>
-        <div>
-          <label htmlFor="date-to" className="form-label">Date To</label>
-          <input
-            id="date-to"
-            type="date"
-            value={filters.dateTo}
-            onChange={e => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-          />
-        </div>
-        <div>
-          <label htmlFor="leader-filter" className="form-label">Leader</label>
-          <select
-            id="leader-filter"
-            value={filters.agentId}
-            onChange={e => setFilters(prev => ({ ...prev, agentId: e.target.value }))}
-            disabled={agentsLoading}
-          >
-            <option value="">All Leaders</option>
-            {agents.map(agent => (
-              <option key={agent.id} value={agent.id}>
-                {agent.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="status-filter" className="form-label">Status</label>
-          <select
-            id="status-filter"
-            value={filters.status}
-            onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
-          >
-            <option value="">All</option>
-            <option value="published">Published</option>
-            <option value="unpublished">Unpublished</option>
-            <option value="voided">Voided</option>
-          </select>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-          <button type="button" className="button primary" onClick={handleApplyFilters} disabled={loading}>
-            Apply Filters
-          </button>
-          <button type="button" className="button secondary" onClick={handleClearFilters} disabled={loading}>
-            Clear
-          </button>
+        <div className="publishing-filter-row">
+          <div>
+            <label htmlFor="leader-filter" className="form-label">Leader</label>
+            <select
+              id="leader-filter"
+              value={filters.agentId}
+              onChange={e => setFilters(prev => ({ ...prev, agentId: e.target.value }))}
+              disabled={agentsLoading}
+            >
+              <option value="">All Leaders</option>
+              {agents.map(agent => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="status-filter" className="form-label">Status</label>
+            <select
+              id="status-filter"
+              value={filters.status}
+              onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
+            >
+              <option value="">All</option>
+              <option value="published">Published</option>
+              <option value="unpublished">Unpublished</option>
+              <option value="voided">Voided</option>
+            </select>
+          </div>
+          <div className="publishing-filter-actions">
+            <button type="button" className="button primary" onClick={handleApplyFilters} disabled={loading}>
+              Apply Filters
+            </button>
+            <button type="button" className="button secondary" onClick={handleClearFilters} disabled={loading}>
+              Clear
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="summary-grid" style={{ marginTop: 12 }}>
+      <div className="summary-grid publishing-summary">
         <div className="summary-pill">
           <div className="summary-label">Total</div>
           <div className="summary-value">{counters.total}</div>
@@ -449,33 +451,38 @@ export default function Publishing() {
       {loading ? <div className="muted" style={{ marginTop: 12 }}>Loading publishing data…</div> : null}
 
       {isSuperAdmin ? (
-        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="button primary"
-            onClick={() => handleBatchPublish(true)}
-            disabled={batchLoading || !selectedIds.size}
-          >
-            Publish Selected ({selectedIds.size})
-          </button>
-          <button
-            type="button"
-            className="button secondary"
-            onClick={() =>
-              openAuditModal(
-                AuditAction.UNPUBLISH,
-                Array.from(selectedIds).filter(id => selectableRowIds.has(id))
-              )
-            }
-            disabled={batchLoading || !selectedIds.size}
-          >
-            Unpublish Selected ({selectedIds.size})
-          </button>
+        <div className="publishing-actions">
+          <div className="publishing-actions__meta">
+            Selected: <span>{selectedIds.size}</span>
+          </div>
+          <div className="publishing-actions__buttons">
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => handleBatchPublish(true)}
+              disabled={batchLoading || !selectedIds.size}
+            >
+              Publish Selected
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() =>
+                openAuditModal(
+                  AuditAction.UNPUBLISH,
+                  Array.from(selectedIds).filter(id => selectableRowIds.has(id))
+                )
+              }
+              disabled={batchLoading || !selectedIds.size}
+            >
+              Unpublish Selected
+            </button>
+          </div>
         </div>
       ) : null}
 
-      <div className="table-scroll" style={{ marginTop: 12 }}>
-        <table className="data-table">
+      <div className="table-scroll publishing-table-wrap">
+        <table className="publishing-table">
           <thead>
             <tr>
               {isSuperAdmin ? (
@@ -493,9 +500,9 @@ export default function Publishing() {
               <th>Leader</th>
               <th>Leads Depot</th>
               <th>Sales Depot</th>
-              <th>Leads</th>
-              <th>Payins</th>
-              <th>Sales</th>
+              <th className="num">Leads</th>
+              <th className="num">Payins</th>
+              <th className="num">Sales</th>
               <th>Status</th>
               <th>Void Reason</th>
               <th>Actions</th>
@@ -521,33 +528,15 @@ export default function Publishing() {
                 <td>{row.agent_id}</td>
                 <td>{row.leads_depot_id}</td>
                 <td>{row.sales_depot_id}</td>
-                <td>{row.leads}</td>
-                <td>{row.payins}</td>
-                <td>{row.sales}</td>
+                <td className="num">{row.leads}</td>
+                <td className="num">{row.payins}</td>
+                <td className="num">{row.sales}</td>
 
                 <td>
                   {row.voided ? (
-                    <span style={{
-                      display: "inline-block",
-                      padding: "2px 8px",
-                      background: "#ffe8e8",
-                      color: "#b00020",
-                      borderRadius: 12,
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}>
-                      Voided
-                    </span>
+                    <span className="status-pill invalid">Voided</span>
                   ) : (
-                    <span style={{
-                      display: "inline-block",
-                      padding: "2px 8px",
-                      background: row.published ? "#e6f5e6" : "#f5f5f5",
-                      color: row.published ? "#1b6b1b" : "#666",
-                      borderRadius: 12,
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}>
+                    <span className={`status-pill ${row.published ? "valid" : "muted"}`}>
                       {row.published ? "Published" : "Unpublished"}
                     </span>
                   )}
