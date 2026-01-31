@@ -596,13 +596,16 @@ textarea.input:focus{
 .table-scroll{ overflow-x:auto; }
 .table-pagination{
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   padding: 12px 0 4px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .table-pagination .MuiPaginationItem-root{
   color: var(--blue);
   border-color: #d6d9e6;
-  font-weight: 700;
+  font-weight: 500;
 }
 .table-pagination .MuiPaginationItem-root:hover{
   background: #eef1ff;
@@ -614,6 +617,10 @@ textarea.input:focus{
 }
 .table-pagination .MuiPaginationItem-root.Mui-selected:hover{
   background: #0a1898;
+}
+.table-pagination__meta{
+  color: var(--muted);
+  font-size: 12px;
 }
 .table-scroll th,
 th{
@@ -706,5 +713,9 @@ th{
 @media (max-width: 720px){
   .table-pagination{
     justify-content: center;
+  }
+  .table-pagination__meta{
+    width: 100%;
+    text-align: center;
   }
 }

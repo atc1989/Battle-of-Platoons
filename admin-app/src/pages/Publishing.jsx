@@ -648,7 +648,13 @@ export default function Publishing() {
         </table>
       </div>
 
-      <AppPagination count={pageCount} page={page} onChange={setPage} />
+      <AppPagination
+        count={pageCount}
+        page={page}
+        onChange={setPage}
+        totalItems={rows.length}
+        pageSize={rowsPerPage}
+      />
 
       {auditModalOpen && auditConfig ? (
         <ModalForm

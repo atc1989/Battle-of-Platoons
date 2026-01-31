@@ -1399,7 +1399,13 @@ export default function Participants() {
               ))}
             </div>
           </div>
-          <AppPagination count={leaderPageCount} page={leaderPage} onChange={setLeaderPage} />
+          <AppPagination
+            count={leaderPageCount}
+            page={leaderPage}
+            onChange={setLeaderPage}
+            totalItems={filteredAgents.length}
+            pageSize={rowsPerPage}
+          />
         </div>
       )}
 
@@ -1434,7 +1440,13 @@ export default function Participants() {
               </div>
             ))}
           </div>
-          <AppPagination count={depotPageCount} page={depotPage} onChange={setDepotPage} />
+          <AppPagination
+            count={depotPageCount}
+            page={depotPage}
+            onChange={setDepotPage}
+            totalItems={filteredDepots.length}
+            pageSize={rowsPerPage}
+          />
         </div>
       )}
 
@@ -1469,7 +1481,13 @@ export default function Participants() {
               </div>
             ))}
           </div>
-          <AppPagination count={companyPageCount} page={companyPage} onChange={setCompanyPage} />
+          <AppPagination
+            count={companyPageCount}
+            page={companyPage}
+            onChange={setCompanyPage}
+            totalItems={filteredCompanies.length}
+            pageSize={rowsPerPage}
+          />
         </div>
       )}
 
@@ -1499,7 +1517,13 @@ export default function Participants() {
               </div>
             ))}
           </div>
-          <AppPagination count={platoonPageCount} page={platoonPage} onChange={setPlatoonPage} />
+          <AppPagination
+            count={platoonPageCount}
+            page={platoonPage}
+            onChange={setPlatoonPage}
+            totalItems={filteredPlatoons.length}
+            pageSize={rowsPerPage}
+          />
         </div>
       )}
         </div>

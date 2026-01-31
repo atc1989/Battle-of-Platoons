@@ -491,7 +491,13 @@ export default function Finalization() {
           </table>
         </div>
 
-        <AppPagination count={historyPageCount} page={historyPage} onChange={setHistoryPage} />
+        <AppPagination
+          count={historyPageCount}
+          page={historyPage}
+          onChange={setHistoryPage}
+          totalItems={recentWeeks.length}
+          pageSize={historyRowsPerPage}
+        />
       </div>
     </div>
   );

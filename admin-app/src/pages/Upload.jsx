@@ -673,7 +673,13 @@ export default function Upload() {
             </table>
           </div>
 
-          <AppPagination count={pageCount} page={page} onChange={setPage} />
+          <AppPagination
+            count={pageCount}
+            page={page}
+            onChange={setPage}
+            totalItems={processed.displayRows.length}
+            pageSize={rowsPerPage}
+          />
 
           <div className="save-bar">
             <button className="button primary" disabled={!processed.rowsForSave.length || loading} onClick={handleSave}>

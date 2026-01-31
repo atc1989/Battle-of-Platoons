@@ -574,7 +574,13 @@ export default function Updates() {
         </table>
       </div>
 
-      <AppPagination count={pageCount} page={page} onChange={setPage} />
+      <AppPagination
+        count={pageCount}
+        page={page}
+        onChange={setPage}
+        totalItems={visibleRows.length}
+        pageSize={rowsPerPage}
+      />
 
       <ModalForm
         isOpen={Boolean(editingRow)}

@@ -847,6 +847,8 @@ export default function AuditLog() {
         count={totalPages}
         page={page + 1}
         onChange={value => setPage(value - 1)}
+        totalItems={totalCount}
+        pageSize={PAGE_SIZE}
       />
 
       {detailRow ? (
