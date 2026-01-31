@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "../styles/pages/formulas.css";
+import { ModalForm } from "../components/ModalForm";
 import {
   listAllFormulasForSuperAdmin,
   listPublishedFormulas,
@@ -741,122 +742,117 @@ export default function ScoringFormulas() {
     items: formulas.filter(f => (f.battle_type || "").toLowerCase() === section.key),
   }));
 
+  function closeCreateModal() {
+    if (createModal.loading) return;
+    setCreateModal(prev => ({ ...prev, open: false }));
+  }
+
+  async function handleCreateSubmit(e) {
+    e.preventDefault();
+    if (createModal.loading) return;
+    if (!createModal.label.trim() || !createModal.start.trim() || !createModal.reason.trim()) return;
+
+    setCreateModal(prev => ({ ...prev, loading: true, error: "" }));
+    const config = { metrics: getDefaultMetrics(createModal.battleType) };
+    const { data, error } = await createDraft({
+      battle_type: createModal.battleType,
+      effective_start_week_key: createModal.start.trim(),
+      effective_end_week_key: createModal.end.trim() || null,
+      label: createModal.label.trim(),
+      config,
+      reason: createModal.reason.trim(),
+    });
+    if (error) {
+      setCreateModal(prev => ({
+        ...prev,
+        loading: false,
+        error: error.message || "Failed to create draft",
+      }));
+      return;
+    }
+    setCreateModal({
+      open: false,
+      battleType: createModal.battleType,
+      label: "",
+      start: "",
+      end: "",
+      reason: "",
+      loading: false,
+      error: "",
+    });
+    await reloadFormulasAndSelect(data?.id);
+  }
+
   return (
     <div className="formulas-page">
-      {createModal.open && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 20,
-          }}
-        >
-          <div
-            style={{
-              background: "#fff",
-              padding: 20,
-              borderRadius: 12,
-              width: "min(420px, 90vw)",
-              border: "1px solid #e2e8f0",
-            }}
-          >
-            <div className="row between" style={{ marginBottom: 12 }}>
-              <div className="card-title" style={{ margin: 0 }}>
-                New {createModal.battleType.replace(/s$/, "")} Formula
-              </div>
-              <button className="btn ghost" onClick={() => setCreateModal(prev => ({ ...prev, open: false }))}>
-                ✕
-              </button>
-            </div>
-            {createModal.error && <div className="error">{createModal.error}</div>}
-            <div className="stack sm">
-              <div className="stack xs">
-                <label className="label">Label</label>
-                <input
-                  type="text"
-                  value={createModal.label}
-                  onChange={e => setCreateModal(prev => ({ ...prev, label: e.target.value }))}
-                />
-              </div>
-              <div className="stack xs">
-                <label className="label">Effective Start Week</label>
-                <input
-                  type="text"
-                  value={createModal.start}
-                  onChange={e => setCreateModal(prev => ({ ...prev, start: e.target.value }))}
-                />
-              </div>
-              <div className="stack xs">
-                <label className="label">Effective End Week (optional)</label>
-                <input
-                  type="text"
-                  value={createModal.end}
-                  onChange={e => setCreateModal(prev => ({ ...prev, end: e.target.value }))}
-                />
-              </div>
-              <div className="stack xs">
-                <label className="label">Reason</label>
-                <textarea
-                  rows={3}
-                  value={createModal.reason}
-                  onChange={e => setCreateModal(prev => ({ ...prev, reason: e.target.value }))}
-                />
-              </div>
-              <div className="row" style={{ gap: 8, justifyContent: "flex-end" }}>
-                <button
-                  className="btn ghost"
-                  onClick={() => setCreateModal(prev => ({ ...prev, open: false }))}
-                  disabled={createModal.loading}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="btn primary"
-                  disabled={
-                    createModal.loading ||
-                    !createModal.label.trim() ||
-                    !createModal.start.trim() ||
-                    !createModal.reason.trim()
-                  }
-                  onClick={async () => {
-                    setCreateModal(prev => ({ ...prev, loading: true, error: "" }));
-                    const config = { metrics: getDefaultMetrics(createModal.battleType) };
-                    const { data, error } = await createDraft({
-                      battle_type: createModal.battleType,
-                      effective_start_week_key: createModal.start.trim(),
-                      effective_end_week_key: createModal.end.trim() || null,
-                      label: createModal.label.trim(),
-                      config,
-                      reason: createModal.reason.trim(),
-                    });
-                    if (error) {
-                      setCreateModal(prev => ({ ...prev, loading: false, error: error.message || "Failed to create draft" }));
-                      return;
-                    }
-                    setCreateModal({
-                      open: false,
-                      battleType: createModal.battleType,
-                      label: "",
-                      start: "",
-                      end: "",
-                      reason: "",
-                      loading: false,
-                      error: "",
-                    });
-                    await reloadFormulasAndSelect(data?.id);
-                  }}
-                >
-                  {createModal.loading ? "Creating…" : "Create"}
-                </button>
-              </div>
-            </div>
+      <ModalForm
+        isOpen={createModal.open}
+        title={`New ${createModal.battleType.replace(/s$/, "")} Formula`}
+        onClose={closeCreateModal}
+        onOverlayClose={closeCreateModal}
+        onSubmit={handleCreateSubmit}
+        footer={(
+          <>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={closeCreateModal}
+              disabled={createModal.loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn primary"
+              disabled={
+                createModal.loading ||
+                !createModal.label.trim() ||
+                !createModal.start.trim() ||
+                !createModal.reason.trim()
+              }
+            >
+              {createModal.loading ? "Creating..." : "Create"}
+            </button>
+          </>
+        )}
+      >
+        {createModal.error && <div className="error">{createModal.error}</div>}
+        <div className="stack sm">
+          <div className="stack xs">
+            <label className="label">Label</label>
+            <input
+              type="text"
+              value={createModal.label}
+              onChange={e => setCreateModal(prev => ({ ...prev, label: e.target.value }))}
+            />
+          </div>
+          <div className="stack xs">
+            <label className="label">Effective Start Week</label>
+            <input
+              type="text"
+              value={createModal.start}
+              onChange={e => setCreateModal(prev => ({ ...prev, start: e.target.value }))}
+            />
+          </div>
+          <div className="stack xs">
+            <label className="label">Effective End Week (optional)</label>
+            <input
+              type="text"
+              value={createModal.end}
+              onChange={e => setCreateModal(prev => ({ ...prev, end: e.target.value }))}
+            />
+          </div>
+          <div className="stack xs">
+            <label className="label">Reason</label>
+            <textarea
+              rows={3}
+              value={createModal.reason}
+              onChange={e => setCreateModal(prev => ({ ...prev, reason: e.target.value }))}
+            />
           </div>
         </div>
-      )}
+      </ModalForm>
+
       <div className="grid two formulas-grid">
         <div className="card formula-library">
           <div className="card-title">Formulas</div>

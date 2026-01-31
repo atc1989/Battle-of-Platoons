@@ -3,6 +3,7 @@ import "../styles/pages/audit-log.css";
 import { Navigate } from "react-router-dom";
 import AppPagination from "../components/AppPagination";
 import ExportButton from "../components/ExportButton";
+import { ModalForm } from "../components/ModalForm";
 import { exportToXlsx } from "../services/export.service";
 import {
   getProfilesByIds,
@@ -868,47 +869,49 @@ export default function AuditLog() {
       />
 
       {detailRow ? (
-        <div className="modal-backdrop">
-          <div className="modal-card" style={{ maxWidth: 720 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <div style={{ fontSize: 18, fontWeight: 700 }}>Audit Entry</div>
-              <button type="button" className="button secondary" onClick={() => setDetailRow(null)}>
-                Close
-              </button>
-            </div>
-
-              <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
-              <div><strong>Source:</strong> {detailRow.source_table}</div>
-              <div><strong>Action:</strong> {detailRow.action || "—"}</div>
-              <div><strong>Reason:</strong> {detailRow.reason || "—"}</div>
-              <div><strong>Actor:</strong> {getActorMeta(detailRow).display}</div>
-              <div><strong>Actor ID:</strong> {detailRow.actor_id || "—"}</div>
-              <div><strong>Entity:</strong> {detailRow.entity_type}</div>
-              <div><strong>Entity ID:</strong> {detailRow.entity_id || "—"}</div>
-              <div><strong>Leader ID:</strong> {detailRow.leader_id || "—"}</div>
-              <div><strong>Created:</strong> {formatDate(detailRow.created_at)}</div>
-            </div>
-
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Before</div>
-              <pre style={{ whiteSpace: "pre-wrap" }}>
-                {detailRow.before ? JSON.stringify(detailRow.before, null, 2) : "—"}
-              </pre>
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>After</div>
-              <pre style={{ whiteSpace: "pre-wrap" }}>
-                {detailRow.after ? JSON.stringify(detailRow.after, null, 2) : "—"}
-              </pre>
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Meta</div>
-              <pre style={{ whiteSpace: "pre-wrap" }}>
-                {detailRow.meta ? JSON.stringify(detailRow.meta, null, 2) : "—"}
-              </pre>
-            </div>
+        <ModalForm
+          isOpen={!!detailRow}
+          title="Audit Entry"
+          onClose={() => setDetailRow(null)}
+          onOverlayClose={() => setDetailRow(null)}
+          onSubmit={(e) => e.preventDefault()}
+          footer={(
+            <button type="button" className="button secondary" onClick={() => setDetailRow(null)}>
+              Close
+            </button>
+          )}
+        >
+          <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
+            <div><strong>Source:</strong> {detailRow.source_table}</div>
+            <div><strong>Action:</strong> {detailRow.action || "-"}</div>
+            <div><strong>Reason:</strong> {detailRow.reason || "-"}</div>
+            <div><strong>Actor:</strong> {getActorMeta(detailRow).display}</div>
+            <div><strong>Actor ID:</strong> {detailRow.actor_id || "-"}</div>
+            <div><strong>Entity:</strong> {detailRow.entity_type}</div>
+            <div><strong>Entity ID:</strong> {detailRow.entity_id || "-"}</div>
+            <div><strong>Leader ID:</strong> {detailRow.leader_id || "-"}</div>
+            <div><strong>Created:</strong> {formatDate(detailRow.created_at)}</div>
           </div>
-        </div>
+
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Before</div>
+            <pre style={{ whiteSpace: "pre-wrap" }}>
+              {detailRow.before ? JSON.stringify(detailRow.before, null, 2) : "-"}
+            </pre>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>After</div>
+            <pre style={{ whiteSpace: "pre-wrap" }}>
+              {detailRow.after ? JSON.stringify(detailRow.after, null, 2) : "-"}
+            </pre>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Meta</div>
+            <pre style={{ whiteSpace: "pre-wrap" }}>
+              {detailRow.meta ? JSON.stringify(detailRow.meta, null, 2) : "-"}
+            </pre>
+          </div>
+        </ModalForm>
       ) : null}
     </div>
   );
