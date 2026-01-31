@@ -31,6 +31,17 @@ const BASE_ACTIONS = [
   "UNPUBLISH",
 ];
 
+function EyeIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M12 5c5.05 0 8.7 4.45 9.65 5.78a1.6 1.6 0 0 1 0 1.86C20.7 13.97 17.05 18.4 12 18.4S3.3 13.97 2.35 12.64a1.6 1.6 0 0 1 0-1.86C3.3 9.45 6.95 5 12 5Zm0 1.6c-3.92 0-7.07 3.35-7.93 4.6.86 1.25 4 4.6 7.93 4.6s7.07-3.35 7.93-4.6c-.86-1.25-4-4.6-7.93-4.6Zm0 2.2a3.6 3.6 0 1 1 0 7.2 3.6 3.6 0 0 1 0-7.2Zm0 1.6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"
+      />
+    </svg>
+  );
+}
+
 function toIsoRange(dateFrom, dateTo) {
   const fromTs = dateFrom ? new Date(`${dateFrom}T00:00:00Z`).toISOString() : null;
   const toTs = dateTo ? new Date(`${dateTo}T23:59:59.999Z`).toISOString() : null;
@@ -723,41 +734,41 @@ export default function AuditLog() {
               ))}
             </select>
           </div>
-          {showAdvanced ? (
-            <>
-              <div>
-                <label className="form-label">User (email or UUID)</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="Email or UUID"
-                  value={filters.actorId}
-                  onChange={e => setFilters(prev => ({ ...prev, actorId: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="form-label">Leader ID</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="agent_id"
-                  value={filters.leaderId}
-                  onChange={e => setFilters(prev => ({ ...prev, leaderId: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="form-label">Search</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="Reason, actor, leader"
-                  value={filters.search}
-                  onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                />
-              </div>
-            </>
-          ) : null}
         </div>
+        {showAdvanced ? (
+          <div className="filter-row">
+            <div>
+              <label className="form-label">User (email or UUID)</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="Email or UUID"
+                value={filters.actorId}
+                onChange={e => setFilters(prev => ({ ...prev, actorId: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="form-label">Leader ID</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="agent_id"
+                value={filters.leaderId}
+                onChange={e => setFilters(prev => ({ ...prev, leaderId: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="form-label">Search</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="Reason, actor, leader"
+                value={filters.search}
+                onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              />
+            </div>
+          </div>
+        ) : null}
         <div className="filter-actions">
           <div className="filter-actions__main">
             <button type="button" className="button primary" onClick={handleApply} disabled={loading}>
@@ -832,8 +843,13 @@ export default function AuditLog() {
                   <td title={row.reason}>{truncate(row.reason)}</td>
                   <td>{row.source_table}</td>
                   <td>
-                    <button type="button" className="button secondary" onClick={() => setDetailRow(row)}>
-                      View
+                    <button
+                      type="button"
+                      className="btn-link icon-btn"
+                      onClick={() => setDetailRow(row)}
+                      aria-label="View details"
+                    >
+                      <EyeIcon />
                     </button>
                   </td>
                 </tr>

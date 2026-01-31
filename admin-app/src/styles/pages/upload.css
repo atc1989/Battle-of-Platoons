@@ -85,10 +85,13 @@
 
 .upload-pagination-row .table-pagination{
   padding: 0;
+  order: 1;
+  margin-left: auto;
 }
 
 .upload-pagination-row .save-bar{
   margin-top: 0;
+  order: 0;
 }
 
 .import-option{

@@ -36,6 +36,17 @@ function getDefaultDateRange() {
 const SCHEMA_MIGRATION_HINT = "Run SQL migration and reload schema.";
 const ADMIN_ROLES = new Set(["admin", "super_admin"]);
 
+function TrashIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M9 3.75A.75.75 0 0 1 9.75 3h4.5a.75.75 0 0 1 .75.75V5H19a.75.75 0 0 1 0 1.5h-1.06l-1.02 12.24A2.25 2.25 0 0 1 14.68 21H9.32a2.25 2.25 0 0 1-2.24-2.26L6.06 6.5H5a.75.75 0 0 1 0-1.5h4V3.75ZM10.5 5h3V4.5h-3V5Zm-1.9 1.5.98 11.86a.75.75 0 0 0 .74.74h5.36a.75.75 0 0 0 .74-.74l.98-11.86H8.6Zm2.15 2.5c.41 0 .75.34.75.75v6a.75.75 0 0 1-1.5 0v-6c0-.41.34-.75.75-.75Zm3 0c.41 0 .75.34.75.75v6a.75.75 0 0 1-1.5 0v-6c0-.41.34-.75.75-.75Z"
+      />
+    </svg>
+  );
+}
+
 export default function Publishing() {
   const defaults = useMemo(() => getDefaultDateRange(), []);
   const [filters, setFilters] = useState({
@@ -616,11 +627,12 @@ export default function Publishing() {
                     {!row.voided && canVoid ? (
                       <button
                         type="button"
-                        className="button secondary"
+                        className="btn-link icon-btn"
                         onClick={() => openAuditModal(AuditAction.VOID, [row.id])}
                         disabled={auditSubmitting}
+                        aria-label="Void"
                       >
-                        Void
+                        <TrashIcon />
                       </button>
                     ) : null}
                     {row.voided && isSuperAdmin ? (
