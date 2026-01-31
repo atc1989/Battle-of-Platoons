@@ -673,21 +673,22 @@ export default function Upload() {
             </table>
           </div>
 
-          <AppPagination
-            count={pageCount}
-            page={page}
-            onChange={setPage}
-            totalItems={processed.displayRows.length}
-            pageSize={rowsPerPage}
-          />
-
-          <div className="save-bar">
-            <button className="button primary" disabled={!processed.rowsForSave.length || loading} onClick={handleSave}>
-              Save to Database
-            </button>
-            {saveProgress.total ? (
-              <div className="muted">Saving {saveProgress.done}/{saveProgress.total}…</div>
-            ) : null}
+          <div className="upload-pagination-row">
+            <AppPagination
+              count={pageCount}
+              page={page}
+              onChange={setPage}
+              totalItems={processed.displayRows.length}
+              pageSize={rowsPerPage}
+            />
+            <div className="save-bar">
+              <button className="button primary" disabled={!processed.rowsForSave.length || loading} onClick={handleSave}>
+                Save to Database
+              </button>
+              {saveProgress.total ? (
+                <div className="muted">Saving {saveProgress.done}/{saveProgress.total}…</div>
+              ) : null}
+            </div>
           </div>
         </>
       ) : null}

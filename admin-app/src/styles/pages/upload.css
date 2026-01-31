@@ -74,6 +74,23 @@
   gap: 10px;
 }
 
+.upload-pagination-row{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.upload-pagination-row .table-pagination{
+  padding: 0;
+}
+
+.upload-pagination-row .save-bar{
+  margin-top: 0;
+}
+
 .import-option{
   border: 1px solid #e6eaf5;
   background:#f7f8ff;
@@ -110,5 +127,8 @@
   .dropzone{
     flex-direction: column;
     align-items: flex-start;
+  }
+  .upload-pagination-row{
+    justify-content: flex-start;
   }
 }
