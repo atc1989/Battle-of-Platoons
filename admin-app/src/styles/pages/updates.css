@@ -67,6 +67,59 @@
   padding: 4px 8px;
 }
 
+.edit-modal{
+  display:flex;
+  flex-direction:column;
+  gap: 16px;
+}
+
+.edit-modal__section{
+  display:flex;
+  flex-direction:column;
+  gap: 10px;
+}
+
+.edit-modal__title{
+  font-size: 13px;
+  font-weight: 700;
+  color: #1b1f2d;
+}
+
+.edit-modal__summary{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  background: #f7f8ff;
+  border: 1px solid #e5e7ff;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.edit-modal__summary span{
+  display:block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.edit-modal__summary strong{
+  font-size: 13px;
+  font-weight: 700;
+  color: #1b1f2d;
+}
+
+.edit-modal__grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 900px){
+  .edit-modal__summary{
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px){
   .updates-filter-row{
     grid-template-columns: 1fr;

@@ -95,6 +95,10 @@ export default function Participants() {
   const [leaderPhotoError, setLeaderPhotoError] = useState("");
   const [simplePhotoError, setSimplePhotoError] = useState("");
   const [platoonPhotoError, setPlatoonPhotoError] = useState("");
+  const [leaderCommanderInput, setLeaderCommanderInput] = useState("");
+  const [leaderCompanyInput, setLeaderCompanyInput] = useState("");
+  const [leaderUplineInput, setLeaderUplineInput] = useState("");
+  const [leaderIdCopied, setLeaderIdCopied] = useState(false);
 
   const [leaderFileKey, setLeaderFileKey] = useState(0);
   const [simpleFileKey, setSimpleFileKey] = useState(0);
@@ -117,7 +121,6 @@ export default function Participants() {
   const [leaderForm, setLeaderForm] = useState({
     id: "",
     name: "",
-    depotId: "",
     companyId: "",
     platoonId: "",
     uplineId: "",
@@ -202,6 +205,16 @@ export default function Participants() {
   const agentById = useMemo(() => Object.fromEntries(agents.map(a => [a.id, a])), [agents]);
   const depotById = useMemo(() => Object.fromEntries(depots.map(d => [d.id, d])), [depots]);
   const normalizedSearch = useMemo(() => normalizeName(searchTerm), [searchTerm]);
+
+  function resolveIdFromInput(input, rows) {
+    const trimmed = input.trim();
+    if (!trimmed) return "";
+    const direct = rows.find(row => row.id === trimmed);
+    if (direct) return direct.id;
+    const normalized = normalizeName(trimmed);
+    const byName = rows.find(row => normalizeName(row.name) === normalized);
+    return byName?.id || "";
+  }
 
   useEffect(() => {
     if (tab === "leaders") setLeaderPage(1);
@@ -300,7 +313,6 @@ export default function Participants() {
       Commander: companyById[a.companyId]?.name || a.companyId || "-",
       Company: platoonById[a.platoonId]?.name || a.platoonId || "-",
       Upline: a.uplineAgentId ? (agentById[a.uplineAgentId]?.name || a.uplineAgentId) : "-",
-      Depot: depotById[a.depotId]?.name || a.depotId || "-",
       "Photo URL": a.photoURL || "",
     }));
     const filename = `participants-leaders-${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -365,6 +377,25 @@ export default function Participants() {
     [leaderForm.name]
   );
   const isEditingLeader = !!leaderOriginalId;
+  const leaderNameError = leaderForm.name.trim() ? "" : "Leader name is required.";
+  const leaderCommanderError = leaderForm.companyId ? "" : "Commander is required.";
+  const leaderCompanyError = leaderForm.platoonId ? "" : "Company is required.";
+  const leaderFileError = validateFile(leaderPhotoFile);
+  const canSaveLeader =
+    isSuperAdmin &&
+    !leaderUploading &&
+    !leaderIdConflict &&
+    !leaderFileError &&
+    !leaderNameError &&
+    !leaderCommanderError &&
+    !leaderCompanyError;
+  const leaderSaveDisabledReason = !isSuperAdmin
+    ? "Read-only access."
+    : leaderIdConflict
+      ? "Agent ID already exists."
+      : leaderFileError
+        ? leaderFileError
+        : leaderNameError || leaderCommanderError || leaderCompanyError;
 
   const leaderSuggestedId = useMemo(() => {
     if (isEditingLeader) return leaderOriginalId || leaderBaseSlug;
@@ -420,21 +451,19 @@ export default function Participants() {
     }
   }
 
-  function handleDepotChange(nextDepotId) {
-    setLeaderForm(s => ({ ...s, depotId: nextDepotId }));
-  }
-
   function clearLeader() {
     setLeaderForm({
       id: "",
       name: "",
-      depotId: "",
       companyId: "",
       platoonId: "",
       uplineId: "",
       role: "platoon",
       photoURL: "",
     });
+    setLeaderCommanderInput("");
+    setLeaderCompanyInput("");
+    setLeaderUplineInput("");
     setLeaderOriginalId("");
     setLeaderPhotoFile(null);
     setLeaderFileKey(k => k + 1);
@@ -506,7 +535,6 @@ export default function Participants() {
       await upsertAgent({
         id,
         name,
-        depotId: leaderForm.depotId,
         companyId: leaderForm.companyId,
         platoonId: leaderForm.platoonId,
         uplineAgentId: leaderForm.uplineId || null,
@@ -532,13 +560,15 @@ export default function Participants() {
     setLeaderForm({
       id: a.id,
       name: a.name || "",
-      depotId: a.depotId || "",
       companyId: a.companyId || "",
       platoonId: a.platoonId || "",
       uplineId: a.uplineAgentId || "",
       role: a.role || "platoon",
       photoURL: a.photoURL || "",
     });
+    setLeaderCommanderInput(companyById[a.companyId]?.name || a.companyId || "");
+    setLeaderCompanyInput(platoonById[a.platoonId]?.name || a.platoonId || "");
+    setLeaderUplineInput(a.uplineAgentId ? (agentById[a.uplineAgentId]?.name || a.uplineAgentId) : "");
     setLeaderOriginalId(a.id);
     setLeaderPhotoFile(null);
     setLeaderFileKey(k => k + 1);
@@ -548,6 +578,18 @@ export default function Participants() {
     setStatus({ type: "", msg: "" });
     setIsFormOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleCopyLeaderId() {
+    const value = leaderSuggestedId || "";
+    if (!value) return;
+    navigator.clipboard?.writeText(value).then(() => {
+      setLeaderIdCopied(true);
+      setTimeout(() => setLeaderIdCopied(false), 1500);
+    }).catch(() => {
+      setLeaderIdCopied(true);
+      setTimeout(() => setLeaderIdCopied(false), 1500);
+    });
   }
 
   // ---- Depots / Companies shared
@@ -1001,17 +1043,28 @@ export default function Participants() {
         footer={
           activeModal === "leader" ? (
             <>
-              <button className="btn-primary" type="submit" disabled={leaderUploading || leaderIdConflict}>{isEditingLeader ? "Save Changes" : "Save"}</button>
+              <button
+                className="btn-primary"
+                type="submit"
+                disabled={!canSaveLeader}
+                title={!canSaveLeader ? leaderSaveDisabledReason : ""}
+              >
+                {isEditingLeader ? "Save Changes" : "Save"}
+              </button>
               <button className="btn" type="button" onClick={handleLeaderClear}>Clear</button>
             </>
           ) : activeModal === "company" ? (
             <>
-              <button className="btn-primary" type="submit" disabled={platoonUploading}>{platoonForm.id ? "Save Changes" : "Save"}</button>
+              <button className="btn-primary" type="submit" disabled={platoonUploading || !platoonForm.name.trim()} title={!platoonForm.name.trim() ? "Company name is required." : ""}>
+                {platoonForm.id ? "Save Changes" : "Save"}
+              </button>
               <button className="btn" type="button" onClick={handleCompanyClear}>Clear</button>
             </>
           ) : (
             <>
-              <button className="btn-primary" type="submit" disabled={simpleUploading}>{simpleForm.id ? "Save Changes" : "Save"}</button>
+              <button className="btn-primary" type="submit" disabled={simpleUploading || !simpleForm.name.trim()} title={!simpleForm.name.trim() ? "Name is required." : ""}>
+                {simpleForm.id ? "Save Changes" : "Save"}
+              </button>
               <button
                 className="btn"
                 type="button"
@@ -1028,151 +1081,195 @@ export default function Participants() {
       >
         {activeModal === "leader" && (
           <>
-            <div className="grid">
-              <div className="field">
-                <label>Leader Name</label>
-                <input value={leaderForm.name} onChange={(e) => setLeaderForm(s => ({ ...s, name: e.target.value }))} />
-              </div>
-
-              <div className="field">
-                <label>Agent ID</label>
-                <input
-                  value={leaderSuggestedId}
-                  className={leaderIdConflict ? "input-error" : ""}
-                  placeholder="Auto from name. Add suffix for uniqueness (e.g., juan-dela-cruz-2)."
-                  readOnly
-                />
-              </div>
-
-              <div className="field">
-                <label>Depot (legacy, optional)</label>
-                <select value={leaderForm.depotId} onChange={(e) => handleDepotChange(e.target.value)}>
-                  <option value="">No depot</option>
-                  {depots.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-                <div className="hint">This field is for legacy grouping only and does not affect permissions.</div>
-              </div>
-
-              <div className="field">
-                <label>Commander</label>
-                <select value={leaderForm.companyId} onChange={(e) => setLeaderForm(s => ({ ...s, companyId: e.target.value }))}>
-                  <option value="">Select commander</option>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-
-              <div className="field">
-                <label>Company</label>
-                <select value={leaderForm.platoonId} onChange={(e) => setLeaderForm(s => ({ ...s, platoonId: e.target.value }))}>
-                  <option value="">Select company</option>
-                  {platoons.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-
-              <div className="field">
-                <label>Upline (optional)</label>
-                <select
-                  value={leaderForm.uplineId}
-                  onChange={(e) => setLeaderForm(s => ({ ...s, uplineId: e.target.value }))}
-                  disabled={availableUplineLeaders.length === 0}
-                >
-                  <option value="">
-                    {availableUplineLeaders.length === 0 ? "No leaders available" : "Select upline"}
-                  </option>
-                  {availableUplineLeaders.map(l => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="field">
-                <label>Role</label>
-                <select value={leaderForm.role || "platoon"} onChange={(e) => setLeaderForm(s => ({ ...s, role: e.target.value }))}>
-                  <option value="platoon">Platoon Leader</option>
-                  <option value="squad">Squad Leader</option>
-                  <option value="team">Team Leader</option>
-                </select>
-              </div>
-
-              <div className="field photo-section">
-                <label>Photo (optional)</label>
-                <div className="photo-mode-toggle">
-                  <button
-                    type="button"
-                    className={`photo-mode-pill ${leaderPhotoMode === "upload" ? "active" : ""}`}
-                    onClick={() => handleLeaderModeChange("upload")}
-                  >
-                    Upload Photo
-                  </button>
-                  <button
-                    type="button"
-                    className={`photo-mode-pill ${leaderPhotoMode === "url" ? "active" : ""}`}
-                    onClick={() => handleLeaderModeChange("url")}
-                  >
-                    Use Photo URL
-                  </button>
+            <div className="modal-section">
+              <div className="modal-section__title">Identity</div>
+              <div className="grid">
+                <div className="field">
+                  <label>Leader Name <span className="req">*</span></label>
+                  <input
+                    value={leaderForm.name}
+                    className={leaderNameError ? "input-error" : ""}
+                    onChange={(e) => setLeaderForm(s => ({ ...s, name: e.target.value }))}
+                  />
+                  {leaderNameError && <div className="field-error">{leaderNameError}</div>}
                 </div>
 
-                <div className="photo-input-row">
-                  <div className="photo-preview">
-                    {leaderPhotoPreviewUrl ? (
-                      <img src={leaderPhotoPreviewUrl} alt={leaderForm.name || "Preview"} />
-                    ) : (
-                      <span className="initials">{getInitials(leaderForm.name)}</span>
+                <div className="field">
+                  <label>Agent ID</label>
+                  <div className="input-with-button">
+                    <input
+                      value={leaderSuggestedId}
+                      className={leaderIdConflict ? "input-error" : ""}
+                      placeholder="Auto from name. Add suffix for uniqueness (e.g., juan-dela-cruz-2)."
+                      readOnly
+                    />
+                    <button type="button" className="btn-link icon-btn" onClick={handleCopyLeaderId} aria-label="Copy Agent ID">
+                      {leaderIdCopied ? "✓" : "⧉"}
+                    </button>
+                  </div>
+                  <div className="hint">{leaderIdCopied ? "Copied!" : "Read-only. Click the icon to copy."}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-section">
+              <div className="modal-section__title">Assignment</div>
+              <div className="grid">
+                <div className="field">
+                  <label>Commander <span className="req">*</span></label>
+                  <input
+                    list="leader-commanders"
+                    value={leaderCommanderInput}
+                    className={leaderCommanderError ? "input-error" : ""}
+                    placeholder="Search commander"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setLeaderCommanderInput(value);
+                      const resolved = resolveIdFromInput(value, companies);
+                      setLeaderForm(s => ({ ...s, companyId: resolved }));
+                    }}
+                  />
+                  <datalist id="leader-commanders">
+                    {companies.map(c => (
+                      <option key={c.id} value={c.name} />
+                    ))}
+                  </datalist>
+                  {leaderCommanderError && <div className="field-error">{leaderCommanderError}</div>}
+                </div>
+
+                <div className="field">
+                  <label>Company <span className="req">*</span></label>
+                  <input
+                    list="leader-companies"
+                    value={leaderCompanyInput}
+                    className={leaderCompanyError ? "input-error" : ""}
+                    placeholder="Search company"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setLeaderCompanyInput(value);
+                      const resolved = resolveIdFromInput(value, platoons);
+                      setLeaderForm(s => ({ ...s, platoonId: resolved }));
+                    }}
+                  />
+                  <datalist id="leader-companies">
+                    {platoons.map(p => (
+                      <option key={p.id} value={p.name} />
+                    ))}
+                  </datalist>
+                  {leaderCompanyError && <div className="field-error">{leaderCompanyError}</div>}
+                </div>
+
+                <div className="field">
+                  <label>Upline (optional)</label>
+                  <input
+                    list="leader-uplines"
+                    value={leaderUplineInput}
+                    placeholder={availableUplineLeaders.length === 0 ? "No leaders available" : "Search upline"}
+                    disabled={availableUplineLeaders.length === 0}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setLeaderUplineInput(value);
+                      const resolved = resolveIdFromInput(value, availableUplineLeaders);
+                      setLeaderForm(s => ({ ...s, uplineId: resolved }));
+                    }}
+                  />
+                  <datalist id="leader-uplines">
+                    {availableUplineLeaders.map(l => (
+                      <option key={l.id} value={l.name} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div className="field">
+                  <label>Role</label>
+                  <select value={leaderForm.role || "platoon"} onChange={(e) => setLeaderForm(s => ({ ...s, role: e.target.value }))}>
+                    <option value="platoon">Platoon Leader</option>
+                    <option value="squad">Squad Leader</option>
+                    <option value="team">Team Leader</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-section">
+              <div className="modal-section__title">Photo</div>
+              <div className="photo-card">
+                <div className="photo-card__preview">
+                  {leaderPhotoPreviewUrl ? (
+                    <img src={leaderPhotoPreviewUrl} alt={leaderForm.name || "Preview"} />
+                  ) : (
+                    <span className="initials">{getInitials(leaderForm.name)}</span>
+                  )}
+                </div>
+                <div className="photo-card__body">
+                  <div className="photo-mode-toggle">
+                    <button
+                      type="button"
+                      className={`photo-mode-pill ${leaderPhotoMode === "upload" ? "active" : ""}`}
+                      onClick={() => handleLeaderModeChange("upload")}
+                    >
+                      Upload
+                    </button>
+                    <button
+                      type="button"
+                      className={`photo-mode-pill ${leaderPhotoMode === "url" ? "active" : ""}`}
+                      onClick={() => handleLeaderModeChange("url")}
+                    >
+                      URL
+                    </button>
+                  </div>
+
+                  <div className="photo-input-row">
+                    {leaderPhotoMode === "upload" && (
+                      <input
+                        key={leaderFileKey}
+                        type="file"
+                        accept={ACCEPTED_TYPES.join(",")}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          setLeaderPhotoFile(file || null);
+                          setLeaderPhotoError("");
+                          if (file) {
+                            setLeaderPhotoUrlInput("");
+                            setLeaderForm(s => ({ ...s, photoURL: "" }));
+                          }
+                        }}
+                      />
+                    )}
+
+                    {leaderPhotoMode === "url" && (
+                      <input
+                        value={leaderPhotoUrlInput}
+                        placeholder="https://..."
+                        onChange={(e) => {
+                          setLeaderPhotoUrlInput(e.target.value);
+                          setLeaderPhotoError("");
+                        }}
+                      />
                     )}
                   </div>
 
-                  {leaderPhotoMode === "upload" && (
-                    <input
-                      key={leaderFileKey}
-                      type="file"
-                      accept={ACCEPTED_TYPES.join(",")}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        setLeaderPhotoFile(file || null);
+                  <div className="photo-card__actions">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        setLeaderPhotoFile(null);
+                        setLeaderFileKey(k => k + 1);
+                        setLeaderPhotoUrlInput("");
                         setLeaderPhotoError("");
-                        if (file) {
-                          setLeaderPhotoUrlInput("");
-                          setLeaderForm(s => ({ ...s, photoURL: "" }));
-                        }
+                        setLeaderPhotoMode("upload");
+                        setLeaderForm(s => ({ ...s, photoURL: "" }));
                       }}
-                    />
-                  )}
+                    >
+                      Remove Photo
+                    </button>
+                  </div>
 
-                  {leaderPhotoMode === "url" && (
-                    <input
-                      value={leaderPhotoUrlInput}
-                      placeholder="https://..."
-                      onChange={(e) => {
-                        setLeaderPhotoUrlInput(e.target.value);
-                        setLeaderPhotoError("");
-                      }}
-                    />
-                  )}
+                  <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
+                  {(leaderPhotoError || leaderFileError) && <div className="photo-error">{leaderPhotoError || leaderFileError}</div>}
+                  {leaderUploading && <div className="hint">Uploading...</div>}
                 </div>
-
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => {
-                      setLeaderPhotoFile(null);
-                      setLeaderFileKey(k => k + 1);
-                      setLeaderPhotoUrlInput("");
-                      setLeaderPhotoError("");
-                      setLeaderPhotoMode("upload");
-                      setLeaderForm(s => ({ ...s, photoURL: "" }));
-                    }}
-                  >
-                    Clear Photo
-                  </button>
-                </div>
-
-                <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
-                {leaderPhotoError && <div className="photo-error">{leaderPhotoError}</div>}
-                {leaderUploading && <div className="hint">Uploading...</div>}
               </div>
             </div>
 

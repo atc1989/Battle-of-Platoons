@@ -109,6 +109,18 @@ export default function Updates() {
     sales: "",
   });
 
+  const leadInvalid =
+    editingRow &&
+    (editValues.leads === "" || Number.isNaN(Number(editValues.leads)) || Number(editValues.leads) < 0);
+  const payinsInvalid =
+    editingRow &&
+    (editValues.payins === "" || Number.isNaN(Number(editValues.payins)) || Number(editValues.payins) < 0);
+  const salesInvalid =
+    editingRow &&
+    (editValues.sales === "" || Number.isNaN(Number(editValues.sales)) || Number(editValues.sales) < 0);
+  const canSaveEdit =
+    editingRow && !leadInvalid && !payinsInvalid && !salesInvalid && savingId !== editingRow?.id;
+
   // Auth / session
   const [profile, setProfile] = useState(null);
   const currentRole = profile?.role || "";
@@ -599,49 +611,90 @@ export default function Updates() {
         title="Edit Row"
         onClose={cancelEdit}
         onOverlayClose={cancelEdit}
-        onSubmit={() => editingRow && saveEdit(editingRow.id)}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (editingRow && canSaveEdit) saveEdit(editingRow.id);
+        }}
         footer={(
           <>
             <button type="button" className="button secondary" onClick={cancelEdit} disabled={savingId === editingRow?.id}>
               Cancel
             </button>
-            <button type="submit" className="button primary" disabled={savingId === editingRow?.id}>
+            <button
+              type="submit"
+              className="button primary"
+              disabled={!canSaveEdit}
+              title={!canSaveEdit ? "Fill in valid non-negative values for Leads, Payins, and Sales." : ""}
+            >
               {savingId === editingRow?.id ? "Saving..." : "Save"}
             </button>
           </>
         )}
       >
-        <div className="form-grid">
-          <div className="hint" style={{ gridColumn: "1 / -1" }}>
-            Date and depots are locked because they are part of the row ID. Changing them would create a new row.
+        <div className="edit-modal">
+          <div className="edit-modal__section">
+            <div className="edit-modal__title">Locked fields</div>
+            <div className="edit-modal__summary">
+              <div>
+                <span>Date</span>
+                <strong>{editingRow?.date_real || "-"}</strong>
+              </div>
+              <div>
+                <span>Leads Depot</span>
+                <strong>{editingRow?.leadsDepotName || "-"}</strong>
+              </div>
+              <div>
+                <span>Sales Depot</span>
+                <strong>{editingRow?.salesDepotName || "-"}</strong>
+              </div>
+              <div>
+                <span>Leader</span>
+                <strong>{editingRow?.leaderName || "(Restricted)"}</strong>
+              </div>
+            </div>
+            <div className="hint">
+              Date and depots are locked because they are part of the row ID. Changing them would create a new row.
+            </div>
           </div>
-          <label className="form-field">
-            <span>Leads</span>
-            <input
-              type="number"
-              className="input"
-              value={editValues.leads}
-              onChange={e => onEditChange("leads", e.target.value)}
-            />
-          </label>
-          <label className="form-field">
-            <span>Payins</span>
-            <input
-              type="number"
-              className="input"
-              value={editValues.payins}
-              onChange={e => onEditChange("payins", e.target.value)}
-            />
-          </label>
-          <label className="form-field">
-            <span>Sales</span>
-            <input
-              type="number"
-              className="input"
-              value={editValues.sales}
-              onChange={e => onEditChange("sales", e.target.value)}
-            />
-          </label>
+
+          <div className="edit-modal__section">
+            <div className="edit-modal__title">Editable metrics</div>
+            <div className="edit-modal__grid">
+              <label className="form-field">
+                <span>Leads</span>
+                <input
+                  type="number"
+                  className={`input${leadInvalid ? " input-error" : ""}`}
+                  min="0"
+                  value={editValues.leads}
+                  onChange={e => onEditChange("leads", e.target.value)}
+                />
+                {leadInvalid && <div className="field-error">Enter 0 or a positive number.</div>}
+              </label>
+              <label className="form-field">
+                <span>Payins</span>
+                <input
+                  type="number"
+                  className={`input${payinsInvalid ? " input-error" : ""}`}
+                  min="0"
+                  value={editValues.payins}
+                  onChange={e => onEditChange("payins", e.target.value)}
+                />
+                {payinsInvalid && <div className="field-error">Enter 0 or a positive number.</div>}
+              </label>
+              <label className="form-field">
+                <span>Sales</span>
+                <input
+                  type="number"
+                  className={`input${salesInvalid ? " input-error" : ""}`}
+                  min="0"
+                  value={editValues.sales}
+                  onChange={e => onEditChange("sales", e.target.value)}
+                />
+                {salesInvalid && <div className="field-error">Enter 0 or a positive number.</div>}
+              </label>
+            </div>
+          </div>
         </div>
       </ModalForm>
 
