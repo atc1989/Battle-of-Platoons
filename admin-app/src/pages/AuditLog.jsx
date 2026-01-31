@@ -74,6 +74,44 @@ function truncate(text = "", max = 60) {
   return `${trimmed.slice(0, max)}…`;
 }
 
+function humanizeKey(key = "") {
+  return key
+    .toString()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+function formatFieldValue(key, value) {
+  if (value === null || value === undefined || value === "") return "-";
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "-";
+  if (typeof value === "object") return JSON.stringify(value);
+  const text = value.toString();
+  const isDateField = /(_at|date|time)$/i.test(key);
+  if (isDateField) {
+    const parsed = new Date(text);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleString();
+  }
+  return text;
+}
+
+function renderKeyValueBlock(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return <div className="audit-entry__empty">-</div>;
+  }
+  const entries = Object.entries(data);
+  if (!entries.length) return <div className="audit-entry__empty">-</div>;
+  return (
+    <dl className="audit-entry__kv">
+      {entries.map(([key, value]) => (
+        <div key={key} className="audit-entry__kv-row">
+          <dt>{humanizeKey(key)}</dt>
+          <dd>{formatFieldValue(key, value)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function isUuid(value) {
   if (!value) return false;
   const text = value.toString();
@@ -915,21 +953,33 @@ export default function AuditLog() {
             <div className="audit-entry__blocks">
               <details open>
                 <summary>Before</summary>
-                <pre className="audit-entry__code">
-                  {detailRow.before ? JSON.stringify(detailRow.before, null, 2) : "-"}
-                </pre>
+                {renderKeyValueBlock(detailRow.before)}
+                <details className="audit-entry__raw">
+                  <summary>Raw JSON</summary>
+                  <pre className="audit-entry__code">
+                    {detailRow.before ? JSON.stringify(detailRow.before, null, 2) : "-"}
+                  </pre>
+                </details>
               </details>
               <details open>
                 <summary>After</summary>
-                <pre className="audit-entry__code">
-                  {detailRow.after ? JSON.stringify(detailRow.after, null, 2) : "-"}
-                </pre>
+                {renderKeyValueBlock(detailRow.after)}
+                <details className="audit-entry__raw">
+                  <summary>Raw JSON</summary>
+                  <pre className="audit-entry__code">
+                    {detailRow.after ? JSON.stringify(detailRow.after, null, 2) : "-"}
+                  </pre>
+                </details>
               </details>
               <details>
                 <summary>Meta</summary>
-                <pre className="audit-entry__code">
-                  {detailRow.meta ? JSON.stringify(detailRow.meta, null, 2) : "-"}
-                </pre>
+                {renderKeyValueBlock(detailRow.meta)}
+                <details className="audit-entry__raw">
+                  <summary>Raw JSON</summary>
+                  <pre className="audit-entry__code">
+                    {detailRow.meta ? JSON.stringify(detailRow.meta, null, 2) : "-"}
+                  </pre>
+                </details>
               </details>
             </div>
           </div>
