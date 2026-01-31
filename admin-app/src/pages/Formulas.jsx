@@ -805,7 +805,6 @@ export default function ScoringFormulas() {
         footer={(
           <>
             <button
-            <button
               type="submit"
               className="btn primary"
               disabled={
