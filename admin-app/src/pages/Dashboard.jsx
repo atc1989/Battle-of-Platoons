@@ -138,6 +138,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [leaderRole, setLeaderRole] = useState("platoon");
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -212,60 +213,72 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="dashboard-toolbar">
-          <div className="dashboard-range">
-            <div className="dashboard-label">Date Range</div>
-            <div className="dashboard-range__inputs">
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-              <span className="dashboard-range__divider">to</span>
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        <div className="dashboard-topbar">
+          <div className="dashboard-topbar-segment dashboard-topbar-segment--controls">
+            <div className="dashboard-topbar-row">
+              <div className="dashboard-topbar-label">Date Range</div>
+              <div className="dashboard-topbar-range">
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                <span className="dashboard-topbar-range__divider">to</span>
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              </div>
+              <div className="dashboard-topbar-updated">{formatRelativeTime(lastUpdatedAt)}</div>
             </div>
-            <div className="dashboard-presets">
-              {presets.map((preset) => (
-                <button
-                  key={preset.key}
-                  type="button"
-                  className="dashboard-preset"
-                  onClick={() => applyPreset(preset)}
-                >
-                  {preset.label}
-                </button>
-              ))}
+            <div className="dashboard-topbar-row dashboard-topbar-row--chips">
+              <div className="dashboard-topbar-chips">
+                {presets.map((preset) => (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    className="dashboard-chip"
+                    onClick={() => applyPreset(preset)}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="button secondary dashboard-refresh"
+                onClick={loadDashboard}
+                disabled={loading}
+              >
+                <RefreshIcon size={16} />
+                {loading ? "Refreshing..." : "Refresh"}
+              </button>
             </div>
           </div>
 
-          <div className="dashboard-toggle" role="tablist" aria-label="Ranking scope">
-            {["leaders", "depots", "companies"].map((key) => (
-              <button
-                key={key}
-                type="button"
-                className={`dashboard-toggle__btn ${mode === key ? "is-active" : ""}`}
-                onClick={() => setMode(key)}
-              >
-                {key === "leaders" ? "Leaders" : key === "depots" ? "Depots" : "Companies"}
-              </button>
+          <div className="dashboard-topbar-metrics">
+            {kpis.map(({ key, label, icon: Icon, format }, index) => (
+              <React.Fragment key={key}>
+                {index > 0 && <div className="dashboard-topbar-divider" aria-hidden="true" />}
+                <div className="dashboard-topbar-segment dashboard-topbar-segment--metric">
+                  <div className="dashboard-metric-icon" aria-hidden="true">
+                    <Icon size={18} />
+                  </div>
+                  <div className="dashboard-metric-meta">
+                    <div className="dashboard-metric-value">{format?.(data?.kpis?.[key])}</div>
+                    <div className="dashboard-metric-label">{label}</div>
+                  </div>
+                </div>
+              </React.Fragment>
             ))}
           </div>
-
-          <button type="button" className="button secondary dashboard-refresh" onClick={loadDashboard} disabled={loading}>
-            <RefreshIcon size={16} />
-            {loading ? "Refreshing..." : formatRelativeTime(lastUpdatedAt)}
-          </button>
         </div>
 
         {error && <div className="dashboard-error">{error}</div>}
 
-        <div className="dashboard-kpis">
-          {kpis.map(({ key, label, icon: Icon, format }) => (
-            <div className="kpi-card" key={key}>
-              <div className="kpi-icon" aria-hidden="true">
-                <Icon size={18} />
-              </div>
-              <div className="kpi-meta">
-                <div className="kpi-value">{format?.(data?.kpis?.[key])}</div>
-                <div className="kpi-label">{label}</div>
-              </div>
-            </div>
+        <div className="dashboard-primary-tabs" role="tablist" aria-label="Ranking scope">
+          {["leaders", "depots", "companies"].map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={`dashboard-pill ${mode === key ? "is-active" : ""}`}
+              onClick={() => setMode(key)}
+            >
+              {key === "leaders" ? "Leaders" : key === "depots" ? "Depots" : "Companies"}
+            </button>
           ))}
         </div>
 
@@ -281,6 +294,18 @@ export default function Dashboard() {
 
         <div className="dashboard-grid">
           <div className="card dashboard-panel">
+            <div className="dashboard-subtoggle" role="tablist" aria-label="Leader granularity">
+              {["platoon", "squad", "team"].map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`dashboard-pill ${leaderRole === key ? "is-active" : ""}`}
+                  onClick={() => setLeaderRole(key)}
+                >
+                  {key === "platoon" ? "Platoon" : key === "squad" ? "Squad" : "Team"}
+                </button>
+              ))}
+            </div>
             <div className="dashboard-panel__title">Top 3</div>
             <div className="dashboard-podium">
               {topThree.map((row, index) => (
