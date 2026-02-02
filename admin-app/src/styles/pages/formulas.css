@@ -336,8 +336,8 @@
 
 .details-accordion summary::after{
   content: "";
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
   border: 1px solid #d8dcf5;
   background: #f3f4ff;
@@ -348,10 +348,10 @@
   mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23000' viewBox='0 0 24 24'><path d='M8.5 9.5 12 13l3.5-3.5 1.4 1.4-4.9 4.9-4.9-4.9z'/></svg>");
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-position: center;
-  -webkit-mask-size: 12px 12px;
+  -webkit-mask-size: 16px 16px;
   mask-repeat: no-repeat;
   mask-position: center;
-  mask-size: 12px 12px;
+  mask-size: 16px 16px;
   background-color: var(--blue);
   transition: transform 0.18s ease;
 }
