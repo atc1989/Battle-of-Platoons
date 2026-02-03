@@ -323,6 +323,7 @@
 .view-toggle,
 .view-pill{
   font-family: "Montserrat", system-ui, sans-serif;
+  font-weight: 500;
 }
 
 .dashboard-grid{
