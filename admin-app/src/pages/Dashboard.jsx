@@ -148,6 +148,7 @@ export default function Dashboard() {
         mode,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
+        roleFilter: mode === "leaders" ? leaderRole : null,
       });
       setData(result ?? { kpis: {}, rows: [] });
       setLastUpdatedAt(new Date());
@@ -160,7 +161,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboard();
-  }, [mode, dateFrom, dateTo]);
+  }, [mode, dateFrom, dateTo, leaderRole]);
 
   const sortedRows = useMemo(() => {
     const rows = Array.isArray(data?.rows) ? data.rows : [];
@@ -271,17 +272,37 @@ export default function Dashboard() {
 
         <section className="view-toggle-section">
           <div className="view-toggle" role="tablist" aria-label="Ranking scope">
-            {["leaders", "depots", "companies"].map((key) => (
+            {["depots", "leaders", "commanders", "companies"].map((key) => (
               <button
                 key={key}
                 type="button"
                 className={`view-pill${mode === key ? " view-pill--active" : ""}`}
                 onClick={() => setMode(key)}
               >
-                {key === "leaders" ? "Leaders" : key === "depots" ? "Depots" : "Companies"}
+                {key === "leaders"
+                  ? "Leaders"
+                  : key === "depots"
+                  ? "Depots"
+                  : key === "commanders"
+                  ? "Commanders"
+                  : "Companies"}
               </button>
             ))}
           </div>
+          {mode === "leaders" && (
+            <div className="view-toggle leader-role-toggle" role="tablist" aria-label="Leader role">
+              {["platoon", "squad", "team"].map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`view-pill${leaderRole === key ? " view-pill--active" : ""}`}
+                  onClick={() => setLeaderRole(key)}
+                >
+                  {key === "platoon" ? "Platoon" : key === "squad" ? "Squad" : "Team"}
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
         {!loading && !hasRows && (
@@ -296,18 +317,6 @@ export default function Dashboard() {
 
         <div className="dashboard-grid">
           <div className="card dashboard-panel">
-            <div className="dashboard-subtoggle" role="tablist" aria-label="Leader granularity">
-              {["platoon", "squad", "team"].map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`dashboard-pill ${leaderRole === key ? "is-active" : ""}`}
-                  onClick={() => setLeaderRole(key)}
-                >
-                  {key === "platoon" ? "Platoon" : key === "squad" ? "Squad" : "Team"}
-                </button>
-              ))}
-            </div>
             <div className="dashboard-panel__title">Top 3</div>
             <div className="dashboard-podium">
               {topThree.map((row, index) => (
@@ -342,7 +351,15 @@ export default function Dashboard() {
                 <thead>
                   <tr>
                     <th>Rank</th>
-                    <th>{mode === "leaders" ? "Leader" : mode === "depots" ? "Depot" : "Company"}</th>
+                    <th>
+                      {mode === "leaders"
+                        ? "Leader"
+                        : mode === "depots"
+                        ? "Depot"
+                        : mode === "commanders"
+                        ? "Commander"
+                        : "Company"}
+                    </th>
                     <th>Leads</th>
                     <th>Payins</th>
                     <th>Sales</th>
@@ -379,7 +396,16 @@ export default function Dashboard() {
         {selectedRow && (
           <div className="dashboard-detail">
             <div>
-              <div className="dashboard-detail__title">Selected {mode === "leaders" ? "Leader" : mode === "depots" ? "Depot" : "Company"}</div>
+            <div className="dashboard-detail__title">
+              Selected{" "}
+              {mode === "leaders"
+                ? "Leader"
+                : mode === "depots"
+                ? "Depot"
+                : mode === "commanders"
+                ? "Commander"
+                : "Company"}
+            </div>
               <div className="dashboard-detail__name">{selectedRow?.name || "Unknown"}</div>
             </div>
             <div className="dashboard-detail__metrics">

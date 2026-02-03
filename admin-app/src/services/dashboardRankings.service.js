@@ -1,4 +1,4 @@
-import { listAgents } from "./agents.service";
+import { listAgents, listPlatoons } from "./agents.service";
 import { listCompanies } from "./companies.service";
 import { listDepotsDetailed } from "./depots.service";
 import { supabase } from "./supabase";
@@ -7,6 +7,7 @@ function normalizeMode(mode) {
   const key = String(mode || "").toLowerCase();
   if (key === "depots") return "depots";
   if (key === "companies") return "companies";
+  if (key === "commanders") return "commanders";
   return "leaders";
 }
 
@@ -40,12 +41,13 @@ function getRowDate(row) {
   return parseFirestoreTimestampJson(row?.date);
 }
 
-export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
+export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter } = {}) {
   const resolvedMode = normalizeMode(mode);
-  const [agents, depots, companies, rawResult] = await Promise.all([
+  const [agents, depots, companies, platoons, rawResult] = await Promise.all([
     listAgents(),
     listDepotsDetailed(),
     listCompanies(),
+    listPlatoons(),
     supabase
       .from("raw_data")
       .select(
@@ -55,6 +57,8 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
         leads,
         payins,
         sales,
+        leads_depot_id,
+        sales_depot_id,
         date_real,
         date,
         voided,
@@ -65,6 +69,7 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
           photoURL,
           depot_id,
           company_id,
+          platoon_id,
           role
         )
       `
@@ -76,6 +81,7 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
   const agentsMap = new Map((agents ?? []).map((agent) => [String(agent.id), agent]));
   const depotsMap = new Map((depots ?? []).map((depot) => [String(depot.id), depot]));
   const companiesMap = new Map((companies ?? []).map((company) => [String(company.id), company]));
+  const platoonsMap = new Map((platoons ?? []).map((platoon) => [String(platoon.id), platoon]));
 
   let rawRows = rawResult?.data ?? [];
 
@@ -91,7 +97,44 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
   const grouped = new Map();
   let rows = [];
 
-  if (resolvedMode === "leaders") {
+  const leadersMode = resolvedMode === "leaders";
+
+  if (leadersMode && roleFilter && roleFilter !== "platoon") {
+    rawRows = rawRows.filter((row) => {
+      const agentId = String(row.agent_id ?? "");
+      const agent = row.agents ?? agentsMap.get(agentId) ?? {};
+      return (agent?.role ?? "platoon") === roleFilter;
+    });
+  }
+
+  if (leadersMode && roleFilter === "platoon") {
+    const NO_UPLINE_KEY = "no-upline";
+    rawRows.forEach((row) => {
+      const agentId = String(row.agent_id ?? "");
+      const agent = row.agents ?? agentsMap.get(agentId) ?? {};
+      const uplineId = agent.upline_agent_id ?? agent.uplineAgentId ?? "";
+      const key = uplineId ? String(uplineId) : NO_UPLINE_KEY;
+
+      if (!grouped.has(key)) {
+        const uplineAgent = key !== NO_UPLINE_KEY ? agentsMap.get(key) : null;
+        grouped.set(key, {
+          id: key,
+          name: uplineAgent?.name ?? (key === NO_UPLINE_KEY ? "No Upline" : "Unknown Upline"),
+          photoUrl: normalizePhotoUrl(uplineAgent),
+          leads: 0,
+          payins: 0,
+          sales: 0,
+          points: 0,
+        });
+      }
+
+      const item = grouped.get(key);
+      item.leads += toNumber(row.leads);
+      item.payins += toNumber(row.payins);
+      item.sales += toNumber(row.sales);
+    });
+    rows = Array.from(grouped.values());
+  } else if (leadersMode) {
     rawRows.forEach((row) => {
       const agentId = String(row.agent_id ?? "");
       const agent = row.agents ?? agentsMap.get(agentId) ?? {};
@@ -114,18 +157,53 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
     });
     rows = Array.from(grouped.values());
   } else if (resolvedMode === "depots") {
+    const ensureDepotBucket = (depotKey) => {
+      if (!depotKey) return null;
+      if (grouped.has(depotKey)) return grouped.get(depotKey);
+      const depot = depotsMap.get(depotKey) ?? null;
+      const depotName = depot?.name || (depotKey === "unassigned" ? "Unassigned" : depotKey);
+      const bucket = {
+        id: depotKey,
+        name: depotName,
+        photoUrl: normalizePhotoUrl(depot),
+        leads: 0,
+        payins: 0,
+        sales: 0,
+        points: 0,
+      };
+      grouped.set(depotKey, bucket);
+      return bucket;
+    };
+
+    rawRows.forEach((row) => {
+      const leadsKey = row.leads_depot_id ? String(row.leads_depot_id) : "unassigned";
+      const salesKey = row.sales_depot_id ? String(row.sales_depot_id) : "unassigned";
+
+      const leadsBucket = ensureDepotBucket(leadsKey);
+      const salesBucket = ensureDepotBucket(salesKey);
+
+      if (leadsBucket) {
+        leadsBucket.leads += toNumber(row.leads);
+      }
+      if (salesBucket) {
+        salesBucket.payins += toNumber(row.payins);
+        salesBucket.sales += toNumber(row.sales);
+      }
+    });
+    rows = Array.from(grouped.values());
+  } else if (resolvedMode === "commanders") {
     rawRows.forEach((row) => {
       const agentId = String(row.agent_id ?? "");
       const agent = row.agents ?? agentsMap.get(agentId) ?? {};
-      const depotId = agent.depot_id ?? agent.depotId ?? "";
-      const key = depotId ? String(depotId) : "";
+      const companyId = agent.company_id ?? agent.companyId ?? "";
+      const key = companyId ? String(companyId) : "";
       if (!key) return;
-      const depot = depotsMap.get(key);
+      const company = companiesMap.get(key);
       if (!grouped.has(key)) {
         grouped.set(key, {
           id: key,
-          name: depot?.name ?? "Unknown Depot",
-          photoUrl: normalizePhotoUrl(depot),
+          name: company?.name ?? "Unknown Commander",
+          photoUrl: normalizePhotoUrl(company),
           leads: 0,
           payins: 0,
           sales: 0,
@@ -142,15 +220,15 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo } = {}) {
     rawRows.forEach((row) => {
       const agentId = String(row.agent_id ?? "");
       const agent = row.agents ?? agentsMap.get(agentId) ?? {};
-      const companyId = agent.company_id ?? agent.companyId ?? "";
-      const key = companyId ? String(companyId) : "";
+      const platoonId = agent.platoon_id ?? agent.platoonId ?? "";
+      const key = platoonId ? String(platoonId) : "";
       if (!key) return;
-      const company = companiesMap.get(key);
+      const platoon = platoonsMap.get(key);
       if (!grouped.has(key)) {
         grouped.set(key, {
           id: key,
-          name: company?.name ?? "Unknown Company",
-          photoUrl: normalizePhotoUrl(company),
+          name: platoon?.name ?? "Unknown Company",
+          photoUrl: normalizePhotoUrl(platoon),
           leads: 0,
           payins: 0,
           sales: 0,
