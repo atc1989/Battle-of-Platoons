@@ -15,6 +15,13 @@ function normalizePhotoUrl(item) {
   return item?.photoURL ?? item?.photo_url ?? "";
 }
 
+function getMergedAgent(row, agentsMap) {
+  const agentId = String(row?.agent_id ?? "");
+  const mapped = agentId ? agentsMap.get(agentId) ?? {} : {};
+  const joined = row?.agents ?? {};
+  return { ...mapped, ...joined };
+}
+
 function toNumber(value) {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
@@ -101,8 +108,7 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
 
   if (leadersMode && roleFilter && roleFilter !== "platoon") {
     rawRows = rawRows.filter((row) => {
-      const agentId = String(row.agent_id ?? "");
-      const agent = row.agents ?? agentsMap.get(agentId) ?? {};
+      const agent = getMergedAgent(row, agentsMap);
       return (agent?.role ?? "platoon") === roleFilter;
     });
   }
@@ -110,8 +116,7 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
   if (leadersMode && roleFilter === "platoon") {
     const NO_UPLINE_KEY = "no-upline";
     rawRows.forEach((row) => {
-      const agentId = String(row.agent_id ?? "");
-      const agent = row.agents ?? agentsMap.get(agentId) ?? {};
+      const agent = getMergedAgent(row, agentsMap);
       const uplineId = agent.upline_agent_id ?? agent.uplineAgentId ?? "";
       const key = uplineId ? String(uplineId) : NO_UPLINE_KEY;
 
@@ -137,7 +142,7 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
   } else if (leadersMode) {
     rawRows.forEach((row) => {
       const agentId = String(row.agent_id ?? "");
-      const agent = row.agents ?? agentsMap.get(agentId) ?? {};
+      const agent = getMergedAgent(row, agentsMap);
       if (!agentId) return;
       if (!grouped.has(agentId)) {
         grouped.set(agentId, {
@@ -193,8 +198,7 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
     rows = Array.from(grouped.values());
   } else if (resolvedMode === "commanders") {
     rawRows.forEach((row) => {
-      const agentId = String(row.agent_id ?? "");
-      const agent = row.agents ?? agentsMap.get(agentId) ?? {};
+      const agent = getMergedAgent(row, agentsMap);
       const companyId = agent.company_id ?? agent.companyId ?? "";
       const key = companyId ? String(companyId) : "";
       if (!key) return;
@@ -218,8 +222,7 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
     rows = Array.from(grouped.values());
   } else if (resolvedMode === "companies") {
     rawRows.forEach((row) => {
-      const agentId = String(row.agent_id ?? "");
-      const agent = row.agents ?? agentsMap.get(agentId) ?? {};
+      const agent = getMergedAgent(row, agentsMap);
       const platoonId = agent.platoon_id ?? agent.platoonId ?? "";
       const key = platoonId ? String(platoonId) : "";
       if (!key) return;
