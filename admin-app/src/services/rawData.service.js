@@ -754,7 +754,7 @@ export async function listRawData({
   });
 }
 
-export async function listPublishingRows({ dateFrom, dateTo, agentId, status, limit = 200 } = {}) {
+export async function listPublishingRows({ dateFrom, dateTo, agentId, status, limit } = {}) {
   const baseSelect =
     "id,date_real,agent_id,leads,payins,sales,leads_depot_id,sales_depot_id,voided,void_reason,voided_at,voided_by,published,agents:agents(id,name,photo_url,depot_id,company_id,platoon_id)";
 
@@ -774,7 +774,11 @@ export async function listPublishingRows({ dateFrom, dateTo, agentId, status, li
     query = query.eq("voided", true);
   }
 
-  query = query.order("date_real", { ascending: false }).limit(Number(limit) || 200);
+  query = query.order("date_real", { ascending: false });
+  const safeLimit = Number(limit);
+  if (Number.isFinite(safeLimit) && safeLimit > 0) {
+    query = query.limit(safeLimit);
+  }
 
   const { data, error } = await query;
   if (error) throw error;
