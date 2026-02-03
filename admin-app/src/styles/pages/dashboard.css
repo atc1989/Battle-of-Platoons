@@ -182,7 +182,8 @@
 }
 
 .button.secondary.dashboard-refresh::before{
-  display: none;
+  content: none !important;
+  display: none !important;
 }
 
 .button.secondary.dashboard-refresh{
