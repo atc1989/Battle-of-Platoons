@@ -496,7 +496,7 @@ export default function Updates() {
               onClick={() => applyFilters(filtersInput)}
               disabled={loading}
             >
-              Apply Filters
+              Apply
             </button>
 
             <button type="button" className="button secondary" onClick={clearFilters} disabled={loading}>

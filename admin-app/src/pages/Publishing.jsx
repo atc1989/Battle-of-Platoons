@@ -489,7 +489,7 @@ export default function Publishing() {
           </div>
           <div className="publishing-filter-actions">
             <button type="button" className="button primary" onClick={handleApplyFilters} disabled={loading}>
-              Apply Filters
+              Apply
             </button>
             <button type="button" className="button secondary" onClick={handleClearFilters} disabled={loading}>
               Clear

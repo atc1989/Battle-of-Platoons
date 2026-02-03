@@ -57,17 +57,6 @@ function SalesIcon({ size = 18 }) {
   );
 }
 
-function RefreshIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        fill="currentColor"
-        d="M12 5.25a6.75 6.75 0 1 0 6.4 9.08.75.75 0 1 1 1.42.46 8.25 8.25 0 1 1-2.2-8.76l1.1-1.1a.75.75 0 0 1 1.28.53v3.5a.75.75 0 0 1-.75.75h-3.5a.75.75 0 0 1-.53-1.28l1.17-1.18A6.73 6.73 0 0 0 12 5.25Z"
-      />
-    </svg>
-  );
-}
-
 function formatYmd(date) {
   return date.toISOString().slice(0, 10);
 }
@@ -377,7 +366,6 @@ export default function Dashboard() {
               onClick={loadDashboard}
               disabled={loading}
             >
-              <RefreshIcon size={16} />
               {loading ? "Refreshing..." : "Refresh"}
             </button>
           </div>

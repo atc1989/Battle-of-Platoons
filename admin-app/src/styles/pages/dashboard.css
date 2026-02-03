@@ -188,7 +188,7 @@
 .button.secondary.dashboard-refresh{
   background: #ffffff;
   color: var(--blue);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--blue);
 }
 
 .button.secondary.dashboard-refresh:hover{
