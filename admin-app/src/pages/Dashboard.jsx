@@ -135,6 +135,20 @@ function mergeClassNames(...classes) {
 
 function normalizePodiumItems(topItems = []) {
   const cleaned = (topItems || []).filter(Boolean);
+  const byRank = new Map();
+  cleaned.forEach((item) => {
+    if (item?.rank == null) return;
+    byRank.set(Number(item.rank), item);
+  });
+
+  if (byRank.size) {
+    const rank2 = byRank.get(2);
+    const rank1 = byRank.get(1);
+    const rank3 = byRank.get(3);
+    const ordered = [rank2, rank1, rank3].filter(Boolean);
+    if (ordered.length) return ordered;
+  }
+
   const sorted = [...cleaned].sort((a, b) => {
     if (a?.rank != null && b?.rank != null) return a.rank - b.rank;
     return (b?.sales ?? 0) - (a?.sales ?? 0);
