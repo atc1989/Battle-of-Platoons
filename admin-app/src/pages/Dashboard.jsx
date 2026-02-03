@@ -129,6 +129,104 @@ function getInitials(name = "") {
   return (first + second).toUpperCase();
 }
 
+function mergeClassNames(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function normalizePodiumItems(topItems = []) {
+  const cleaned = (topItems || []).filter(Boolean);
+  const sorted = [...cleaned].sort((a, b) => {
+    if (a?.rank != null && b?.rank != null) return a.rank - b.rank;
+    return (b?.sales ?? 0) - (a?.sales ?? 0);
+  });
+
+  if (sorted.length >= 3) {
+    return [sorted[1], sorted[0], sorted[2]];
+  }
+
+  if (sorted.length === 2) {
+    return [sorted[1], sorted[0]];
+  }
+
+  if (sorted.length === 1) {
+    return [sorted[0]];
+  }
+
+  return [];
+}
+
+function Podium({ top3, onSelect, selectedId }) {
+  const podiumItems = normalizePodiumItems(top3);
+  if (!podiumItems.length) return null;
+
+  return (
+    <div className="podium">
+      {podiumItems.map((item, index) => {
+        const rank = item.rank ?? index + 1;
+        const cardClass = mergeClassNames(
+          "podium-card",
+          rank === 1 && "podium-card--winner",
+          rank === 2 && "podium-card--silver",
+          rank === 3 && "podium-card--orange",
+          selectedId === item?.id && "is-selected"
+        );
+        const rankNumberClass = mergeClassNames(
+          "podium-rank-number",
+          rank === 1 && "podium-rank-number--winner",
+          rank === 2 && "podium-rank-number--silver",
+          rank === 3 && "podium-rank-number--orange"
+        );
+        const showPoints = Number.isFinite(item?.points) && item.points !== 0;
+
+        return (
+          <button
+            key={item.key || item.id || `${rank}-${index}`}
+            type="button"
+            className={mergeClassNames("podium-item", `podium-item--rank-${rank}`)}
+            onClick={() => onSelect?.(item)}
+          >
+            <div className={rankNumberClass} aria-hidden="true">
+              {rank}
+            </div>
+            <div className="podium-avatar-chip" aria-hidden="true">
+              <div className="podium-avatar-chip__inner">
+                {item.photoUrl ? (
+                  <img src={item.photoUrl} alt={item.name} />
+                ) : (
+                  <div className="podium-initials">{getInitials(item.name)}</div>
+                )}
+              </div>
+            </div>
+            <div className={cardClass}>
+              <div className="podium-name">{item.name}</div>
+              {showPoints && (
+                <>
+                  <div className="podium-points">{Number(item.points || 0).toFixed(1)}</div>
+                  <div className="podium-points-label">points</div>
+                </>
+              )}
+              <div className="podium-stats-row">
+                <div className="podium-stat">
+                  <div className="podium-stat__value">{formatNumber(item.leads ?? 0)}</div>
+                  <div className="podium-stat__label">leads</div>
+                </div>
+                <div className="podium-stat">
+                  <div className="podium-stat__value">{formatNumber(item.payins ?? 0)}</div>
+                  <div className="podium-stat__label">payins</div>
+                </div>
+                <div className="podium-stat">
+                  <div className="podium-stat__value">{formatCurrency(item.sales ?? 0)}</div>
+                  <div className="podium-stat__label">sales</div>
+                </div>
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [mode, setMode] = useState("leaders");
   const [dateFrom, setDateFrom] = useState("");
@@ -318,30 +416,11 @@ export default function Dashboard() {
         <div className="dashboard-grid">
           <div className="card dashboard-panel">
             <div className="dashboard-panel__title">Top 3</div>
-            <div className="dashboard-podium">
-              {topThree.map((row, index) => (
-                <button
-                  type="button"
-                  className={`podium-card rank-${index + 1} ${selectedRow?.id === row?.id ? "is-selected" : ""}`}
-                  key={`${row?.id || row?.name}-${index}`}
-                  onClick={() => handleSelectRow(row)}
-                >
-                  <div className="podium-rank">#{index + 1}</div>
-                  <div className="podium-avatar">
-                    {row?.photoUrl ? (
-                      <img src={row.photoUrl} alt={row?.name || "Avatar"} />
-                    ) : (
-                      <span>{getInitials(row?.name)}</span>
-                    )}
-                  </div>
-                  <div className="podium-name">{row?.name || "Unknown"}</div>
-                  <div className="podium-metrics">
-                    <span>Leads: {formatNumber(row?.leads)}</span>
-                    <span>Sales: {formatCurrency(row?.sales)}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <Podium
+              top3={topThree}
+              onSelect={handleSelectRow}
+              selectedId={selectedRow?.id}
+            />
           </div>
 
           <div className="card dashboard-panel">
