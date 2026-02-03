@@ -57,6 +57,17 @@ function SalesIcon({ size = 18 }) {
   );
 }
 
+function XIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 1 0 5.7 7.11L10.59 12l-4.9 4.89a1 1 0 1 0 1.41 1.42L12 13.41l4.89 4.9a1 1 0 0 0 1.42-1.41L13.41 12l4.9-4.89a1 1 0 0 0 0-1.4Z"
+      />
+    </svg>
+  );
+}
+
 function formatYmd(date) {
   return date.toISOString().slice(0, 10);
 }
@@ -366,6 +377,7 @@ export default function Dashboard() {
               onClick={loadDashboard}
               disabled={loading}
             >
+              <XIcon size={12} />
               {loading ? "Refreshing..." : "Refresh"}
             </button>
           </div>
@@ -419,7 +431,7 @@ export default function Dashboard() {
         )}
 
         <div className="dashboard-grid">
-          <div className="card dashboard-panel">
+          <div className="card dashboard-panel dashboard-panel--podium">
             <div className="dashboard-panel__title">Top 3</div>
             <Podium
               top3={topThree}

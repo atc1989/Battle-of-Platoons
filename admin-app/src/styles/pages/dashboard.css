@@ -178,7 +178,7 @@
 }
 
 .dashboard-refresh{
-  gap: 6px;
+  gap: 8px;
 }
 
 .button.secondary.dashboard-refresh::before{
@@ -186,13 +186,17 @@
 }
 
 .button.secondary.dashboard-refresh{
-  background: #ffffff;
-  color: var(--blue);
-  border: 1px solid var(--blue);
+  background: #f3f6ff;
+  color: #1f2fbf;
+  border: 1px solid #d6dcff;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-weight: 600;
 }
 
 .button.secondary.dashboard-refresh:hover{
-  background: #eef1ff;
+  background: #e8edff;
+  border-color: #c8d1ff;
 }
 
 .dashboard-error{
@@ -332,6 +336,11 @@
   flex-direction: column;
   gap: 12px;
   container-type: inline-size;
+}
+
+.dashboard-panel--podium{
+  max-width: 500px;
+  width: 100%;
 }
 
 .dashboard-panel__title{
