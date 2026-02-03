@@ -284,7 +284,10 @@ export default function Dashboard() {
     });
   }, [data]);
 
-  const topThree = sortedRows.slice(0, 3);
+  const topThree = sortedRows.slice(0, 3).map((row, index) => ({
+    ...row,
+    rank: index + 1,
+  }));
   const topTen = sortedRows.slice(3, 13);
   const hasRows = sortedRows.length > 0;
 
