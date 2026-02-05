@@ -70,7 +70,7 @@ button {
   border: 1px solid #d8dcf7;
   background: #ffffff;
   color: var(--blue);
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -313,7 +313,7 @@ a:focus-visible {
   padding: 4px 10px;
   border-radius: 999px;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .dashboard-chip:hover{
