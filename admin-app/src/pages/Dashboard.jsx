@@ -373,6 +373,8 @@ export default function Dashboard() {
                 </button>
               ))}
             </div>
+          </div>
+          <div className="dashboard-filter-meta">
             <select
               className="dashboard-topbar-select"
               value={selectedPresetKey}
@@ -389,8 +391,6 @@ export default function Dashboard() {
                 </option>
               ))}
             </select>
-          </div>
-          <div className="dashboard-filter-meta">
             <button
               type="button"
               className="button secondary dashboard-refresh"
