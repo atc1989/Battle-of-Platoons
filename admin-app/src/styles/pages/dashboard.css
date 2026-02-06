@@ -154,11 +154,15 @@
   background: #ffffff;
   color: var(--blue);
   font-size: 11px;
-  padding: 4px 10px;
+  padding: 4px 24px 4px 10px;
   border-radius: 999px;
   cursor: pointer;
   font-weight: 600;
   appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%232f3a8f'><path d='M7 10l5 5 5-5z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px;
 }
 
 .dashboard-chip{
@@ -1019,11 +1023,17 @@
 
 @media (max-width: 640px){
   .dashboard-filter-bar{
-    gap: 12px;
+    gap: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
   }
 
   .dashboard-filter-group{
-    width: 100%;
+    width: auto;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    align-items: center;
   }
 
   .dashboard-topbar-range{
@@ -1048,6 +1058,8 @@
     display: inline-flex;
     font-size: clamp(10px, 2.4vw, 11px);
     padding: 3px 8px;
+    background-position: right 6px center;
+    padding-right: 20px;
   }
 
   .dashboard-refresh{
@@ -1057,7 +1069,7 @@
   }
 
   .dashboard-filter-meta{
-    width: 100%;
+    width: auto;
     justify-content: flex-end;
   }
 
@@ -1075,5 +1087,20 @@
 @media (max-width: 700px){
   .dashboard-topbar-range{
     max-width: 340px;
+  }
+}
+
+@media (max-width: 420px){
+  .dashboard-filter-bar{
+    justify-content: space-between;
+  }
+
+  .dashboard-filter-group{
+    flex: 1 1 auto;
+  }
+
+  .dashboard-filter-meta{
+    flex: 0 0 auto;
+    gap: 8px;
   }
 }
