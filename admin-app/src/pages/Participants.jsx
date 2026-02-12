@@ -1364,7 +1364,7 @@ export default function Participants() {
                     )}
                   </div>
 
-                  <div className="photo-card__actions">
+                  <div className="photo-card__actions photo-card__actions--meta">
                     <button
                       type="button"
                       className="btn photo-remove-btn"
@@ -1380,9 +1380,9 @@ export default function Participants() {
                       <RemovePhotoIcon size={14} />
                       Remove Photo
                     </button>
+                    <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
                   </div>
 
-                  <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
                   {(leaderPhotoError || leaderFileError) && <div className="photo-error">{leaderPhotoError || leaderFileError}</div>}
                   {leaderUploading && <div className="hint">Uploading...</div>}
                 </div>
@@ -1471,7 +1471,7 @@ export default function Participants() {
                   )}
                 </div>
 
-                <div className="actions">
+                <div className="photo-card__actions photo-card__actions--meta">
                   <button
                     type="button"
                     className="btn photo-remove-btn"
@@ -1487,9 +1487,9 @@ export default function Participants() {
                     <RemovePhotoIcon size={14} />
                     Remove Photo
                   </button>
+                  <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
                 </div>
 
-                <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
                 {simplePhotoError && <div className="photo-error">{simplePhotoError}</div>}
                 {simpleUploading && <div className="hint">Uploading...</div>}
               </div>
@@ -1573,7 +1573,7 @@ export default function Participants() {
                   )}
                 </div>
 
-                <div className="actions">
+                <div className="photo-card__actions photo-card__actions--meta">
                   <button
                     type="button"
                     className="btn photo-remove-btn"
@@ -1589,9 +1589,9 @@ export default function Participants() {
                     <RemovePhotoIcon size={14} />
                     Remove Photo
                   </button>
+                  <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
                 </div>
 
-                <div className="photo-hint">PNG, JPG, or WEBP up to 2MB. Upload OR URL, not both.</div>
                 {platoonPhotoError && <div className="photo-error">{platoonPhotoError}</div>}
                 {platoonUploading && <div className="hint">Uploading...</div>}
               </div>
