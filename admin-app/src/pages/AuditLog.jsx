@@ -814,7 +814,7 @@ export default function AuditLog() {
           </div>
         </div>
         {showAdvanced ? (
-          <div className="filter-row">
+          <div className="filter-row filter-row--advanced">
             <div>
               <label className="form-label">User (email or UUID)</label>
               <input

@@ -764,11 +764,12 @@ export default function Publishing() {
               Reason <span className="req">*</span>
             </label>
             <textarea
+              className="input"
+              rows={3}
               id="audit-reason"
               value={auditReason}
               onChange={e => setAuditReason(e.target.value)}
               placeholder="Add a clear reason for the audit log."
-              style={{ minHeight: 120 }}
               required
             />
           </div>

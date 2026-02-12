@@ -5,6 +5,10 @@
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+.filter-row--advanced{
+  margin-top: 10px;
+}
+
 .filter-actions{
   display:flex;
   align-items:center;

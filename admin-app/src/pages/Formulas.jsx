@@ -806,7 +806,7 @@ export default function ScoringFormulas() {
           <>
             <button
               type="submit"
-              className="btn primary"
+              className="btn primary formula-modal__create-btn"
               disabled={
                 createModal.loading ||
                 !createModal.label.trim() ||
@@ -836,7 +836,7 @@ export default function ScoringFormulas() {
         </div>
         {createModal.error && <div className="error">{createModal.error}</div>}
         <div className="formula-modal__form">
-          <div className="formula-modal__field">
+          <div className="formula-modal__field formula-modal__field--label">
             <label className="form-label">Label</label>
             <input
               className="input"
@@ -845,7 +845,7 @@ export default function ScoringFormulas() {
               onChange={e => setCreateModal(prev => ({ ...prev, label: e.target.value }))}
             />
           </div>
-          <div className="formula-modal__field">
+          <div className="formula-modal__field formula-modal__field--start">
             <label className="form-label">Effective Start Week</label>
             <input
               className="input"
@@ -854,7 +854,7 @@ export default function ScoringFormulas() {
               onChange={e => setCreateModal(prev => ({ ...prev, start: e.target.value }))}
             />
           </div>
-          <div className="formula-modal__field">
+          <div className="formula-modal__field formula-modal__field--end">
             <label className="form-label">Effective End Week (optional)</label>
             <input
               className="input"

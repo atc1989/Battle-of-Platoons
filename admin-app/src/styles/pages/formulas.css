@@ -101,13 +101,37 @@
   gap: 0;
 }
 
+.formula-modal__field--label{
+  grid-column: 1 / -1;
+}
+
+.formula-modal__field--start{
+  grid-column: 1;
+}
+
+.formula-modal__field--end{
+  grid-column: 2;
+}
+
 .formula-modal__field--full{
   grid-column: 1 / -1;
 }
 
 .formula-modal__field textarea.input{
-  min-height: 86px;
-  resize: vertical;
+  min-height: 110px;
+  resize: none;
+  font-family: inherit;
+}
+
+.formula-modal__create-btn{
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #ffffff;
+}
+
+.formula-modal__create-btn:hover{
+  background: #091486;
+  border-color: #091486;
 }
 
 .formula-list{

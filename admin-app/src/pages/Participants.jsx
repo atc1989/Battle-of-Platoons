@@ -46,6 +46,28 @@ function EditIcon({ size = 16 }) {
   );
 }
 
+function UploadFileIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.29a1 1 0 1 1 1.4 1.42l-4 3.97a1 1 0 0 1-1.4 0l-4-3.97a1 1 0 1 1 1.4-1.42L11 12.6V4a1 1 0 0 1 1-1Zm-7 13a1 1 0 0 1 1 1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1a1 1 0 1 1 2 0v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-1a1 1 0 0 1 1-1Z"
+      />
+    </svg>
+  );
+}
+
+function RemovePhotoIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M9 3a2 2 0 0 0-2 2v1H4.75a.75.75 0 0 0 0 1.5h.8l.79 11.13A2.5 2.5 0 0 0 8.83 21h6.34a2.5 2.5 0 0 0 2.49-2.37l.79-11.13h.8a.75.75 0 0 0 0-1.5H17V5a2 2 0 0 0-2-2H9Zm6.5 3H8.5V5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 .5.5v1Zm-6 3.25a.75.75 0 0 1 .75.75v7a.75.75 0 0 1-1.5 0v-7a.75.75 0 0 1 .75-.75Zm5 0a.75.75 0 0 1 .75.75v7a.75.75 0 0 1-1.5 0v-7a.75.75 0 0 1 .75-.75Z"
+      />
+    </svg>
+  );
+}
+
 function validateFile(file) {
   if (!file) return "";
   if (!ACCEPTED_TYPES.includes(file.type)) return "Unsupported file type. Use PNG, JPG, or WEBP.";
@@ -1305,20 +1327,29 @@ export default function Participants() {
 
                   <div className="photo-input-row">
                     {leaderPhotoMode === "upload" && (
-                      <input
-                        key={leaderFileKey}
-                        type="file"
-                        accept={ACCEPTED_TYPES.join(",")}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          setLeaderPhotoFile(file || null);
-                          setLeaderPhotoError("");
-                          if (file) {
-                            setLeaderPhotoUrlInput("");
-                            setLeaderForm(s => ({ ...s, photoURL: "" }));
-                          }
-                        }}
-                      />
+                      <div className="photo-file-input">
+                        <input
+                          id={`leader-photo-file-${leaderFileKey}`}
+                          key={leaderFileKey}
+                          className="photo-file-input__native"
+                          type="file"
+                          accept={ACCEPTED_TYPES.join(",")}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            setLeaderPhotoFile(file || null);
+                            setLeaderPhotoError("");
+                            if (file) {
+                              setLeaderPhotoUrlInput("");
+                              setLeaderForm(s => ({ ...s, photoURL: "" }));
+                            }
+                          }}
+                        />
+                        <label htmlFor={`leader-photo-file-${leaderFileKey}`} className="photo-file-input__button">
+                          <UploadFileIcon size={14} />
+                          Choose File
+                        </label>
+                        <span className="photo-file-input__name">{leaderPhotoFile?.name || "No file chosen"}</span>
+                      </div>
                     )}
 
                     {leaderPhotoMode === "url" && (
@@ -1336,7 +1367,7 @@ export default function Participants() {
                   <div className="photo-card__actions">
                     <button
                       type="button"
-                      className="btn"
+                      className="btn photo-remove-btn"
                       onClick={() => {
                         setLeaderPhotoFile(null);
                         setLeaderFileKey(k => k + 1);
@@ -1346,6 +1377,7 @@ export default function Participants() {
                         setLeaderForm(s => ({ ...s, photoURL: "" }));
                       }}
                     >
+                      <RemovePhotoIcon size={14} />
                       Remove Photo
                     </button>
                   </div>
@@ -1402,20 +1434,29 @@ export default function Participants() {
                   </div>
 
                   {simplePhotoMode === "upload" && (
-                    <input
-                      key={simpleFileKey}
-                      type="file"
-                      accept={ACCEPTED_TYPES.join(",")}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        setSimplePhotoFile(file || null);
-                        setSimplePhotoError("");
-                        if (file) {
-                          setSimplePhotoUrlInput("");
-                          setSimpleForm(s => ({ ...s, photoURL: "" }));
-                        }
-                      }}
-                    />
+                    <div className="photo-file-input">
+                      <input
+                        id={`simple-photo-file-${simpleFileKey}`}
+                        key={simpleFileKey}
+                        className="photo-file-input__native"
+                        type="file"
+                        accept={ACCEPTED_TYPES.join(",")}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          setSimplePhotoFile(file || null);
+                          setSimplePhotoError("");
+                          if (file) {
+                            setSimplePhotoUrlInput("");
+                            setSimpleForm(s => ({ ...s, photoURL: "" }));
+                          }
+                        }}
+                      />
+                      <label htmlFor={`simple-photo-file-${simpleFileKey}`} className="photo-file-input__button">
+                        <UploadFileIcon size={14} />
+                        Choose File
+                      </label>
+                      <span className="photo-file-input__name">{simplePhotoFile?.name || "No file chosen"}</span>
+                    </div>
                   )}
 
                   {simplePhotoMode === "url" && (
@@ -1433,7 +1474,7 @@ export default function Participants() {
                 <div className="actions">
                   <button
                     type="button"
-                    className="btn"
+                    className="btn photo-remove-btn"
                     onClick={() => {
                       setSimplePhotoFile(null);
                       setSimpleFileKey(k => k + 1);
@@ -1443,7 +1484,8 @@ export default function Participants() {
                       setSimpleForm(s => ({ ...s, photoURL: "" }));
                     }}
                   >
-                    Clear Photo
+                    <RemovePhotoIcon size={14} />
+                    Remove Photo
                   </button>
                 </div>
 
@@ -1494,20 +1536,29 @@ export default function Participants() {
                   </div>
 
                   {platoonPhotoMode === "upload" && (
-                    <input
-                      key={platoonFileKey}
-                      type="file"
-                      accept={ACCEPTED_TYPES.join(",")}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        setPlatoonPhotoFile(file || null);
-                        setPlatoonPhotoError("");
-                        if (file) {
-                          setPlatoonPhotoUrlInput("");
-                          setPlatoonForm(s => ({ ...s, photoURL: "" }));
-                        }
-                      }}
-                    />
+                    <div className="photo-file-input">
+                      <input
+                        id={`platoon-photo-file-${platoonFileKey}`}
+                        key={platoonFileKey}
+                        className="photo-file-input__native"
+                        type="file"
+                        accept={ACCEPTED_TYPES.join(",")}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          setPlatoonPhotoFile(file || null);
+                          setPlatoonPhotoError("");
+                          if (file) {
+                            setPlatoonPhotoUrlInput("");
+                            setPlatoonForm(s => ({ ...s, photoURL: "" }));
+                          }
+                        }}
+                      />
+                      <label htmlFor={`platoon-photo-file-${platoonFileKey}`} className="photo-file-input__button">
+                        <UploadFileIcon size={14} />
+                        Choose File
+                      </label>
+                      <span className="photo-file-input__name">{platoonPhotoFile?.name || "No file chosen"}</span>
+                    </div>
                   )}
 
                   {platoonPhotoMode === "url" && (
@@ -1525,7 +1576,7 @@ export default function Participants() {
                 <div className="actions">
                   <button
                     type="button"
-                    className="btn"
+                    className="btn photo-remove-btn"
                     onClick={() => {
                       setPlatoonPhotoFile(null);
                       setPlatoonFileKey(k => k + 1);
@@ -1535,7 +1586,8 @@ export default function Participants() {
                       setPlatoonForm(s => ({ ...s, photoURL: "" }));
                     }}
                   >
-                    Clear Photo
+                    <RemovePhotoIcon size={14} />
+                    Remove Photo
                   </button>
                 </div>
 

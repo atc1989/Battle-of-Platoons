@@ -136,6 +136,12 @@
   margin-bottom: 6px;
 }
 
+.audit-modal__field textarea.input{
+  min-height: 110px;
+  resize: none;
+  font-family: inherit;
+}
+
 @media (max-width: 900px){
   .publishing-filter-actions{
     justify-content: flex-start;
