@@ -395,14 +395,21 @@
   height: 16px;
 }
 
-.details-action-btn--save{
+.btn.details-action-btn--save{
   background: #eef1ff;
   color: var(--blue);
 }
 
-.details-action-btn--publish{
+.btn.details-action-btn--publish:not(:disabled){
   background: var(--blue);
   color: #ffffff;
+  border-color: var(--blue);
+}
+
+.btn.details-action-btn--publish:disabled{
+  background: #eef1ff;
+  color: #a1a8c7;
+  border-color: #d9def6;
 }
 
 .calculator-card{
