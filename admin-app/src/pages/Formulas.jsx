@@ -753,6 +753,12 @@ export default function ScoringFormulas() {
     items: formulas.filter(f => (f.battle_type || "").toLowerCase() === section.key),
   }));
 
+  const canCreateFormulaDraft =
+    !!createModal.label.trim() &&
+    !!createModal.start.trim() &&
+    !!createModal.end.trim() &&
+    !!createModal.reason.trim();
+
   function closeCreateModal() {
     if (createModal.loading) return;
     setCreateModal(prev => ({ ...prev, open: false }));
@@ -761,7 +767,7 @@ export default function ScoringFormulas() {
   async function handleCreateSubmit(e) {
     e.preventDefault();
     if (createModal.loading) return;
-    if (!createModal.label.trim() || !createModal.start.trim() || !createModal.reason.trim()) return;
+    if (!canCreateFormulaDraft) return;
 
     setCreateModal(prev => ({ ...prev, loading: true, error: "" }));
     const config = { metrics: getDefaultMetrics(createModal.battleType) };
@@ -807,14 +813,9 @@ export default function ScoringFormulas() {
             <button
               type="submit"
               className="btn primary formula-modal__create-btn"
-              disabled={
-                createModal.loading ||
-                !createModal.label.trim() ||
-                !createModal.start.trim() ||
-                !createModal.reason.trim()
-              }
+              disabled={createModal.loading || !canCreateFormulaDraft}
             >
-              <PlusIcon />
+              <PlusIcon size={20} />
               {createModal.loading ? "Creating..." : "Create"}
             </button>
             <button
