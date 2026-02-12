@@ -595,9 +595,7 @@ export default function ScoringFormulas() {
                 disabled={
                   publishLoading ||
                   isPublished ||
-                  !totalPointsValid ||
-                  !reasonText.trim() ||
-                  !divisorsValid
+                  !reasonText.trim()
                 }
               >
                 <PublishIcon size={16} />
