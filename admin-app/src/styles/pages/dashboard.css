@@ -985,8 +985,9 @@
 
 .dashboard-history__range{
   display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   justify-self: center;
   text-align: center;
   white-space: nowrap;
@@ -997,8 +998,8 @@
 }
 
 .dashboard-history__range .dashboard-detail__value{
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 16px;
+  color: var(--blue);
   font-weight: 700;
 }
 
