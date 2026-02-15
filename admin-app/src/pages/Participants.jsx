@@ -1410,8 +1410,8 @@ export default function Participants() {
                 <input value={simpleIdPreview || "(auto)"} readOnly />
               </div>
             </div>
-            <div className="field">
-              <label>Photo (optional)</label>
+            <div className="modal-section">
+              <div className="modal-section__title">Photo</div>
               <div className="photo-card">
                 <div className="photo-card__preview">
                   {simplePhotoPreviewUrl ? (
@@ -1517,8 +1517,8 @@ export default function Participants() {
                 <input value={platoonIdPreview || "(auto)"} readOnly />
               </div>
             </div>
-            <div className="field">
-              <label>Photo (optional)</label>
+            <div className="modal-section">
+              <div className="modal-section__title">Photo</div>
               <div className="photo-card">
                 <div className="photo-card__preview">
                   {platoonPhotoPreviewUrl ? (
