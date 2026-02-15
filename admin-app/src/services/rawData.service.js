@@ -459,6 +459,8 @@ function normalizeAgentRecord(agent = {}) {
     depotId: agent.depotId ?? agent.depot_id ?? agent.depot ?? "",
     companyId: agent.companyId ?? agent.company_id ?? agent.company ?? "",
     platoonId: agent.platoonId ?? agent.platoon_id ?? agent.platoon ?? "",
+    uplineId: agent.uplineId ?? agent.upline_agent_id ?? agent.upline ?? "",
+    role: agent.role ?? "",
   };
 }
 
@@ -466,7 +468,7 @@ async function fetchAgentsByIds(ids = []) {
   if (!ids.length) return new Map();
   const { data, error } = await supabase
     .from("agents")
-    .select("id,name,photo_url,depot_id,company_id,platoon_id")
+    .select("id,name,photo_url,depot_id,company_id,platoon_id,upline_agent_id,role")
     .in("id", ids);
   if (error) throw error;
 
@@ -526,6 +528,11 @@ async function enrichRawDataRows(rows = []) {
       id: row.id,
       date_real: row.date_real,
       agent_id: row.agent_id,
+      depotId: agent.depotId ?? "",
+      companyId: agent.companyId ?? "",
+      platoonId: agent.platoonId ?? "",
+      uplineId: agent.uplineId ?? "",
+      role: agent.role ?? "",
       leads: row.leads ?? 0,
       payins: row.payins ?? 0,
       sales: row.sales ?? 0,
@@ -699,7 +706,7 @@ export async function getRawDataHistory({
   includeVoided = false,
 } = {}) {
   const baseSelect =
-    "id,date_real,agent_id,leads,payins,sales,leads_depot_id,sales_depot_id,voided,void_reason,voided_at,voided_by,published,agents:agents(id,name,photo_url,depot_id,company_id,platoon_id)";
+    "id,date_real,agent_id,leads,payins,sales,leads_depot_id,sales_depot_id,voided,void_reason,voided_at,voided_by,published,agents:agents(id,name,photo_url,depot_id,company_id,platoon_id,upline_agent_id,role)";
 
   try {
     let query = supabase.from("raw_data").select(baseSelect);
@@ -756,7 +763,7 @@ export async function listRawData({
 
 export async function listPublishingRows({ dateFrom, dateTo, agentId, status, limit } = {}) {
   const baseSelect =
-    "id,date_real,agent_id,leads,payins,sales,leads_depot_id,sales_depot_id,voided,void_reason,voided_at,voided_by,published,agents:agents(id,name,photo_url,depot_id,company_id,platoon_id)";
+    "id,date_real,agent_id,leads,payins,sales,leads_depot_id,sales_depot_id,voided,void_reason,voided_at,voided_by,published,agents:agents(id,name,photo_url,depot_id,company_id,platoon_id,upline_agent_id,role)";
 
   let query = supabase.from("raw_data").select(baseSelect);
 

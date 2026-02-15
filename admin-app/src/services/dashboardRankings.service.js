@@ -1,6 +1,7 @@
 import { listAgents, listPlatoons } from "./agents.service";
 import { listCompanies } from "./companies.service";
 import { listDepotsDetailed } from "./depots.service";
+import { computeTotalScore } from "./scoringEngine";
 import { supabase } from "./supabase";
 
 function normalizeMode(mode) {
@@ -9,6 +10,23 @@ function normalizeMode(mode) {
   if (key === "companies") return "companies";
   if (key === "commanders") return "commanders";
   return "leaders";
+}
+
+function normalizeLeaderRole(roleFilter) {
+  const key = String(roleFilter || "").toLowerCase();
+  if (key === "squad") return "squad";
+  if (key === "team") return "team";
+  return "platoon";
+}
+
+function resolveBattleType(mode, roleFilter) {
+  if (mode === "depots") return "depots";
+  if (mode === "commanders") return "commanders";
+  if (mode === "companies") return "teams";
+  const leaderRole = normalizeLeaderRole(roleFilter);
+  if (leaderRole === "squad") return "squads";
+  if (leaderRole === "team") return "teams";
+  return "platoons";
 }
 
 function normalizePhotoUrl(item) {
@@ -25,6 +43,32 @@ function getMergedAgent(row, agentsMap) {
 function toNumber(value) {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
+}
+
+function formatYmd(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function toIsoWeekKey(dateValue) {
+  if (!dateValue) return null;
+  const ref = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(ref.getTime())) return null;
+  const utcDate = new Date(Date.UTC(ref.getFullYear(), ref.getMonth(), ref.getDate()));
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((utcDate - yearStart) / 86400000 + 1) / 7);
+  return `${utcDate.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+}
+
+async function getActiveFormula(battleType, weekKey) {
+  const { data, error } = await supabase.rpc("get_active_scoring_formula", {
+    battle_type: battleType,
+    week_key: weekKey,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data && data.length === 0 ? null : data;
+  return row ?? null;
 }
 
 function parseFirestoreTimestampJson(ts) {
@@ -48,9 +92,24 @@ function getRowDate(row) {
   return parseFirestoreTimestampJson(row?.date);
 }
 
+function rankRows(rows = []) {
+  const sorted = [...rows].sort(
+    (a, b) =>
+      toNumber(b.points) - toNumber(a.points) ||
+      toNumber(b.sales) - toNumber(a.sales) ||
+      toNumber(b.leads) - toNumber(a.leads) ||
+      toNumber(b.payins) - toNumber(a.payins)
+  );
+  return sorted.map((row, index) => ({ ...row, rank: index + 1 }));
+}
+
 export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter } = {}) {
   const resolvedMode = normalizeMode(mode);
-  const [agents, depots, companies, platoons, rawResult] = await Promise.all([
+  const resolvedBattleType = resolveBattleType(resolvedMode, roleFilter);
+  const resolvedEndDate = dateTo || formatYmd(new Date());
+  const resolvedWeekKey = toIsoWeekKey(resolvedEndDate);
+
+  const [agents, depots, companies, platoons, rawResult, activeFormula] = await Promise.all([
     listAgents(),
     listDepotsDetailed(),
     listCompanies(),
@@ -77,10 +136,12 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
           depot_id,
           company_id,
           platoon_id,
+          upline_agent_id,
           role
         )
       `
       ),
+    getActiveFormula(resolvedBattleType, resolvedWeekKey),
   ]);
 
   if (rawResult?.error) throw rawResult.error;
@@ -91,18 +152,22 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
   const platoonsMap = new Map((platoons ?? []).map((platoon) => [String(platoon.id), platoon]));
 
   let rawRows = rawResult?.data ?? [];
-
-  if (dateFrom && dateTo) {
-    const start = new Date(`${dateFrom}T00:00:00`);
-    const end = new Date(`${dateTo}T23:59:59`);
+  if (dateFrom || dateTo) {
+    const start = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
+    const end = dateTo ? new Date(`${dateTo}T23:59:59`) : null;
     rawRows = rawRows.filter((row) => {
       const d = getRowDate(row);
-      return d && d >= start && d <= end;
+      if (!d) return false;
+      if (start && d < start) return false;
+      if (end && d > end) return false;
+      return true;
     });
   }
 
   const grouped = new Map();
   let rows = [];
+  const scoringConfig = activeFormula?.config ?? null;
+  const scoreRow = (row) => computeTotalScore(resolvedBattleType, row, scoringConfig);
 
   const leadersMode = resolvedMode === "leaders";
 
@@ -129,7 +194,6 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
           leads: 0,
           payins: 0,
           sales: 0,
-          points: 0,
         });
       }
 
@@ -152,7 +216,6 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
           leads: 0,
           payins: 0,
           sales: 0,
-          points: 0,
         });
       }
       const item = grouped.get(agentId);
@@ -174,7 +237,6 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
         leads: 0,
         payins: 0,
         sales: 0,
-        points: 0,
       };
       grouped.set(depotKey, bucket);
       return bucket;
@@ -211,7 +273,6 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
           leads: 0,
           payins: 0,
           sales: 0,
-          points: 0,
         });
       }
       const item = grouped.get(key);
@@ -235,7 +296,6 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
           leads: 0,
           payins: 0,
           sales: 0,
-          points: 0,
         });
       }
       const item = grouped.get(key);
@@ -246,13 +306,21 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
     rows = Array.from(grouped.values());
   }
 
-  const totals = rows.reduce(
+  const rankedRows = rankRows(
+    rows.map((row) => ({
+      ...row,
+      points: scoreRow(row),
+    }))
+  );
+
+  const totals = rankedRows.reduce(
     (acc, row) => {
       acc.totalLeads += toNumber(row.leads);
+      acc.totalPayins += toNumber(row.payins);
       acc.totalSales += toNumber(row.sales);
       return acc;
     },
-    { totalLeads: 0, totalSales: 0 }
+    { totalLeads: 0, totalPayins: 0, totalSales: 0 }
   );
 
   const kpis = {
@@ -260,8 +328,18 @@ export async function getDashboardRankings({ mode, dateFrom, dateTo, roleFilter 
     depotsCount: (depots ?? []).length,
     companiesCount: (companies ?? []).length,
     totalLeads: totals.totalLeads,
+    totalPayins: totals.totalPayins,
     totalSales: totals.totalSales,
   };
 
-  return { kpis, rows };
+  return {
+    kpis,
+    rows: rankedRows,
+    formula: {
+      data: activeFormula ?? null,
+      battleType: resolvedBattleType,
+      weekKey: resolvedWeekKey,
+      missing: !activeFormula,
+    },
+  };
 }

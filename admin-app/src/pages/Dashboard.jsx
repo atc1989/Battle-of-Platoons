@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import AppPagination from "../components/AppPagination";
 import "../styles/pages/dashboard.css";
+import "../styles/pages/updates.css";
 import { getDashboardRankings } from "../services/dashboardRankings.service";
+import { getRawDataHistory } from "../services/rawData.service";
+import { computeTotalScore } from "../services/scoringEngine";
 
 function UsersIcon({ size = 18 }) {
   return (
@@ -138,6 +142,68 @@ function mergeClassNames(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
+function formatPoints(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "0.0";
+  return num.toFixed(1);
+}
+
+function isBlankValue(value) {
+  return value === null || value === undefined || String(value).trim() === "";
+}
+
+function matchesDepotKey(value, selectedKey) {
+  if (selectedKey === "unassigned") return isBlankValue(value);
+  return String(value ?? "") === selectedKey;
+}
+
+function getScopedMetrics(row, { mode, selectedId }) {
+  if (mode !== "depots") {
+    return {
+      leads: Number(row?.leads ?? 0),
+      payins: Number(row?.payins ?? 0),
+      sales: Number(row?.sales ?? 0),
+    };
+  }
+
+  const selectedKey = String(selectedId ?? "");
+  const matchesLeadsDepot = matchesDepotKey(row?.leads_depot_id, selectedKey);
+  const matchesSalesDepot = matchesDepotKey(row?.sales_depot_id, selectedKey);
+
+  return {
+    leads: matchesLeadsDepot ? Number(row?.leads ?? 0) : 0,
+    payins: matchesSalesDepot ? Number(row?.payins ?? 0) : 0,
+    sales: matchesSalesDepot ? Number(row?.sales ?? 0) : 0,
+  };
+}
+
+function rowMatchesSelection(row, { mode, leaderRole, selectedId }) {
+  const selectedKey = String(selectedId ?? "");
+  if (!selectedKey) return false;
+
+  if (mode === "leaders") {
+    if (leaderRole === "platoon") {
+      if (selectedKey === "no-upline") return isBlankValue(row?.uplineId);
+      return String(row?.uplineId ?? "") === selectedKey;
+    }
+    return String(row?.agent_id ?? "") === selectedKey;
+  }
+
+  if (mode === "depots") {
+    return matchesDepotKey(row?.leads_depot_id, selectedKey) || matchesDepotKey(row?.sales_depot_id, selectedKey);
+  }
+
+  if (mode === "commanders") {
+    return String(row?.companyId ?? "") === selectedKey;
+  }
+
+  if (mode === "companies") {
+    return String(row?.platoonId ?? "") === selectedKey;
+  }
+
+  return false;
+}
+
 function normalizePodiumItems(topItems = []) {
   const cleaned = (topItems || []).filter(Boolean);
   const byRank = new Map();
@@ -195,7 +261,6 @@ function Podium({ top3, onSelect, selectedId }) {
           rank === 2 && "podium-rank-number--silver",
           rank === 3 && "podium-rank-number--orange"
         );
-        const showPoints = Number.isFinite(item?.points) && item.points !== 0;
 
         return (
           <button
@@ -218,12 +283,8 @@ function Podium({ top3, onSelect, selectedId }) {
             </div>
             <div className={cardClass}>
               <div className="podium-name">{item.name}</div>
-              {showPoints && (
-                <>
-                  <div className="podium-points">{Number(item.points || 0).toFixed(1)}</div>
-                  <div className="podium-points-label">points</div>
-                </>
-              )}
+              <div className="podium-points">{formatPoints(item?.points)}</div>
+              <div className="podium-points-label">points</div>
               <div className="podium-stats-row">
                 <div className="podium-stat">
                   <div className="podium-stat__value">{formatNumber(item.leads ?? 0)}</div>
@@ -250,12 +311,17 @@ export default function Dashboard() {
   const [mode, setMode] = useState("leaders");
   const [dateFrom, setDateFrom] = useState(() => formatYmd(getDefaultStartDate()));
   const [dateTo, setDateTo] = useState(() => formatYmd(new Date()));
-  const [data, setData] = useState({ kpis: {}, rows: [] });
+  const [data, setData] = useState({ kpis: {}, rows: [], formula: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
   const [leaderRole, setLeaderRole] = useState("platoon");
+  const [historyRows, setHistoryRows] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_ROWS_PER_PAGE = 10;
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -267,7 +333,7 @@ export default function Dashboard() {
         dateTo: dateTo || undefined,
         roleFilter: mode === "leaders" ? leaderRole : null,
       });
-      setData(result ?? { kpis: {}, rows: [] });
+      setData(result ?? { kpis: {}, rows: [], formula: null });
       setLastUpdatedAt(new Date());
     } catch (err) {
       setError(err?.message || "Failed to load dashboard.");
@@ -283,16 +349,18 @@ export default function Dashboard() {
   const sortedRows = useMemo(() => {
     const rows = Array.isArray(data?.rows) ? data.rows : [];
     return [...rows].sort((a, b) => {
-      const salesDiff = Number(b?.sales || 0) - Number(a?.sales || 0);
-      if (salesDiff !== 0) return salesDiff;
-      return Number(b?.leads || 0) - Number(a?.leads || 0);
+      const rankDiff = Number(a?.rank || 0) - Number(b?.rank || 0);
+      if (rankDiff !== 0) return rankDiff;
+      return (
+        Number(b?.points || 0) - Number(a?.points || 0) ||
+        Number(b?.sales || 0) - Number(a?.sales || 0) ||
+        Number(b?.leads || 0) - Number(a?.leads || 0) ||
+        Number(b?.payins || 0) - Number(a?.payins || 0)
+      );
     });
   }, [data]);
 
-  const topThree = sortedRows.slice(0, 3).map((row, index) => ({
-    ...row,
-    rank: index + 1,
-  }));
+  const topThree = sortedRows.slice(0, 3);
   const topTen = sortedRows.slice(3, 13);
   const hasRows = sortedRows.length > 0;
 
@@ -324,6 +392,97 @@ export default function Dashboard() {
     const match = presets.find((preset) => preset.from === dateFrom && preset.to === dateTo);
     return match ? match.key : "";
   }, [presets, dateFrom, dateTo]);
+
+  useEffect(() => {
+    if (!selectedRow?.id) return;
+    const match = sortedRows.find((row) => String(row?.id ?? "") === String(selectedRow.id));
+    if (!match) {
+      setSelectedRow(null);
+      return;
+    }
+    setSelectedRow(match);
+  }, [sortedRows, selectedRow?.id]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [selectedRow?.id, mode, leaderRole, dateFrom, dateTo]);
+
+  useEffect(() => {
+    const selectedId = selectedRow?.id;
+    if (!selectedId) {
+      setHistoryRows([]);
+      setHistoryError("");
+      setHistoryLoading(false);
+      return;
+    }
+
+    const isCancelled = { current: false };
+    const loadHistory = async () => {
+      setHistoryLoading(true);
+      setHistoryError("");
+      try {
+        const historyResult = await getRawDataHistory({
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
+          // Server-side leader filter is only safe for individual leader modes.
+          agentId: mode === "leaders" && leaderRole !== "platoon" ? selectedId : undefined,
+          includeVoided: true,
+          limit: 2000,
+        });
+
+        if (isCancelled.current) return;
+
+        const filtered = (historyResult ?? []).filter((row) =>
+          rowMatchesSelection(row, { mode, leaderRole, selectedId })
+        );
+
+        const scoringConfig = data?.formula?.data?.config ?? null;
+        const battleType = data?.formula?.battleType ?? "platoons";
+        const withPoints = filtered.map((row) => {
+          const scoped = getScopedMetrics(row, { mode, selectedId });
+          return {
+            ...row,
+            leads: scoped.leads,
+            payins: scoped.payins,
+            sales: scoped.sales,
+            points: computeTotalScore(battleType, scoped, scoringConfig),
+          };
+        });
+
+        withPoints.sort((a, b) => {
+          const aDate = new Date(`${a?.date_real ?? ""}T00:00:00`).getTime() || 0;
+          const bDate = new Date(`${b?.date_real ?? ""}T00:00:00`).getTime() || 0;
+          if (aDate !== bDate) return bDate - aDate;
+          return String(b?.id ?? "").localeCompare(String(a?.id ?? ""));
+        });
+
+        setHistoryRows(withPoints);
+      } catch (err) {
+        if (isCancelled.current) return;
+        setHistoryRows([]);
+        setHistoryError(err?.message || "Failed to load selected participant history.");
+      } finally {
+        if (!isCancelled.current) setHistoryLoading(false);
+      }
+    };
+
+    loadHistory();
+    return () => {
+      isCancelled.current = true;
+    };
+  }, [selectedRow?.id, mode, leaderRole, dateFrom, dateTo, data?.formula?.battleType, data?.formula?.data]);
+
+  const historyPageCount = Math.max(1, Math.ceil(historyRows.length / HISTORY_ROWS_PER_PAGE));
+  useEffect(() => {
+    if (historyPage > historyPageCount) {
+      setHistoryPage(historyPageCount);
+    }
+  }, [historyPage, historyPageCount]);
+
+  const pagedHistoryRows = useMemo(() => {
+    const start = (historyPage - 1) * HISTORY_ROWS_PER_PAGE;
+    return historyRows.slice(start, start + HISTORY_ROWS_PER_PAGE);
+  }, [historyRows, historyPage, HISTORY_ROWS_PER_PAGE]);
 
   const handleSelectRow = (row) => {
     setSelectedRow(row);
@@ -484,12 +643,13 @@ export default function Dashboard() {
                     <th>Leads</th>
                     <th>Payins</th>
                     <th>Sales</th>
+                    <th>Points</th>
                   </tr>
                 </thead>
                 <tbody>
                   {topTen.length === 0 && !loading ? (
                     <tr>
-                      <td colSpan={5} className="muted">
+                      <td colSpan={6} className="muted">
                         No data available for the selected range.
                       </td>
                     </tr>
@@ -500,11 +660,12 @@ export default function Dashboard() {
                         className={selectedRow?.id === row?.id ? "is-selected" : ""}
                         onClick={() => handleSelectRow(row)}
                       >
-                        <td>#{index + 4}</td>
+                        <td>#{row?.rank ?? index + 4}</td>
                         <td>{row?.name || "Unknown"}</td>
                         <td>{formatNumber(row?.leads)}</td>
                         <td>{formatNumber(row?.payins)}</td>
                         <td>{formatCurrency(row?.sales)}</td>
+                        <td>{formatPoints(row?.points)}</td>
                       </tr>
                     ))
                   )}
@@ -515,35 +676,109 @@ export default function Dashboard() {
         </div>
 
         {selectedRow && (
-          <div className="dashboard-detail">
-            <div>
-            <div className="dashboard-detail__title">
-              Selected{" "}
-              {mode === "leaders"
-                ? "Leader"
-                : mode === "depots"
-                ? "Depot"
-                : mode === "commanders"
-                ? "Commander"
-                : "Company"}
-            </div>
-              <div className="dashboard-detail__name">{selectedRow?.name || "Unknown"}</div>
-            </div>
-            <div className="dashboard-detail__metrics">
+          <>
+            <div className="dashboard-detail">
               <div>
-                <div className="dashboard-detail__label">Leads</div>
-                <div className="dashboard-detail__value">{formatNumber(selectedRow?.leads)}</div>
+                <div className="dashboard-detail__title">
+                  Selected{" "}
+                  {mode === "leaders"
+                    ? "Leader"
+                    : mode === "depots"
+                    ? "Depot"
+                    : mode === "commanders"
+                    ? "Commander"
+                    : "Company"}
+                </div>
+                <div className="dashboard-detail__name">{selectedRow?.name || "Unknown"}</div>
               </div>
-              <div>
-                <div className="dashboard-detail__label">Payins</div>
-                <div className="dashboard-detail__value">{formatNumber(selectedRow?.payins)}</div>
-              </div>
-              <div>
-                <div className="dashboard-detail__label">Sales</div>
-                <div className="dashboard-detail__value">{formatCurrency(selectedRow?.sales)}</div>
+              <div className="dashboard-detail__metrics">
+                <div>
+                  <div className="dashboard-detail__label">Leads</div>
+                  <div className="dashboard-detail__value">{formatNumber(selectedRow?.leads)}</div>
+                </div>
+                <div>
+                  <div className="dashboard-detail__label">Payins</div>
+                  <div className="dashboard-detail__value">{formatNumber(selectedRow?.payins)}</div>
+                </div>
+                <div>
+                  <div className="dashboard-detail__label">Sales</div>
+                  <div className="dashboard-detail__value">{formatCurrency(selectedRow?.sales)}</div>
+                </div>
+                <div>
+                  <div className="dashboard-detail__label">Points</div>
+                  <div className="dashboard-detail__value">{formatPoints(selectedRow?.points)}</div>
+                </div>
               </div>
             </div>
-          </div>
+
+            <div className="card dashboard-panel dashboard-history">
+              <div className="dashboard-panel__title">Selected Participant History</div>
+              <div className="muted">
+                Date range: {dateFrom || "Any"} to {dateTo || "Any"}
+              </div>
+
+              {historyError ? <div className="dashboard-error">{historyError}</div> : null}
+
+              <div className="table-scroll updates-table-wrap">
+                <table className="updates-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Leader</th>
+                      <th>Leads Depot</th>
+                      <th className="num">Leads</th>
+                      <th>Sales Depot</th>
+                      <th className="num">Payins</th>
+                      <th className="num">Sales</th>
+                      <th className="num">Points</th>
+                      <th className="center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedHistoryRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.date_real}</td>
+                        <td>{row.leaderName || "(Restricted)"}</td>
+                        <td>{row.leadsDepotName || "-"}</td>
+                        <td className="num">{formatNumber(row.leads)}</td>
+                        <td>{row.salesDepotName || "-"}</td>
+                        <td className="num">{formatNumber(row.payins)}</td>
+                        <td className="num">{formatCurrency(row.sales)}</td>
+                        <td className="num">{formatPoints(row.points)}</td>
+                        <td className="center">
+                          <span className={`status-pill ${row.voided ? "invalid" : "muted"}`}>
+                            {row.voided ? "Voided" : "Active"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {historyLoading ? (
+                      <tr>
+                        <td colSpan={9} className="muted" style={{ textAlign: "center", padding: 16 }}>
+                          Loading history...
+                        </td>
+                      </tr>
+                    ) : null}
+                    {!historyLoading && !historyRows.length ? (
+                      <tr>
+                        <td colSpan={9} className="muted" style={{ textAlign: "center", padding: 16 }}>
+                          No history for the selected participant and date range.
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+
+              <AppPagination
+                count={historyPageCount}
+                page={historyPage}
+                onChange={setHistoryPage}
+                totalItems={historyRows.length}
+                pageSize={HISTORY_ROWS_PER_PAGE}
+              />
+            </div>
+          </>
         )}
       </div>
     </div>
