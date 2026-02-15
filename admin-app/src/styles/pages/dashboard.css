@@ -973,17 +973,23 @@
   border: 1px solid #eef1ff;
   border-radius: 12px;
   background: #fafbff;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(180px, auto) 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
+}
+
+.dashboard-history__identity{
+  min-width: 0;
 }
 
 .dashboard-history__range{
-  margin-top: 4px;
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
+  justify-self: center;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .dashboard-history__range .dashboard-detail__label{
@@ -1013,10 +1019,6 @@
 
 .dashboard-history .dashboard-detail__metrics > div{
   text-align: center;
-}
-
-.dashboard-history .dashboard-detail__metrics .dashboard-detail__label{
-  color: var(--blue);
 }
 
 .dashboard-history .dashboard-detail__metrics .dashboard-detail__value{
@@ -1072,8 +1074,14 @@
   }
 
   .dashboard-history__summary{
-    flex-direction: column;
+    grid-template-columns: 1fr;
     align-items: flex-start;
+    gap: 10px;
+  }
+
+  .dashboard-history__range{
+    justify-self: start;
+    text-align: left;
   }
 
   .dashboard-detail__metrics{

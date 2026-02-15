@@ -712,17 +712,17 @@ export default function Dashboard() {
           <>
             <div className="card dashboard-panel dashboard-history">
               <div className="dashboard-history__summary">
-                <div>
+                <div className="dashboard-history__identity">
                   <div className="dashboard-detail__title">
                     Selected {selectedEntityLabel}
                   </div>
                   <div className="dashboard-detail__name">{selectedRow?.name || "Unknown"}</div>
-                  <div className="dashboard-history__range">
-                    <span className="dashboard-detail__label">Date range</span>
-                    <span className="dashboard-detail__value">
-                      {dateFrom || "Any"} to {dateTo || "Any"}
-                    </span>
-                  </div>
+                </div>
+                <div className="dashboard-history__range">
+                  <span className="dashboard-detail__label">Date range</span>
+                  <span className="dashboard-detail__value">
+                    {dateFrom || "Any"} to {dateTo || "Any"}
+                  </span>
                 </div>
                 <div className="dashboard-detail__metrics">
                   <div>
